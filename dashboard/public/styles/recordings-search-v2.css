@@ -1,0 +1,112 @@
+/* ============================================================================
+   Recordings search — "Suggested filters" rows (additive)
+
+   ADDITIVE, not a rewrite. The search SHELL — the field, its backdrop blur,
+   box-shadow, the dropdown position, the ↑↓/↵/tab affordances — is the approved
+   `.rv-srch*` / `.rv-ac*` system in recordings-v2.css (frozen) and is untouched.
+   This file only styles the ONE new thing: the Stripe-style suggested-filters
+   list that now leads the empty state so the search grammar is legible without
+   typing a key first. Every selector is scoped to `.rv-sug`, so nothing here
+   can reach any other row. Loaded after recordings-v2.css so it composes on top.
+   ========================================================================== */
+
+/* A suggested-filter row: [key:] chip · example value · right-aligned meaning.
+   One line, mirroring the reference — the 360px dropdown (it floats over the
+   player, wider than the 272px rail) has room once the example drops the
+   redundant key the chip already shows. */
+.rv-ac-item.rv-sug {
+  gap:var(--sp-8);
+  /* Center the chip, example value and description on the row's cross-axis —
+     baseline left the two text spans sitting above the vertically-centered chip.
+     (The redundant `align-self:center` on .rv-sug-chip is now a no-op.) */
+  align-items: center;
+  padding:var(--sp-8) var(--sp-10);
+}
+
+/* The tappable token. A hairline mono pill so the syntax reads as syntax —
+   the same "this is a filter key" cue the applied chips use, quieter. */
+.rv-sug-chip {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  line-height:var(--lh-normal);
+  color: var(--rv-mut);
+  background: var(--surface);
+  border: 1px solid var(--rv-line);
+  border-radius:var(--r-xs);
+  padding:var(--sp-2) var(--sp-6);
+  align-self: center;
+}
+
+/* The worked value. Mono + muted, truncates first (it's the flexible column) so
+   a long email never pushes the meaning off the row. */
+.rv-sug-ex {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size:var(--text-xs);
+  color: var(--rv-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The meaning — the educational payload, right-aligned like the reference.
+   Held to the right, capped, and ellipsised so it and the example never fight
+   for the same pixels. */
+.rv-sug-desc {
+  flex-shrink: 0;
+  max-width: 52%;
+  font-size:var(--text-xs);
+  color: var(--rv-mut);
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* On keyboard focus / hover the whole row lifts one step: the chip gains the
+   accent so it reads as "press this to enter the filter", matching the intent
+   of the applied filter chips. */
+.rv-ac-item.rv-sug.on .rv-sug-chip,
+.rv-ac-item.rv-sug:hover .rv-sug-chip {
+  color: var(--rv-acc);
+  border-color: rgba(91, 92, 235, 0.35);
+}
+.rv-ac-item.rv-sug.on .rv-sug-ex,
+.rv-ac-item.rv-sug:hover .rv-sug-ex {
+  color: var(--rv-mut);
+}
+
+/* ---------- Applied-token value: cap long emails in the narrow rail ----------
+   `.rv-fl .vv` had no width bound, so a long identified-user email
+   (user4@demo-co.example) stretched the chip toward the field edge and read as
+   "too much space". Cap it and ellipsise; the `title` (in the markup) keeps the
+   full value reachable, and clicking still opens the inline editor with the
+   whole string. `inline-block` is what lets text-overflow apply on a button. */
+.rv-fl .vv {
+  display: inline-block;
+  max-width: 168px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+/* ---------- Dropdown footer: pin it so it survives a scroll -----------------
+   `.rv-ac-foot` (↑↓ navigate · ↵ apply · tab · esc) lived inside the scrolling
+   `.rv-ac` panel, so a long suggested + saved + recents list scrolled the hint
+   row off the bottom. Sticky-pin it to the panel floor with an opaque backdrop
+   so content slides UNDER it and the affordances stay put.
+   `bottom: -5px` cancels the panel's own 5px bottom padding so it sits flush;
+   the negative side margins + restored padding let the opaque strip bleed to
+   the panel's inner edges rather than leaving a scrolling sliver at the sides. */
+.rv-ac-foot {
+  position: sticky;
+  bottom: -5px;
+  z-index: 2;
+  margin:var(--sp-6) -5px -5px;
+  padding:var(--sp-8) var(--sp-16) var(--sp-10);
+  background: var(--surface);
+}

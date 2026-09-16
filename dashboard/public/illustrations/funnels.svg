@@ -1,0 +1,233 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-funnels">
+  <title id="title-funnels">Funnels — see where users convert and where they drop off</title>
+  <!-- Replayfy Illustration System · 02 Funnels · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="fun-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E9EEFA" stop-opacity="0.7"/>
+      <stop offset="0.7" stop-color="#EDF1FA" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#EDF1FA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="fun-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="fun-col-1" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <linearGradient id="fun-col-2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8FB0FF"/>
+      <stop offset="1" stop-color="#6485F5"/>
+    </linearGradient>
+    <linearGradient id="fun-col-3" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#AEC4FF"/>
+      <stop offset="1" stop-color="#8AA5F9"/>
+    </linearGradient>
+    <linearGradient id="fun-col-4" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5ECFA2"/>
+      <stop offset="1" stop-color="#34B67F"/>
+    </linearGradient>
+    <linearGradient id="fun-cat-indigo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7E8BFA"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <linearGradient id="fun-cat-sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4CD96"/>
+      <stop offset="1" stop-color="#E8AF66"/>
+    </linearGradient>
+    <path id="fun-ear" d="M -16 14 Q -20 17 -17.5 10 L -4.5 -14 Q 0 -21 4.5 -14 L 17.5 10 Q 20 17 16 14 Q 0 7 -16 14 Z"/>
+    <radialGradient id="fun-soft-indigo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#EDEFFF" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#EDEFFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#EDEFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="fun-soft-sand" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FCEFDD" stop-opacity="0.97"/>
+      <stop offset="0.7" stop-color="#FCEFDD" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FCEFDD" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="background">
+    <ellipse cx="400" cy="330" rx="380" ry="262" fill="url(#fun-glow)"/>
+    <g id="ambient-marks" stroke-linecap="round">
+      <circle cx="92" cy="142" r="5" stroke="#C8D2ED" stroke-width="2.5"/>
+      <path d="M722 130v14M715 137h14" stroke="#D5CBF7" stroke-width="2.5"/>
+      <circle cx="756" cy="292" r="4" fill="#CBE8DC"/>
+      <circle cx="72" cy="348" r="3.5" fill="#D9E2F5"/>
+      <circle cx="368" cy="128" r="4.5" stroke="#D7DEF0" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <g id="ground-shadows">
+    <ellipse cx="199" cy="476" rx="58" ry="9" fill="url(#fun-shadow)"/>
+    <ellipse cx="333" cy="476" rx="58" ry="9" fill="url(#fun-shadow)"/>
+    <ellipse cx="467" cy="476" rx="58" ry="9" fill="url(#fun-shadow)"/>
+    <ellipse cx="601" cy="476" rx="58" ry="9" fill="url(#fun-shadow)"/>
+    <ellipse cx="704" cy="482" rx="82" ry="12" fill="url(#fun-shadow)"/>
+  </g>
+
+  <g id="cat-peek" aria-label="Cat peeking from behind the first funnel stage">
+    <g transform="translate(153 408)">
+      <g transform="translate(-33 -45) rotate(-26)">
+        <use href="#fun-ear" fill="#EFBB80"/>
+        <use href="#fun-ear" fill="#F7C1A6" transform="translate(0 -1.5) scale(0.52)"/>
+      </g>
+      <g transform="translate(33 -45) rotate(26)">
+        <use href="#fun-ear" fill="#EFBB80"/>
+      </g>
+      <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 30 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#fun-cat-sand)"/>
+      <g id="peek-face" transform="translate(-10 -2)">
+        <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#fun-soft-sand)"/>
+        <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+        <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+        <circle cx="-15" cy="-10" r="3" fill="#FFFFFF"/>
+        <circle cx="23" cy="-10" r="3" fill="#FFFFFF"/>
+        <circle cx="-21" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+        <circle cx="17" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+        <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#8A6A3F"/>
+        <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#8A6A3F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+        <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.35"/>
+        <g stroke="#C98F4B" stroke-width="1.5" stroke-linecap="round" opacity="0.45">
+          <path d="M-33 6 L -50 2"/>
+          <path d="M-33 12 L -49 12"/>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <g id="funnel">
+    <g id="stage-1">
+      <rect x="153" y="220" width="92" height="250" rx="14" fill="url(#fun-col-1)"/>
+      <rect x="161" y="227" width="76" height="9" rx="4.5" fill="#FFFFFF" opacity="0.16"/>
+      <g id="chip-1">
+        <rect x="170" y="168" width="58" height="26" rx="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <rect x="184" y="177" width="30" height="8" rx="4" fill="#C9D3E6"/>
+      </g>
+    </g>
+    <g id="stage-2">
+      <rect x="287" y="280" width="92" height="190" rx="14" fill="url(#fun-col-2)"/>
+      <rect x="295" y="287" width="76" height="9" rx="4.5" fill="#FFFFFF" opacity="0.16"/>
+      <g id="chip-2">
+        <rect x="304" y="228" width="58" height="26" rx="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <rect x="318" y="237" width="30" height="8" rx="4" fill="#C9D3E6"/>
+      </g>
+    </g>
+    <g id="stage-3">
+      <rect x="421" y="330" width="92" height="140" rx="14" fill="url(#fun-col-3)"/>
+      <rect x="429" y="337" width="76" height="9" rx="4.5" fill="#FFFFFF" opacity="0.16"/>
+      <g id="chip-3">
+        <rect x="438" y="278" width="58" height="26" rx="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <rect x="452" y="287" width="30" height="8" rx="4" fill="#C9D3E6"/>
+      </g>
+    </g>
+    <g id="stage-4">
+      <rect x="555" y="365" width="92" height="105" rx="14" fill="url(#fun-col-4)"/>
+      <rect x="563" y="372" width="76" height="9" rx="4.5" fill="#FFFFFF" opacity="0.16"/>
+      <g id="chip-4">
+        <rect x="566" y="313" width="70" height="26" rx="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <circle cx="582" cy="326" r="8" fill="#3FBF89"/>
+        <path d="M578.4 326l2.6 2.6 4.6-5" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <rect x="596" y="322" width="26" height="8" rx="4" fill="#C9D3E6"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="peek-paw">
+    <rect x="146" y="398" width="14" height="26" rx="7" fill="#FCEFDD"/>
+    <path d="M150 416v4M155 416v4" stroke="#E3C49B" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+
+  <g id="user-flow">
+    <g id="stream">
+      <circle cx="128" cy="196" r="4.5" fill="#7E8BFA"/>
+      <circle cx="156" cy="199" r="4.5" fill="#F0BE7E"/>
+      <circle cx="184" cy="204" r="4.5" fill="#8FD7BA"/>
+      <circle cx="212" cy="211" r="4.5" fill="#B9C4DC"/>
+      <circle cx="240" cy="222" r="4.5" fill="#B9A6F5"/>
+      <circle cx="268" cy="235" r="4.5" fill="#7E8BFA"/>
+      <circle cx="296" cy="248" r="4.5" fill="#F0BE7E"/>
+      <circle cx="324" cy="262" r="4.5" fill="#8FD7BA"/>
+      <circle cx="352" cy="271" r="4.5" fill="#B9C4DC"/>
+      <circle cx="380" cy="283" r="4.5" fill="#7E8BFA"/>
+      <circle cx="408" cy="296" r="4.5" fill="#B9A6F5"/>
+      <circle cx="437" cy="311" r="4.5" fill="#F0BE7E"/>
+      <circle cx="464" cy="317" r="4.5" fill="#7E8BFA"/>
+      <circle cx="492" cy="328" r="4.5" fill="#8FD7BA"/>
+      <circle cx="520" cy="338" r="4.5" fill="#B9C4DC"/>
+      <circle cx="548" cy="347" r="4.5" fill="#B9A6F5"/>
+      <circle cx="576" cy="354" r="4.5" fill="#7E8BFA"/>
+      <circle cx="604" cy="352" r="4.5" fill="#F0BE7E"/>
+      <circle cx="626" cy="349" r="4.5" fill="#8FD7BA"/>
+    </g>
+    <g id="drop-off">
+      <path d="M362 274 C 384 296 398 330 406 398" stroke="#D9A6B4" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 8" opacity="0.6"/>
+      <circle cx="382" cy="300" r="4.5" fill="#B9C4DC" opacity="0.7"/>
+      <circle cx="394" cy="330" r="4.5" fill="#F0708A" opacity="0.5"/>
+      <circle cx="401" cy="362" r="4.5" fill="#B9C4DC" opacity="0.35"/>
+      <circle cx="405" cy="394" r="4.5" fill="#B9A6F5" opacity="0.2"/>
+    </g>
+  </g>
+
+  <g id="cat-hero" aria-label="Cat welcoming converted users">
+    <g transform="translate(704 344) rotate(-2)">
+      <g id="hero-tail">
+        <path d="M32 106 C 66 116 88 106 92 82 C 94.5 68 82 64 79 76 C 76 90 62 98 36 94 Z" fill="#5F6CEC"/>
+        <circle cx="86.5" cy="72" r="7" fill="#EDEFFF"/>
+      </g>
+      <g id="hero-ears">
+        <g transform="translate(-33 -45) rotate(-26)">
+          <use href="#fun-ear" fill="#6874F0"/>
+          <use href="#fun-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g transform="translate(33 -45) rotate(26)">
+          <use href="#fun-ear" fill="#6874F0"/>
+          <use href="#fun-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="hero-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#fun-cat-indigo)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#4A55CF" opacity="0.1"/>
+        <ellipse cx="2" cy="94" rx="15" ry="21" fill="url(#fun-soft-indigo)"/>
+        <rect x="7" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+        <path d="M13 125v5M19 125v5" stroke="#C9CDF4" stroke-width="1.6" stroke-linecap="round"/>
+        <g id="hero-arm">
+          <rect x="-46.5" y="35" width="17" height="54" rx="8.5" transform="rotate(-31 -38 62)" fill="url(#fun-cat-indigo)"/>
+          <circle cx="-52" cy="36" r="8" fill="#EDEFFF"/>
+        </g>
+      </g>
+      <g id="hero-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 30 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#fun-cat-indigo)"/>
+        <g id="hero-face" transform="translate(-7 -6)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#fun-soft-indigo)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-21" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="17" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="-14.5" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="24.5" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#3A3F5F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#3A3F5F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <g stroke="#4A55CF" stroke-width="1.5" stroke-linecap="round" opacity="0.4">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+      <g id="held-user">
+        <circle cx="-58" cy="8" r="7" fill="#8FD7BA" stroke="#34B67F" stroke-width="2"/>
+        <g stroke="#7BC9A8" stroke-width="1.8" stroke-linecap="round">
+          <path d="M-72 -2 l-4 -4"/>
+          <path d="M-58 -8 v-6"/>
+          <path d="M-44 -2 l4 -4"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

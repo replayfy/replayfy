@@ -1,0 +1,1020 @@
+/* ============================================================================
+   signals-workspace.css — the Signals investigation workspace.
+
+   Owner-directed redesign, deliberately kept in its OWN stylesheet: every rule
+   here is namespaced under .sigw*, so it cannot reach any other surface and the
+   8 approved stylesheets stay byte-for-byte. Delete this file + its <link> and
+   the app returns exactly to its previous appearance.
+
+   The workspace is ONE surface containing two sibling panels — signals (left)
+   and investigation (right). They share the same radius, elevation and spacing
+   system; the only visual distinction is the investigation panel's brighter
+   background (--surface vs --panel), so the whole thing still reads as one
+   continuous workspace rather than a drawer stacked on a drawer.
+   ========================================================================== */
+
+/* ---- opt out of the page's drawer-open frost --------------------------- */
+/* While a drawer is open the page frosts its OWN content and exempts the legacy
+   drawer root:  .ox-page.ox-blurred > *:not(.rv-sd-root) { filter: blur(2.5px) }
+   This workspace is a sibling of that content and carries no .rv-sd-root, so it
+   was being blurred along with the background it sits above — the drawer the
+   user is reading came out out-of-focus. Opt out explicitly rather than borrow
+   .rv-sd-root, whose own layout/positioning rules we don't want. Matching
+   specificity (0,3,0), and this sheet loads last, so it wins. */
+.ox-page.ox-blurred > .sigw,
+.ox-page.ox-blurred > .sigw-backdrop,
+.v3.v3-blurred > .sigw,
+.v3.v3-blurred > .sigw-backdrop,
+.co-frost > .sigw,
+.co-frost > .sigw-backdrop {
+  filter: none;
+  pointer-events: auto;
+}
+
+/* ---- shell ------------------------------------------------------------- */
+.sigw-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(12, 13, 17, 0.1);
+}
+.sigw {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  display: flex;
+  overflow: hidden;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  box-shadow:
+    -1px 0 0 rgb(17 17 20 / 0.03),
+    -24px 0 60px rgb(17 17 20 / 0.13),
+    -8px 0 22px rgb(17 17 20 / 0.07);
+}
+
+/* the two sibling panels */
+.sigw-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: 100%;
+}
+.sigw-signals {
+  flex: 0 0 auto;
+  background: var(--panel);
+}
+.sigw-detail {
+  flex: 1 1 auto;
+  background: var(--surface);
+  border-left: 1px solid var(--line);
+}
+
+/* ---- shared head / body rhythm ----------------------------------------- */
+.sigw-head {
+  display: flex;
+  align-items: flex-start;
+  gap:var(--sp-12);
+  flex-shrink: 0;
+  padding:var(--sp-20) var(--sp-20) var(--sp-14);
+}
+.sigw-head-main {
+  min-width: 0;
+  flex: 1;
+}
+.sigw-head-t {
+  font-size:var(--text-md);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.24px;
+  line-height:var(--lh-tight);
+  color: var(--text);
+}
+.sigw-head-s {
+  margin-top:var(--sp-4);
+  font-size:var(--text-xs);
+  line-height:var(--lh-cozy);
+  color: var(--t3);
+}
+.sigw-x {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  margin:-3px -4px 0 0;
+  border-radius:var(--r-sm);
+  color: var(--t3);
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+}
+.sigw-x:hover {
+  background: rgb(17 17 20 / 0.05);
+  color: var(--text);
+}
+.sigw-body {
+  flex: 1;
+  overflow-y: auto;
+  padding:var(--sp-4) var(--sp-12) var(--sp-20);
+}
+.sigw-foot {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-10);
+  flex-shrink: 0;
+  padding:var(--sp-12) var(--sp-20);
+  border-top: 1px solid var(--line-2);
+}
+.sigw-foot-note {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  font-size:var(--text-xs);
+  color: var(--t3);
+}
+
+/* ---- header composition ------------------------------------------------ */
+/* The header states the product's condition, not just a count. */
+.sigw-comp {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap:var(--sp-4) var(--sp-12);
+  margin-top:var(--sp-8);
+}
+.sigw-comp-i {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  font-size:var(--text-xs);
+  color: var(--t2);
+}
+.sigw-comp-i b {
+  font-family: var(--mono);
+  font-size:var(--text-sm);
+  font-weight:var(--fw-semibold);
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+}
+
+/* ---- severity grouping ------------------------------------------------- */
+/* The list is partitioned by severity so triage order is the
+   reading order, and the eye never has to parse a title to rank it. */
+.sigw-group + .sigw-group { margin-top:var(--sp-18); }
+.sigw-group-h {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-8);
+  padding:0 var(--sp-14) var(--sp-8);
+}
+.sigw-group-t {
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--t2);
+}
+.sigw-group-n {
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  font-feature-settings: "tnum" 1;
+  color: var(--t4);
+}
+.sigw-group-rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line-2);
+}
+
+/* the severity pip — one glance, no reading */
+.sigw-pip {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius:50%;
+}
+.sigw-pip.sev-bad { background: var(--red); }
+.sigw-pip.sev-warn { background: var(--amber); }
+.sigw-pip.sev-good { background: var(--green); }
+.sigw-pip.sev-info { background: var(--blue); }
+
+/* ---- a signal row (inbox, not a card) ---------------------------------- */
+/* No rounded card, no elevation: a hairline between siblings and a quiet hover
+   wash, the way an issue list reads. Depth comes from the type scale. */
+.sigw-row {
+  position: relative;
+  width: 100%;
+  padding:var(--sp-12) var(--sp-14) var(--sp-12);
+  text-align: left;
+  cursor: pointer;
+  border-top: 1px solid var(--line-2);
+  transition: background 0.12s var(--ease);
+}
+.sigw-group .sigw-row:first-of-type { border-top: none; }
+.sigw-row:hover { background: var(--panel); }
+.sigw-detail-open .sigw-row:hover { background: var(--panel); }
+.sigw-row.is-sel { background: var(--accent-tint); }
+/* selected gets a left marker rather than a card outline */
+.sigw-row.is-sel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--accent);
+}
+
+/* line 1 — severity pip + headline + the action that owns the row */
+.sigw-t-row {
+  display: flex;
+  align-items: baseline;
+  gap:var(--sp-8);
+}
+.sigw-t-row .sigw-pip { transform: translateY(-1px); }
+.sigw-t {
+  flex: 1;
+  min-width: 0;
+  font-size:var(--text-base);
+  font-weight:var(--fw-semibold);
+  line-height:var(--lh-cozy);
+  letter-spacing: -0.1px;
+  color: var(--text);
+}
+
+/* line 2 — one explaining sentence; anything after it recedes */
+.sigw-d {
+  margin-top:var(--sp-4);
+  padding-left:var(--sp-14);
+  font-size:var(--text-xs);
+  line-height:var(--lh-body);
+  color: var(--t2);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sigw-d .rest { color: var(--t3); }
+
+/* line 3 — the metadata band, deliberately its own level */
+.sigw-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap:var(--sp-6) var(--sp-10);
+  margin-top:var(--sp-8);
+  padding-left:var(--sp-14);
+}
+.sigw-spacer { flex: 1; }
+
+/* confidence reads as a measurement: a real meter + the number + its word */
+.sigw-conf {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  font-size:var(--text-xs);
+  color: var(--t3);
+}
+.sigw-conf .meter {
+  width: 42px;
+  height: 5px;
+  overflow: hidden;
+  border-radius:var(--r-2xs);
+  background: var(--line-2);
+}
+.sigw-conf .meter > i {
+  display: block;
+  height: 100%;
+  border-radius:var(--r-2xs);
+  background: var(--t4);
+}
+.sigw-conf b {
+  font-family: var(--mono);
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+}
+.sigw-conf.hi .meter > i { background: var(--green); }
+.sigw-conf.md .meter > i { background: var(--amber); }
+
+/* metadata is typed — a release, a code locus and a time are not the same
+   thing and must not look the same */
+.sigw-badge {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-4);
+  padding:var(--sp-2) var(--sp-8);
+  border-radius:var(--r-xs);
+  font-size:var(--text-2xs);
+  white-space: nowrap;
+}
+/* a release/deploy — the thing you roll back */
+.sigw-badge.rel {
+  font-family: var(--mono);
+  color: var(--hue-violet);
+  background: rgba(139, 114, 214, 0.09);
+}
+/* a code locus (endpoint / screen / element) — reads as code */
+.sigw-badge.code {
+  font-family: var(--mono);
+  color: var(--t2);
+  background: var(--line-2);
+}
+/* a plain classification */
+.sigw-badge.plain {
+  color: var(--t3);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+/* actively recurring right now */
+.sigw-badge.live {
+  color: var(--accent);
+  background: var(--accent-weak);
+}
+.sigw-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap:var(--sp-4);
+  font-size:var(--text-xs);
+  color: var(--t3);
+}
+.sigw-stat b {
+  font-family: var(--mono);
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+}
+.sigw-stat.up b { color: var(--green); }
+.sigw-stat.down b { color: var(--red); }
+/* time is not a tag — no chrome, just quiet text */
+.sigw-time {
+  font-size:var(--text-2xs);
+  color: var(--t4);
+  white-space: nowrap;
+}
+
+/* the primary action: ghost at rest, filled once the row is live */
+.sigw-act {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  padding:var(--sp-4) var(--sp-8);
+  border: 1px solid transparent;
+  border-radius:var(--r-sm);
+  background: transparent;
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  color: var(--t2);
+  white-space: nowrap;
+  transition:
+    background 0.12s var(--ease),
+    color 0.12s var(--ease),
+    border-color 0.12s var(--ease);
+}
+.sigw-act .ar {
+  display: inline-block;
+  transition: transform 0.14s var(--ease-out);
+}
+.sigw-row:hover .sigw-act {
+  border-color: var(--accent-weak);
+  background: var(--accent-weak);
+  color: var(--accent);
+}
+.sigw-row:hover .sigw-act .ar { transform: translateX(2px); }
+.sigw-act:hover {
+  border-color: var(--accent) !important;
+  background: var(--accent) !important;
+  color: #fff !important;
+}
+.sigw-act:hover .ar { transform: translateX(3px); }
+
+/* ---- investigation panel ----------------------------------------------- */
+.sigw-ai {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  flex-shrink: 0;
+  padding:var(--sp-6) var(--sp-10);
+  border-radius:var(--r-sm);
+  background: var(--accent);
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  color: #fff;
+  transition: background 0.12s var(--ease);
+}
+.sigw-ai:hover { background: var(--accent-2); }
+
+.sigw-sec {
+  padding:var(--sp-16) 0;
+  border-top: 1px solid var(--line-2);
+}
+.sigw-sec:first-child {
+  padding-top:var(--sp-4);
+  border-top: none;
+}
+.sigw-st {
+  margin-bottom:var(--sp-10);
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+/* key/value facts grid */
+.sigw-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap:var(--sp-14) var(--sp-18);
+}
+.sigw-kv-k {
+  font-size:var(--text-2xs);
+  color: var(--t3);
+}
+.sigw-kv-v {
+  margin-top:var(--sp-4);
+  font-size:var(--text-sm);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.1px;
+  color: var(--text);
+}
+.sigw-kv-v .mono {
+  font-family: var(--mono);
+  font-feature-settings: "tnum" 1;
+}
+
+/* distribution bars (platforms / browsers / countries / releases) */
+.sigw-dist {
+  display: flex;
+  flex-direction: column;
+  gap:var(--sp-8);
+}
+.sigw-dist-row {
+  display: grid;
+  grid-template-columns: 1fr 44px;
+  align-items: center;
+  gap:var(--sp-10);
+}
+.sigw-dist-l {
+  min-width: 0;
+  font-size:var(--text-xs);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sigw-dist-track {
+  position: relative;
+  height: 4px;
+  margin-top:var(--sp-6);
+  border-radius:var(--r-2xs);
+  background: var(--line-2);
+}
+.sigw-dist-track > i {
+  display: block;
+  height: 100%;
+  border-radius:var(--r-2xs);
+  background: var(--accent);
+  opacity: 0.75;
+}
+.sigw-dist-n {
+  font-family: var(--mono);
+  font-size:var(--text-xs);
+  font-feature-settings: "tnum" 1;
+  color: var(--t2);
+  text-align: right;
+}
+
+/* related-entity list (crashes, errors, api failures, funnels, incidents) */
+.sigw-rel {
+  display: flex;
+  flex-direction: column;
+  gap:var(--sp-2);
+}
+.sigw-rel-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap:var(--sp-12);
+  width: 100%;
+  padding:var(--sp-8) var(--sp-10);
+  border-radius:var(--r-sm);
+  text-align: left;
+  transition: background 0.12s var(--ease);
+}
+.sigw-rel-row:hover { background: var(--panel); }
+.sigw-rel-t {
+  min-width: 0;
+  font-size:var(--text-sm);
+  line-height:var(--lh-cozy);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sigw-rel-s {
+  margin-top:var(--sp-2);
+  font-size:var(--text-2xs);
+  color: var(--t3);
+}
+.sigw-rel-n {
+  font-family: var(--mono);
+  font-size:var(--text-xs);
+  font-feature-settings: "tnum" 1;
+  color: var(--t2);
+  white-space: nowrap;
+}
+
+.sigw-empty {
+  padding:var(--sp-10) 0;
+  font-size:var(--text-xs);
+  color: var(--t3);
+}
+
+/* ========================================================================== *
+ *  INVESTIGATION — a findings report, not a property inspector.
+ *  Reads top-down as: what happened → what Replayfy thinks → the evidence →
+ *  why it concluded that → what's related → what to do.
+ * ========================================================================== */
+
+/* ---- 1. summary: the first thing read ---------------------------------- */
+.sigw-sum {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap:var(--sp-14);
+  padding:var(--sp-4) 0 var(--sp-18);
+}
+.sigw-sum-ic {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius:50%;
+}
+/* a soft ring of colour instead of a filled chip — quiet, not a badge */
+.sigw-sum-ic.sev-bad {
+  color: var(--red);
+  background: rgba(210, 87, 106, 0.1);
+  box-shadow: 0 0 0 4px rgba(210, 87, 106, 0.05);
+}
+.sigw-sum-ic.sev-warn {
+  color: var(--amber);
+  background: rgba(192, 138, 62, 0.11);
+  box-shadow: 0 0 0 4px rgba(192, 138, 62, 0.05);
+}
+.sigw-sum-ic.sev-good {
+  color: var(--green);
+  background: rgba(63, 148, 104, 0.1);
+  box-shadow: 0 0 0 4px rgba(63, 148, 104, 0.05);
+}
+.sigw-sum-ic.sev-info {
+  color: var(--blue);
+  background: rgba(59, 118, 176, 0.1);
+  box-shadow: 0 0 0 4px rgba(59, 118, 176, 0.05);
+}
+.sigw-sum-t {
+  font-size:var(--text-lg);
+  font-weight:var(--fw-semibold);
+  line-height:var(--lh-tight);
+  letter-spacing: -0.34px;
+  color: var(--text);
+}
+.sigw-sum-d {
+  margin-top:var(--sp-8);
+  font-size:var(--text-sm);
+  font-weight:var(--fw-regular);
+  line-height:var(--lh-relaxed);
+  color: var(--t2);
+}
+
+/* ---- 2. Replayfy's assessment ------------------------------------------ */
+.sigw-assess {
+  padding:var(--sp-14) var(--sp-14);
+  border: 1px solid var(--accent-weak);
+  border-radius:var(--r-lg);
+  background: var(--accent-tint);
+}
+.sigw-assess-h {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-8);
+  margin-bottom:var(--sp-8);
+}
+.sigw-assess-h .lbl {
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+.sigw-assess-b {
+  font-size:var(--text-sm);
+  line-height:var(--lh-relaxed);
+  color: var(--text);
+}
+.sigw-assess-c {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  margin-left:auto;
+  font-size:var(--text-2xs);
+  color: var(--t2);
+}
+.sigw-assess-c b {
+  font-family: var(--mono);
+  font-weight:var(--fw-semibold);
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+}
+
+/* ---- section chrome ----------------------------------------------------- */
+.sigw-isec { padding:var(--sp-20) 0 var(--sp-4); }
+.sigw-ist {
+  margin-bottom:var(--sp-12);
+  font-size:var(--text-sm);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.12px;
+  color: var(--text);
+}
+.sigw-ist .n {
+  margin-left:var(--sp-6);
+  font-family: var(--mono);
+  font-size:var(--text-xs);
+  font-weight:var(--fw-medium);
+  color: var(--t4);
+}
+
+/* ---- 3. evidence cards -------------------------------------------------- */
+.sigw-ev {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap:var(--sp-8);
+}
+.sigw-ev-card {
+  display: flex;
+  align-items: flex-start;
+  gap:var(--sp-8);
+  padding:var(--sp-10) var(--sp-12);
+  border: 1px solid var(--line);
+  border-radius:var(--r-md);
+  background: var(--panel);
+}
+/* The container is almost not there: a ~10% tinted circle, never a pastel
+   square. The glyph carries the colour, so the icon reads as part of the
+   typography rather than as a badge sitting behind it. */
+.sigw-ev-ic {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius:50%;
+}
+.sigw-ev-ic.c-blue { color: var(--blue); background: rgba(59, 118, 176, 0.1); }
+.sigw-ev-ic.c-amber { color: var(--amber); background: rgba(192, 138, 62, 0.11); }
+.sigw-ev-ic.c-green { color: var(--green); background: rgba(63, 148, 104, 0.1); }
+.sigw-ev-ic.c-red { color: var(--red); background: rgba(210, 87, 106, 0.1); }
+.sigw-ev-ic.c-violet { color: var(--hue-violet); background: rgba(139, 114, 214, 0.1); }
+.sigw-ev-ic.c-indigo { color: var(--accent); background: rgba(91, 92, 235, 0.09); }
+.sigw-ev-ic.c-slate { color: var(--hue-slate); background: rgba(122, 138, 166, 0.1); }
+.sigw-ev-k {
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-medium);
+  color: var(--t3);
+}
+.sigw-ev-v {
+  margin-top:var(--sp-4);
+  font-size:var(--text-md);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.28px;
+  line-height:var(--lh-snug);
+  color: var(--text);
+  font-feature-settings: "tnum" 1;
+}
+.sigw-ev-v.sm {
+  font-size:var(--text-sm);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.1px;
+}
+
+/* ---- 4. why Replayfy concluded this ------------------------------------- */
+.sigw-why {
+  display: flex;
+  flex-direction: column;
+  gap:var(--sp-2);
+}
+.sigw-why-r {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap:var(--sp-8);
+  align-items: start;
+  padding:var(--sp-8) 0;
+  font-size:var(--text-sm);
+  line-height:var(--lh-body);
+  color: var(--t2);
+}
+/* no container at all here — a bare glyph sits closer to the text */
+.sigw-why-r .tick {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-top:var(--sp-2);
+  color: var(--green);
+}
+.sigw-why-r b {
+  font-weight:var(--fw-semibold);
+  color: var(--text);
+}
+
+/* ---- 5. related signals ------------------------------------------------- */
+.sigw-rel-grid {
+  display: flex;
+  flex-direction: column;
+  gap:var(--sp-2);
+}
+.sigw-relc {
+  display: grid;
+  grid-template-columns: 8px 1fr auto;
+  align-items: center;
+  gap:var(--sp-10);
+  width: 100%;
+  padding:var(--sp-10) var(--sp-10);
+  border-radius:var(--r-md);
+  text-align: left;
+  transition: background 0.12s var(--ease);
+}
+.sigw-relc:hover { background: var(--panel); }
+.sigw-relc-t {
+  min-width: 0;
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sigw-relc-s {
+  margin-top:var(--sp-2);
+  font-size:var(--text-2xs);
+  color: var(--t3);
+}
+.sigw-relc .go {
+  color: var(--t4);
+  transition: transform 0.14s var(--ease-out), color 0.12s var(--ease);
+}
+.sigw-relc:hover .go { transform: translateX(2px); color: var(--accent); }
+
+/* ---- 6. recommended actions -------------------------------------------- */
+.sigw-acts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap:var(--sp-8);
+}
+.sigw-actc {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-8);
+  padding:var(--sp-10) var(--sp-12);
+  border: 1px solid var(--line);
+  border-radius:var(--r-md);
+  background: var(--panel);
+  text-align: left;
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  color: var(--text);
+  transition:
+    border-color 0.12s var(--ease),
+    background 0.12s var(--ease);
+}
+.sigw-actc:hover {
+  border-color: var(--accent);
+  background: var(--accent-tint);
+}
+
+/* ========================================================================== *
+ *  AI INVESTIGATION — expands IN PLACE at the top. Never a chat.
+ * ========================================================================== */
+.sigw-ai-sec {
+  overflow: hidden;
+  margin-bottom:var(--sp-4);
+  border: 1px solid var(--accent-weak);
+  border-radius:var(--r-lg);
+  background: linear-gradient(180deg, var(--accent-tint), transparent 62%);
+}
+.sigw-ai-in { padding:var(--sp-14) var(--sp-16) var(--sp-16); }
+.sigw-ai-h {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-8);
+  margin-bottom:var(--sp-12);
+}
+.sigw-ai-h .lbl {
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: 0.01em;
+  color: var(--accent);
+}
+.sigw-ai-sp {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius:50%;
+  color: var(--accent);
+  background: rgba(91, 92, 235, 0.1);
+}
+/* the sparkle breathes while it reasons */
+.sigw-ai-sp.busy { animation: sigwPulse 1.5s var(--ease) infinite; }
+@keyframes sigwPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(0.93); }
+}
+
+/* streaming reasoning steps */
+.sigw-steps {
+  display: flex;
+  flex-direction: column;
+  gap:var(--sp-2);
+}
+.sigw-step {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap:var(--sp-8);
+  align-items: center;
+  padding:var(--sp-6) 0;
+  font-size:var(--text-sm);
+  color: var(--t3);
+}
+.sigw-step.done { color: var(--t2); }
+.sigw-step.now { color: var(--text); font-weight:var(--fw-medium); }
+.sigw-step .dot {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+  border-radius:50%;
+  color: var(--green);
+  background: var(--green-weak);
+}
+.sigw-step .ring {
+  width: 11px;
+  height: 11px;
+  margin:var(--sp-2);
+  border: 1.6px solid var(--accent-weak);
+  border-top-color: var(--accent);
+  border-radius:50%;
+  animation: sigwSpin 0.7s linear infinite;
+}
+@keyframes sigwSpin { to { transform: rotate(360deg); } }
+.sigw-step .pend {
+  width: 5px;
+  height: 5px;
+  margin:var(--sp-4);
+  border-radius:50%;
+  background: var(--line-strong);
+}
+
+/* skeleton shimmer while the report resolves */
+.sigw-sk {
+  height: 9px;
+  border-radius:var(--r-xs);
+  background: linear-gradient(90deg, var(--line-2) 25%, var(--line) 37%, var(--line-2) 63%);
+  background-size: 400% 100%;
+  animation: sigwShim 1.3s ease infinite;
+}
+@keyframes sigwShim {
+  from { background-position: 100% 50%; }
+  to { background-position: 0 50%; }
+}
+
+/* the report itself — a written finding, not a transcript */
+.sigw-rep-sec + .sigw-rep-sec {
+  margin-top:var(--sp-14);
+  padding-top:var(--sp-14);
+  border-top: 1px solid var(--accent-weak);
+}
+.sigw-rep-k {
+  margin-bottom:var(--sp-6);
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: 0.7px;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.sigw-rep-b {
+  font-size:var(--text-sm);
+  line-height:var(--lh-relaxed);
+  color: var(--text);
+}
+.sigw-rep-b.mut { color: var(--t2); }
+.sigw-rep-li {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap:var(--sp-8);
+  align-items: start;
+  padding:var(--sp-4) 0;
+  font-size:var(--text-sm);
+  line-height:var(--lh-body);
+  color: var(--t2);
+}
+.sigw-rep-li .pip2 {
+  width: 4px;
+  height: 4px;
+  margin-top:var(--sp-8);
+  border-radius:50%;
+  background: var(--accent);
+  opacity: 0.5;
+}
+.sigw-rep-risk .pip2 { background: var(--amber); opacity: 0.8; }
+
+/* The report's opening paragraph. Slightly larger and full-contrast because it
+   is the one part an engineering lead reads before deciding whether to read the
+   rest — it carries no heading of its own for the same reason. */
+.sigw-rep-b.lead {
+  font-size:var(--text-base);
+  line-height:var(--lh-relaxed);
+  color: var(--text);
+}
+
+/* ---- the evidence tag on a cited finding -------------------------------
+   A cited statement carries the evidence it was drawn from. The server rejects
+   any citation whose ref is not a real key of the evidence payload, so the tag
+   always names something that exists — it is a provenance mark, not decoration.
+   Set quiet and inline: the finding is the sentence, the tag is the footnote. */
+.sigw-rep-ref {
+  margin-left:var(--sp-6);
+  overflow-wrap: anywhere;
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  color: var(--t3);
+  opacity: 0.85;
+}
+.sigw-rep-ref::before { content: "· "; }
+
+/* the investigation panel's own empty state, before a signal is picked */
+.sigw-blank {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap:var(--sp-8);
+  height: 100%;
+  padding:var(--sp-40);
+  text-align: center;
+}
+.sigw-blank-t {
+  font-size:var(--text-base);
+  font-weight:var(--fw-semibold);
+  color: var(--t2);
+}
+.sigw-blank-d {
+  max-width: 260px;
+  font-size:var(--text-xs);
+  line-height:var(--lh-body);
+  color: var(--t3);
+}
+
+/* A session id cited in report prose, rendered as a way into that recording
+   rather than as a raw evidence key. Underline on hover only — inside a
+   paragraph a permanent underline turns the finding into a wall of links. */
+.sigw-sess-link {
+  color: var(--accent);
+  font-weight:var(--fw-medium);
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.12s var(--ease);
+}
+.sigw-sess-link:hover {
+  border-bottom-color: var(--accent);
+}
+
+/* Stands in for the AI button on issue-backed signals. Deliberately quiet and
+   non-interactive: it explains why there is nothing to click, rather than
+   leaving a gap the eye reads as a missing feature. */
+.sigw-ai-na {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding:var(--sp-6) var(--sp-10);
+  border: 1px solid var(--line);
+  border-radius:var(--r-sm);
+  font-size:var(--text-xs);
+  font-weight:var(--fw-medium);
+  color: var(--t3);
+  white-space: nowrap;
+  cursor: default;
+}
+
+/* Spinner shown inside the row action button while its funnel is being created. */
+.sigw-act-spin {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--accent-weak);
+  border-top-color: var(--accent);
+  border-radius:50%;
+  animation: sigwSpin 0.7s linear infinite;
+}
+.sigw-act:disabled { opacity: 0.75; cursor: default; }

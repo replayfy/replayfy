@@ -1,0 +1,46 @@
+/* ============================================================================
+   Comments v2 — refined typography for the Comments page.
+   Everything is Inter (no monospace): hierarchy comes from a 3-tier text ramp,
+   medium weights and tight tracking — the same language as the workspace
+   switcher. Session ids use tabular figures so they stay aligned. Scoped to
+   .cmt-page so nothing else is affected.
+   ========================================================================== */
+
+.cmt-page { --ease-out: cubic-bezier(.23,1,.32,1); }
+
+.cmt-page .crow { gap:var(--sp-12); padding:var(--sp-16) var(--sp-6); border-top: 1px solid var(--line-2); border-radius:var(--r-md); transition: background .12s var(--ease-out); }
+.cmt-page .crow:first-of-type { border-top: none; }
+.cmt-page .crow:hover { background: var(--panel); }
+
+.cmt-page .c-av { width: 30px; height: 30px; font-size:var(--text-sm); font-weight:var(--fw-semibold); letter-spacing: -.01em; }
+
+/* header line — name (primary), time (tertiary) */
+.cmt-page .c-h { gap:var(--sp-8); }
+.cmt-page .c-name { font-size:var(--text-base); font-weight:var(--fw-medium); letter-spacing: -.006em; color: var(--text); }
+.cmt-page .c-time { font-size:var(--text-sm); font-weight:var(--fw-medium); color: var(--t3); font-feature-settings: "tnum" 1; }
+
+/* body — softened near-black, comfortable measure; mentions in accent */
+.cmt-page .c-body { font-size:var(--text-sm); line-height:var(--lh-relaxed); color: var(--text); margin-top:var(--sp-6); letter-spacing: -.003em; }
+.cmt-page .c-body .men { color: var(--accent); font-weight:var(--fw-medium); }
+
+/* meta — "on <session> · <url>", all Inter, tabular id, clickable session */
+.cmt-page .c-meta { font-size:var(--text-sm); color: var(--t3); margin-top:var(--sp-8); gap:0; }
+.cmt-page .c-sid { font-family: var(--font); font-feature-settings: "tnum" 1, "cv01" 1; font-size:var(--text-sm); font-weight:var(--fw-medium); letter-spacing: -.002em; color: var(--t2); background: none; border: none; padding:var(--sp-2) var(--sp-4); margin:0 var(--sp-2) 0 var(--sp-6); border-radius:var(--r-xs); cursor: pointer; transition: color .12s var(--ease-out), background .12s var(--ease-out); }
+.cmt-page .c-sid:hover:not(:disabled) { color: var(--accent); background: var(--accent-tint); }
+.cmt-page .c-sid:disabled { color: var(--t3); cursor: default; }
+.cmt-page .c-url { color: var(--t3); }
+
+/* "Open at 0:43" — the seek affordance; tabular time, tactile press */
+.cmt-page .c-open { font-size:var(--text-sm); font-weight:var(--fw-medium); letter-spacing: -.003em; color: var(--accent); gap:var(--sp-6); padding:var(--sp-4) var(--sp-8); border-radius:var(--r-sm); font-feature-settings: "tnum" 1; transition: background .12s var(--ease-out), transform .1s var(--ease-out); }
+.cmt-page .c-open:hover:not(:disabled) { background: var(--accent-tint); }
+.cmt-page .c-open:active:not(:disabled) { transform: scale(.97); }
+.cmt-page .c-open:disabled { color: var(--t4); cursor: default; }
+
+/* infinite-scroll sentinel — a 1px box so the observer has something to watch
+   even when empty (no skeleton in flight); mirrors recordings' .rv-more */
+.cmt-page .cmt-more { min-height: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cmt-page .crow, .cmt-page .c-open, .cmt-page .c-sid { transition: none; }
+  .cmt-page .c-open:active:not(:disabled) { transform: none; }
+}

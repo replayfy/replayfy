@@ -1,0 +1,123 @@
+<svg width="640" height="320" viewBox="0 0 640 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-funnels-hero">
+  <title id="title-funnels-hero">Users flowing through steps toward conversion</title>
+  <!-- Replayfy Illustration System · Hero — Funnels · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="funh-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.14"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <g id="funh-minicat">
+      <path d="M -9.5 -9 L -4 -15.5 Q -1.6 -18 0 -15.5 L 4.5 -9 Z" fill="currentColor" transform="translate(-7 -6) rotate(-18)"/>
+      <path d="M -4.5 -9 L 0 -15.5 Q 1.6 -18 4 -15.5 L 9.5 -9 Z" fill="currentColor" transform="translate(7 -6) rotate(18)"/>
+      <path d="M-15 1.5 C -15 -8 -8.5 -13.5 0 -13.5 C 8.5 -13.5 15 -8 15 1.5 C 15 9.5 8 14 0 14 C -8 14 -15 9.5 -15 1.5 Z" fill="currentColor"/>
+      <ellipse cx="-5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <ellipse cx="5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <circle cx="-4.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <circle cx="6.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <path d="M-1.4 4.6 L 1.4 4.6 Q 2.4 4.8 1.7 5.9 L 0.7 7 Q 0 7.7 -0.7 7 L -1.7 5.9 Q -2.4 4.8 -1.4 4.6 Z" fill="#3A3F5F"/>
+    </g>
+  </defs>
+
+  <g id="ambient-marks" stroke-linecap="round">
+    <circle cx="42" cy="50" r="4.5" stroke="#C8D2ED" stroke-width="2.5"/>
+    <path d="M598 34v12M592 40h12" stroke="#D5CBF7" stroke-width="2.5"/>
+    <circle cx="614" cy="282" r="3.5" fill="#CBE8DC"/>
+    <circle cx="26" cy="248" r="3" fill="#D9E2F5"/>
+  </g>
+
+  <g id="source-crowd">
+    <g transform="translate(64 110)">
+      <ellipse cx="0" cy="22" rx="17" ry="3.5" fill="url(#funh-shadow)"/>
+      <circle r="15" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#funh-minicat" color="#7580F5" transform="translate(0 1) scale(0.75)"/>
+    </g>
+    <g transform="translate(50 168)">
+      <ellipse cx="0" cy="22" rx="17" ry="3.5" fill="url(#funh-shadow)"/>
+      <circle r="15" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#funh-minicat" color="#EDBE7F" transform="translate(0 1) scale(0.75)"/>
+    </g>
+    <g transform="translate(86 216)">
+      <ellipse cx="0" cy="22" rx="17" ry="3.5" fill="url(#funh-shadow)"/>
+      <circle r="15" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#funh-minicat" color="#B39DF2" transform="translate(0 1) scale(0.75)"/>
+    </g>
+    <circle cx="112" cy="142" r="4" fill="#7E8BFA" opacity="0.8"/>
+    <circle cx="104" cy="192" r="4" fill="#F0BE7E" opacity="0.8"/>
+  </g>
+
+  <g id="gates">
+    <g id="gate-1">
+      <ellipse cx="216" cy="234" rx="46" ry="7" fill="url(#funh-shadow)"/>
+      <circle cx="216" cy="158" r="62" fill="#FFFFFF" opacity="0.5"/>
+      <circle cx="216" cy="158" r="62" fill="#5B8CFF" opacity="0.07"/>
+      <circle cx="216" cy="158" r="62" stroke="#7D9BF0" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+    </g>
+    <g id="gate-2">
+      <ellipse cx="356" cy="218" rx="37" ry="6" fill="url(#funh-shadow)"/>
+      <circle cx="356" cy="156" r="48" fill="#FFFFFF" opacity="0.5"/>
+      <circle cx="356" cy="156" r="48" fill="#8B5CF6" opacity="0.06"/>
+      <circle cx="356" cy="156" r="48" stroke="#A98FF2" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+    </g>
+    <g id="gate-3">
+      <ellipse cx="472" cy="202" rx="29" ry="5.5" fill="url(#funh-shadow)"/>
+      <circle cx="472" cy="154" r="36" fill="#FFFFFF" opacity="0.5"/>
+      <circle cx="472" cy="154" r="36" fill="#7E8BFA" opacity="0.07"/>
+      <circle cx="472" cy="154" r="36" stroke="#8F9AF5" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+    </g>
+  </g>
+
+  <g id="flow" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8">
+    <path d="M100 132 C 160 112 196 128 224 150 C 260 176 320 178 360 162 C 400 148 440 150 480 152 C 508 154 526 152 543 150" stroke="#7D9BF0" opacity="0.8"/>
+    <path d="M96 196 C 150 210 190 186 214 168 C 246 144 316 136 358 150 C 396 162 436 158 470 156 C 500 154 524 152 543 151" stroke="#A98FF2" opacity="0.8"/>
+  </g>
+
+  <g id="travellers">
+    <circle cx="124" cy="126" r="4.5" fill="#7E8BFA"/>
+    <circle cx="152" cy="118" r="4.5" fill="#8FD7BA"/>
+    <circle cx="180" cy="122" r="4.5" fill="#F0BE7E"/>
+    <circle cx="208" cy="140" r="4.5" fill="#B9C4DC"/>
+    <circle cx="238" cy="160" r="4.5" fill="#B9A6F5"/>
+    <circle cx="270" cy="174" r="4.5" fill="#7E8BFA"/>
+    <circle cx="302" cy="177" r="4.5" fill="#F0BE7E"/>
+    <circle cx="334" cy="170" r="4.5" fill="#8FD7BA"/>
+    <circle cx="364" cy="159" r="4.5" fill="#B9C4DC"/>
+    <circle cx="396" cy="151" r="4.5" fill="#7E8BFA"/>
+    <circle cx="428" cy="150" r="4.5" fill="#B9A6F5"/>
+    <circle cx="460" cy="152" r="4.5" fill="#F0BE7E"/>
+    <circle cx="492" cy="153" r="4.5" fill="#8FD7BA"/>
+    <circle cx="520" cy="151" r="4.5" fill="#7E8BFA"/>
+    <circle cx="120" cy="203" r="4.5" fill="#B9A6F5"/>
+    <circle cx="152" cy="204" r="4.5" fill="#B9C4DC"/>
+    <circle cx="184" cy="188" r="4.5" fill="#8FD7BA"/>
+    <circle cx="214" cy="168" r="4.5" fill="#F0BE7E"/>
+  </g>
+
+  <g id="drop-offs">
+    <path d="M262 178 C 282 210 292 240 296 270" stroke="#D9A6B4" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 8" fill="none" opacity="0.55"/>
+    <circle cx="272" cy="198" r="4.5" fill="#B9C4DC" opacity="0.7"/>
+    <circle cx="284" cy="226" r="4.5" fill="#F0708A" opacity="0.5"/>
+    <circle cx="292" cy="252" r="4.5" fill="#B9C4DC" opacity="0.32"/>
+    <circle cx="296" cy="276" r="4.5" fill="#B9A6F5" opacity="0.18"/>
+    <path d="M402 168 C 416 194 423 216 427 240" stroke="#D9A6B4" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 8" fill="none" opacity="0.5"/>
+    <circle cx="410" cy="188" r="4.5" fill="#B9C4DC" opacity="0.6"/>
+    <circle cx="419" cy="212" r="4.5" fill="#F0708A" opacity="0.4"/>
+    <circle cx="425" cy="236" r="4.5" fill="#B9C4DC" opacity="0.24"/>
+  </g>
+
+  <g id="converted">
+    <ellipse cx="576" cy="192" rx="25" ry="5" fill="url(#funh-shadow)"/>
+    <circle cx="576" cy="150" r="27" fill="#34B67F" opacity="0.1"/>
+    <circle cx="576" cy="150" r="27" stroke="#34B67F" stroke-width="2.5"/>
+    <circle cx="576" cy="150" r="19" fill="#FFFFFF"/>
+    <use href="#funh-minicat" color="#7580F5" transform="translate(576 151) scale(0.95)"/>
+    <circle cx="594" cy="168" r="7" fill="#3FBF89" stroke="#FFFFFF" stroke-width="2"/>
+    <path d="M590.8 168l2.3 2.3 4-4.4" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <g stroke="#7BC9A8" stroke-width="1.8" stroke-linecap="round">
+      <path d="M600 122 l3 -3"/>
+      <path d="M576 114 v-5"/>
+      <path d="M552 122 l-3 -3"/>
+    </g>
+  </g>
+</svg>

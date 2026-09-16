@@ -1,0 +1,211 @@
+# Replayfy — self-host stack. `docker compose up` boots the datastores, storage,
+# a mail catcher, runs migrations + an optional demo seed, then the API and the
+# dashboard. Everything is overridable via .env (copy .env.example → .env).
+#
+# Defaults are wired for a single-host local run; change secrets + URLs before
+# exposing it. See docs/self-hosting.md.
+
+services:
+  # ── Datastores ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-replay}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-replay}
+      POSTGRES_DB: ${POSTGRES_DB:-replay_platform}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-replay} -d ${POSTGRES_DB:-replay_platform}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongo:
+    image: mongo:7
+    command: ["--replSet", "rs0", "--bind_ip_all"]
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      # Self-initiate a single-node replica set (Prisma requires one). The member
+      # host MUST be the compose service name so the driver — connecting from the
+      # api container — can reach the advertised primary.
+      test: |
+        mongosh --quiet --eval "try { rs.status().ok } catch (e) { rs.initiate({_id:'rs0',members:[{_id:0,host:'mongo:27017'}]}).ok }"
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    environment:
+      CLICKHOUSE_DB: default
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  # ── Object storage (S3-compatible) + a mail catcher ─────────────────────
+  # MinIO publishes to quay.io (the Docker Hub `minio/minio` repo is gone).
+  minio:
+    image: quay.io/minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-replayfy}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY:-replayfy-secret}
+    ports:
+      # API on host 9002 (ClickHouse already owns 9000); console on 9001. The
+      # browser fetches replay archives directly from the API port, so it must be
+      # host-reachable — keep S3_PUBLIC_BASE_URL pointed here.
+      - "${MINIO_API_PORT:-9002}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+
+  # One-shot: wait for MinIO, create the bucket, make it public-read (the browser
+  # fetches replay archives directly). `mc` lives only in this client image, so
+  # the wait loop lives here rather than in a minio healthcheck.
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 ${S3_ACCESS_KEY_ID:-replayfy} ${S3_SECRET_ACCESS_KEY:-replayfy-secret} && mc ready local; do echo 'waiting for minio...'; sleep 2; done &&
+      mc mb --ignore-existing local/${S3_BUCKET:-replayfy} &&
+      mc anonymous set download local/${S3_BUCKET:-replayfy} &&
+      echo 'minio bucket ready'
+      "
+    restart: "no"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"   # web UI — read the emails self-host sends
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: 1
+      MP_SMTP_AUTH_ALLOW_INSECURE: 1
+
+  # ── Migrations + optional demo seed (one-shot, then exits) ──────────────
+  migrate:
+    build:
+      context: ./server
+    image: replayfy-server:local
+    environment:
+      DATABASE_URL_POSTGRES: postgresql://${POSTGRES_USER:-replay}:${POSTGRES_PASSWORD:-replay}@postgres:5432/${POSTGRES_DB:-replay_platform}
+      DATABASE_URL_MONGO: mongodb://mongo:27017/${MONGO_DB:-replay}?replicaSet=rs0
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-replay}
+      SEED_DEMO: ${SEED_DEMO:-1}
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+    # PG migrate + Mongo push + ClickHouse schema, then (if SEED_DEMO) the demo
+    # workspace/user. Idempotent — safe to re-run on every `up`.
+    command: >
+      /bin/sh -c "
+      npm run prisma:deploy &&
+      npm run ch:migrate &&
+      if [ \"$$SEED_DEMO\" = \"1\" ]; then npm run seed; else echo 'skipping demo seed'; fi
+      "
+    restart: "no"
+
+  # ── The application ─────────────────────────────────────────────────────
+  api:
+    build:
+      context: ./server
+    image: replayfy-server:local
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      # APP_ROLE unset = all-in-one (HTTP + ingest + worker + cron in one process).
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-32chars}
+      DATABASE_URL_POSTGRES: postgresql://${POSTGRES_USER:-replay}:${POSTGRES_PASSWORD:-replay}@postgres:5432/${POSTGRES_DB:-replay_platform}
+      DATABASE_URL_MONGO: mongodb://mongo:27017/${MONGO_DB:-replay}?replicaSet=rs0
+      REDIS_URL: redis://redis:6379
+      CLICKHOUSE_URL: http://clickhouse:8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: ""
+      CLICKHOUSE_DATABASE: ${CLICKHOUSE_DATABASE:-replay}
+      # Public URLs (as the browser sees them)
+      APP_BASE_URL: ${APP_BASE_URL:-http://localhost:8080}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:4000}
+      DASHBOARD_URL: ${APP_BASE_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      # Object storage → MinIO (S3-compatible). S3_ENDPOINT is the in-network
+      # address the API uploads to; S3_PUBLIC_BASE_URL is the browser-reachable
+      # address it hands back for reads (host port 9002, bucket in the path).
+      S3_ENDPOINT: http://minio:9000
+      S3_REGION: ${S3_REGION:-us-east-1}
+      S3_FORCE_PATH_STYLE: "true"
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-replayfy}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-replayfy-secret}
+      S3_BUCKET: ${S3_BUCKET:-replayfy}
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9002/replayfy}
+      # Email → the mail catcher by default (view at http://localhost:8025).
+      EMAIL_PROVIDER: ${EMAIL_PROVIDER:-smtp}
+      SMTP_HOST: ${SMTP_HOST:-mailpit}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_SECURE: ${SMTP_SECURE:-false}
+      EMAIL_FROM: ${EMAIL_FROM:-Replayfy <hello@localhost>}
+      # AI (optional). Set a provider key + model to enable — unmetered on self-host.
+      LLM_PROVIDER: ${LLM_PROVIDER:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-}
+    depends_on:
+      postgres: { condition: service_healthy }
+      mongo: { condition: service_healthy }
+      redis: { condition: service_healthy }
+      clickhouse: { condition: service_healthy }
+      migrate: { condition: service_completed_successfully }
+    ports:
+      - "${API_PORT:-4000}:4000"
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:4000/readyz',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))\""]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_API_URL: ${API_BASE_URL:-http://localhost:4000}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    image: replayfy-dashboard:local
+    depends_on:
+      api: { condition: service_started }
+    ports:
+      - "${DASHBOARD_PORT:-8080}:80"
+
+volumes:
+  postgres_data:
+  mongo_data:
+  redis_data:
+  clickhouse_data:
+  minio_data:

@@ -1,0 +1,64 @@
+/* ============================================================================
+   interactions.css — product-wide hover continuity + page transitions (#41,#46)
+   One hover language for every interactive surface: same easing, timing,
+   background, and focus treatment. Import LAST so it harmonizes prior styles.
+   ========================================================================== */
+
+:root {
+  --hover-bg: var(--line-2);
+  --hover-ease: cubic-bezier(.22,1,.36,1);
+  --hover-dur: .13s;
+  --focus-ring: 0 0 0 3px var(--accent-tint);
+}
+
+/* ---- unified focus-visible ring (controls that own their outline) ---- */
+button:focus-visible,
+a:focus-visible,
+[role="button"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius:var(--r-sm);
+}
+
+/* ---- page transition: subtle fade+rise on route change (subtle route-change feel) ---- */
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.main > .wrap,
+.main > .rd-page,
+.main > [class*="-page"] {
+  animation: pageIn .26s var(--hover-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .main > .wrap, .main > .rd-page, .main > [class*="-page"] { animation: none; }
+}
+
+/* ---- interactive-surface hover continuity ----
+   Rows/cells/list items that don't already own a bespoke hover get the
+   shared subtle background lift with consistent easing. Scoped to avoid
+   fighting components that manage their own hover (charts, drawers). */
+.crow, .urow, .sess-row, .plat-row, .vital, .hd-row,
+.nav-item, .side-link, .tab, .list-row {
+  transition: background var(--hover-dur) var(--hover-ease),
+              color var(--hover-dur) var(--hover-ease);
+}
+
+/* keep cursor affordance consistent on everything clickable */
+button, [role="button"], a, .sel-trigger, summary { cursor: pointer; }
+button:disabled, [aria-disabled="true"] { cursor: default; }
+
+/* ---- shared skeletons (#47) ---- */
+.sk-box { display: block; background: linear-gradient(90deg, var(--line-2) 25%, var(--line) 37%, var(--line-2) 63%); background-size: 400% 100%; animation: skShimmer 1.3s ease infinite; }
+@keyframes skShimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
+@media (prefers-reduced-motion: reduce) { .sk-box { animation: none; } }
+.sk-page { padding:var(--sp-4) 0; }
+.sk-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap:var(--sp-14); margin-bottom:var(--sp-24); }
+.sk-stat { padding:var(--sp-4) var(--sp-2); }
+.sk-chart { width: 100%; }
+.sk-table { display: flex; flex-direction: column; }
+.sk-tr { display: grid; grid-template-columns: 30px 1fr 20% 16% 64px; align-items: center; gap:var(--sp-16); padding:var(--sp-14) var(--sp-4); border-top: 1px solid var(--line-2); }
+.sk-tr:first-child { border-top: none; }
+.sk-list { display: flex; flex-direction: column; }
+.sk-li { display: flex; align-items: center; gap:var(--sp-12); padding:var(--sp-14) var(--sp-2); border-top: 1px solid var(--line-2); }
+.sk-li:first-child { border-top: none; }

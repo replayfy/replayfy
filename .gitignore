@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.env.*.local
+*.log
+.DS_Store
+packages/*/client/
+server/packages/*/client/
+
+# Keep a local, private working-notes file for maintainers — never publish it
+CLAUDE.md
+**/CLAUDE.md
+.claude/

@@ -1,0 +1,122 @@
+<svg width="520" height="140" viewBox="0 0 520 140" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-cohort-modal" style="display:block;width:100%;height:auto">
+  <title id="title-cohort-modal">Users sorted into one audience</title>
+  <!-- Replayfy Illustration System · Modal header — Add to cohort · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="chm-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="chm-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <!-- Dissolves the band into the modal surface: no hard edge under the title. -->
+    <linearGradient id="chm-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="1"/>
+    </linearGradient>
+    <g id="chm-minicat">
+      <path d="M -9.5 -9 L -4 -15.5 Q -1.6 -18 0 -15.5 L 4.5 -9 Z" fill="currentColor" transform="translate(-7 -6) rotate(-18)"/>
+      <path d="M -4.5 -9 L 0 -15.5 Q 1.6 -18 4 -15.5 L 9.5 -9 Z" fill="currentColor" transform="translate(7 -6) rotate(18)"/>
+      <path d="M-15 1.5 C -15 -8 -8.5 -13.5 0 -13.5 C 8.5 -13.5 15 -8 15 1.5 C 15 9.5 8 14 0 14 C -8 14 -15 9.5 -15 1.5 Z" fill="currentColor"/>
+      <ellipse cx="-5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <ellipse cx="5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <circle cx="-4.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <circle cx="6.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <path d="M-1.4 4.6 L 1.4 4.6 Q 2.4 4.8 1.7 5.9 L 0.7 7 Q 0 7.7 -0.7 7 L -1.7 5.9 Q -2.4 4.8 -1.4 4.6 Z" fill="#3A3F5F"/>
+    </g>
+  </defs>
+
+  <g id="ambient-marks" stroke-linecap="round">
+    <circle cx="30" cy="28" r="4" stroke="#C8D2ED" stroke-width="2.5"/>
+    <path d="M490 20v12M484 26h12" stroke="#D5CBF7" stroke-width="2.5"/>
+    <circle cx="500" cy="64" r="3" fill="#CBE8DC"/>
+    <circle cx="24" cy="70" r="2.5" fill="#D9E2F5"/>
+  </g>
+
+  <g id="source-crowd">
+    <g transform="translate(64 40)">
+      <ellipse cx="0" cy="21" rx="16" ry="3.5" fill="url(#chm-shadow)"/>
+      <circle r="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#chm-minicat" color="#7580F5" transform="translate(0 1) scale(0.7)"/>
+    </g>
+    <g transform="translate(56 84)">
+      <ellipse cx="0" cy="20" rx="15" ry="3" fill="url(#chm-shadow)"/>
+      <circle r="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#chm-minicat" color="#EDBE7F" transform="translate(0 1) scale(0.65)"/>
+    </g>
+    <g transform="translate(104 62)">
+      <ellipse cx="0" cy="21" rx="16" ry="3.5" fill="url(#chm-shadow)"/>
+      <circle r="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#chm-minicat" color="#B39DF2" transform="translate(0 1) scale(0.7)"/>
+    </g>
+  </g>
+
+  <g id="incoming">
+    <path d="M126 60 C 156 54 186 54 214 58" stroke="#A8B6DC" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8" fill="none" opacity="0.55"/>
+    <circle cx="144" cy="57" r="4.5" fill="#7580F5"/>
+    <circle cx="162" cy="56" r="4.5" fill="#EDBE7F"/>
+    <circle cx="180" cy="55" r="4.5" fill="#8FD0B4"/>
+    <circle cx="197" cy="56" r="4.5" fill="#B39DF2"/>
+  </g>
+
+  <g id="prism">
+    <ellipse cx="252" cy="100" rx="30" ry="5" fill="url(#chm-shadow)"/>
+    <path d="M220.7 53.4 L247.4 26.7 Q252 22 256.6 26.7 L283.3 53.4 Q288 58 283.3 62.6 L256.6 89.3 Q252 94 247.4 89.3 L220.7 62.6 Q216 58 220.7 53.4 Z" fill="url(#chm-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+    <circle cx="252" cy="49" r="2.5" fill="#5B8CFF"/>
+    <circle cx="252" cy="58" r="2.5" fill="#8B5CF6"/>
+    <circle cx="252" cy="67" r="2.5" fill="#34B67F"/>
+  </g>
+
+  <g id="ribbons" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8">
+    <path d="M288 52 C 312 38 336 33 364 36" stroke="#7D9BF0" opacity="0.8"/>
+    <path d="M290 58 C 314 58 336 57 360 56" stroke="#A98FF2" opacity="0.8"/>
+    <path d="M288 64 C 312 78 336 83 366 82" stroke="#6FC8A4" opacity="0.8"/>
+  </g>
+
+  <g id="sorted-travellers">
+    <circle cx="306" cy="43" r="4.5" fill="#7580F5"/>
+    <circle cx="328" cy="37" r="4.5" fill="#6D9BFF"/>
+    <circle cx="352" cy="35" r="4.5" fill="#7580F5"/>
+    <circle cx="308" cy="58" r="4.5" fill="#B39DF2"/>
+    <circle cx="328" cy="57" r="4.5" fill="#B9C4DC"/>
+    <circle cx="349" cy="56" r="4.5" fill="#A98FF2"/>
+    <circle cx="306" cy="73" r="4.5" fill="#8FD0B4"/>
+    <circle cx="329" cy="79" r="4.5" fill="#6FC8A4"/>
+    <circle cx="353" cy="82" r="4.5" fill="#8FD0B4"/>
+  </g>
+
+  <g id="audience">
+    <ellipse cx="406" cy="110" rx="42" ry="6" fill="url(#chm-shadow)"/>
+    <circle cx="406" cy="56" r="46" fill="#FFFFFF" opacity="0.55"/>
+    <circle cx="406" cy="56" r="46" fill="#5B8CFF" opacity="0.07"/>
+    <circle cx="406" cy="56" r="46" stroke="#7D9BF0" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+    <g transform="translate(388 40)">
+      <ellipse cx="0" cy="21" rx="16" ry="3.5" fill="url(#chm-shadow)"/>
+      <circle r="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#chm-minicat" color="#7580F5" transform="translate(0 1) scale(0.7)"/>
+    </g>
+    <g transform="translate(424 44)">
+      <ellipse cx="0" cy="20" rx="15" ry="3" fill="url(#chm-shadow)"/>
+      <circle r="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#chm-minicat" color="#B39DF2" transform="translate(0 1) scale(0.65)"/>
+    </g>
+    <g transform="translate(406 74)">
+      <ellipse cx="0" cy="20" rx="15" ry="3" fill="url(#chm-shadow)"/>
+      <circle r="13" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#chm-minicat" color="#8FD0B4" transform="translate(0 1) scale(0.65)"/>
+    </g>
+    <g id="chm-count-chip" transform="rotate(4 452 92)">
+      <rect x="424" y="80" width="56" height="24" rx="12" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <circle cx="437" cy="92" r="5" fill="#7580F5" stroke="#FFFFFF" stroke-width="1.5"/>
+      <circle cx="445" cy="92" r="5" fill="#B39DF2" stroke="#FFFFFF" stroke-width="1.5"/>
+      <circle cx="453" cy="92" r="5" fill="#8FD0B4" stroke="#FFFFFF" stroke-width="1.5"/>
+      <rect x="462" y="88" width="10" height="8" rx="4" fill="#DCE3F0"/>
+    </g>
+  </g>
+
+  <rect id="chm-bottom-fade" x="0" y="84" width="520" height="56" fill="url(#chm-fade)"/>
+</svg>

@@ -1,0 +1,43 @@
+/* ============================================================================
+   Cursor overrides — owner-directed (additive; frozen sheets untouched).
+
+   The frozen `button { cursor: pointer }` (styles.css) puts a pointing hand on
+   every button. For these controls the owner wants the default arrow instead —
+   the pointer stays reserved for links. Each selector below out-specifies the
+   base `button` rule, so load order doesn't matter.
+   ========================================================================== */
+
+/* Page-header "New X" primary actions — New funnel, New cohort, and the
+   empty-state primaries. Distinguished from the 30-odd other `.btn.primary`
+   buttons (modal submits, settings actions) by their keyboard-hint child. */
+.btn.primary:has(.empty-kbd) { cursor: default; }
+
+/* Filter trigger — one shared control across Users, Overview activity and the
+   Funnels index bar (`.av-fbtn`). */
+.av-fbtn { cursor: default; }
+
+/* Comment-row delete (trash) action. */
+.crow .c-act.danger { cursor: default; }
+
+/* Recordings empty-state action buttons (Full install guide, Documentation). */
+.rvo-right .btn { cursor: default; }
+
+/* Settings danger zone — the Delete workspace button. */
+.set-danger .btn { cursor: default; }
+
+/* ── The convention, app-wide ──────────────────────────────────────────────
+   EVERY enabled button uses the default arrow; the pointer is reserved for
+   links (`a[href]`, untouched, still pointer). The frozen sheets ship
+   `button { cursor: pointer }` and dozens of classes repeat it, so this is
+   enforced in one place with !important rather than chasing every rule.
+   • `:not(:disabled)` leaves disabled buttons to their own cursor (mostly
+     already default; not-allowed on a couple) — see interactions.css:49.
+   • Drag handles, resize bars and text fields are DIVs/INPUTs, not buttons,
+     so their grab/col-resize/text cursors are unaffected. */
+button:not(:disabled) { cursor: default !important; }
+
+/* Non-button controls that still need it: the toggle knob wrapper and the
+   recordings switch aren't always <button>, so name them explicitly. */
+.cbox,
+.toggle,
+.rv-sw { cursor: default; }

@@ -1,0 +1,194 @@
+/* ============================================================================
+   Sidebar nav — long-label truncation (additive; styles.css is untouched).
+
+   A playlist can be named anything, and a long one ran straight off the
+   sidebar's right edge and over the page content. `.side` is a fixed 212px
+   column with no clipping, and the row (`.nav-sm`) is `display:flex` — so the
+   title, rendered as a BARE TEXT NODE, became an anonymous flex item, which
+   `text-overflow` cannot target. That is why it neither wrapped nor ellipsised;
+   it simply overflowed.
+
+   The title is now wrapped in `.lbl` (see Sidebar.tsx / PlaylistsFlyout.tsx) so
+   it is a real box that can shrink and ellipsise. Truncating — not wrapping —
+   is the right call for a nav row: wrapping would make rows differ in height
+   and break the list's rhythm. The full name stays reachable via `title`.
+   ========================================================================== */
+.nav-sm { min-width: 0; }
+.nav-sm .lbl {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Belt-and-braces: even with the label capped, nothing in the nav column should
+   be able to paint over the page beside it. */
+.side { overflow: hidden; }
+
+/* Primary-nav icon size — 14px (owner-directed, down from the frozen 16px).
+   Overrides `.nav a .ic { width/height:16px }` in styles.css by higher
+   specificity + load order. The stroke weight is set inline in Sidebar.tsx
+   (SbIcon), because the frozen `.ic { stroke-width:1.6 }` would otherwise pin it. */
+.nav a .ic { width: 14px; height: 14px; }
+
+/* ---- Account chip (nav footer) -------------------------------------------
+   Replaces the old static `.av` + `.nm` chip. The whole row is a button that
+   opens the account menu (RvContextMenu, which flips upward at the viewport
+   bottom). New `.acct*` classes so nothing fights the retired `.side-foot .nm`
+   / `.av` cascade. Neutral avatar — the accent stays on the workspace mark up
+   top; indigo only shows on hover/open, matching the light chrome. */
+.side .side-foot { padding:var(--sp-8); display: block; }
+.side.collapsed .side-foot { padding:var(--sp-8) var(--sp-6); }
+
+.acct {
+  width: 100%; display: flex; align-items: center; gap:var(--sp-8);
+  padding:var(--sp-6) var(--sp-8); border-radius:var(--r-md); border: 1px solid transparent;
+  background: transparent; cursor: default; text-align: left;
+  transition: background .13s var(--ease), border-color .13s var(--ease),
+    transform .06s var(--ease);
+}
+.acct:hover { background: var(--accent-tint); }
+.acct.open { background: var(--accent-tint); border-color: var(--accent-weak); }
+.acct:active { transform: scale(.99); }
+.side.collapsed .acct { justify-content: center; gap:0; padding:var(--sp-6) 0; }
+
+.acct-av {
+  position: relative; width: 28px; height: 28px; flex-shrink: 0;
+  border-radius:50%; display: grid; place-items: center;
+  font-size:var(--text-xs); font-weight:var(--fw-semibold); color: lch(38.376% 1.25 282 / 1);
+  background: linear-gradient(180deg, #f1f1f4, #e4e4e9);
+  box-shadow: inset 0 0 0 1px rgb(17 17 20 / .06), 0 1px 1.5px rgb(17 17 20 / .05);
+}
+/* Live-presence dot — you're online. Ringed so it reads on the avatar edge. */
+.acct-dot {
+  position: absolute; right: -1px; bottom: -1px; width: 9px; height: 9px;
+  border-radius:50%; background: var(--green); box-shadow: 0 0 0 2px var(--surface);
+}
+.acct-id { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height:var(--lh-snug); }
+.acct-nm {
+  font-size:var(--text-sm); font-weight:var(--fw-semibold); color: var(--text); letter-spacing: -.01em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.acct-role {
+  font-size:var(--text-xs); font-weight:var(--fw-medium); color: var(--t3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.acct-more {
+  width: 15px; height: 15px; flex-shrink: 0; color: var(--t4);
+  transition: color .13s var(--ease);
+}
+.acct:hover .acct-more, .acct.open .acct-more { color: lch(38.376% 1.25 282 / 1); }
+.side.collapsed .acct-id, .side.collapsed .acct-more { display: none; }
+
+/* ---- Keyboard-shortcuts sheet (account menu → "Keyboard shortcuts") -------- */
+.ks-back { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center;
+  background: rgba(17, 17, 20, .28); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  animation: ks-fade .16s var(--ease-out); }
+@keyframes ks-fade { from { opacity: 0; } to { opacity: 1; } }
+.ks-sheet { width: 440px; max-width: calc(100vw - 32px); max-height: 80vh; overflow: auto;
+  background: var(--surface); border: 1px solid var(--line-strong); border-radius:var(--r-lg);
+  box-shadow: var(--shadow-3); animation: ks-pop .18s var(--ease-out); }
+@keyframes ks-pop { from { opacity: 0; transform: translateY(6px) scale(.985); } to { opacity: 1; transform: none; } }
+.ks-head { position: sticky; top: 0; background: var(--surface); z-index: 1;
+  display: flex; align-items: center; justify-content: space-between;
+  padding:var(--sp-14) var(--sp-18); border-bottom: 1px solid var(--line); }
+.ks-title { font-size:var(--text-md); font-weight:var(--fw-semibold); color: var(--text); letter-spacing: -.01em; }
+.ks-x { width: 26px; height: 26px; display: grid; place-items: center; border-radius:var(--r-sm); color: var(--t3);
+  transition: background .13s var(--ease), color .13s var(--ease); }
+.ks-x:hover { background: var(--accent-tint); color: var(--text); }
+.ks-body { padding:var(--sp-6) var(--sp-18) var(--sp-18); }
+.ks-grp { margin-top:var(--sp-14); }
+.ks-grp-t { font-size:var(--text-xs); font-weight:var(--fw-semibold); text-transform: uppercase; letter-spacing: .05em;
+  color: var(--t3); margin-bottom:var(--sp-2); }
+.ks-row { display: flex; align-items: center; justify-content: space-between; gap:var(--sp-16);
+  padding:var(--sp-8) 0; border-bottom: 1px solid var(--line-2); }
+.ks-row:last-child { border-bottom: 0; }
+.ks-act { font-size:var(--text-base); color: var(--text); }
+.ks-keys { display: inline-flex; align-items: center; gap:var(--sp-4); flex-shrink: 0; }
+.ks-keys kbd { font-family: var(--font); font-size:var(--text-xs); font-weight:var(--fw-medium); color: var(--t2);
+  min-width: 20px; height: 20px; padding:0 var(--sp-6); display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bg); border: 1px solid var(--line-strong); border-radius:var(--r-sm); box-shadow: 0 1px 0 var(--line-strong); }
+.ks-then { font-size:var(--text-2xs); color: var(--t3); padding:0 var(--sp-2); }
+
+/* Styled tooltip for the "New playlist" + button — replaces its native `title`
+   with the app's dark hover tooltip (same look as the recordings `[data-tip]`),
+   so it reads as one component. Right-aligned to the button so it stays inside
+   the sidebar rather than running past the edge. */
+.nav-h-add[data-tip] { position: relative; }
+.nav-h-add[data-tip]::after {
+  content: attr(data-tip);
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: rgba(8, 9, 12, .97);
+  color: #fff;
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-medium);
+  letter-spacing: .1px;
+  white-space: nowrap;
+  padding:var(--sp-4) var(--sp-8);
+  border-radius:var(--r-sm);
+  border: 1px solid rgba(255, 255, 255, .09);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+  opacity: 0;
+  transform: translateY(-3px);
+  pointer-events: none;
+  z-index: 100;
+  transition: opacity .12s ease-out, transform .12s ease-out;
+}
+.nav-h-add[data-tip]:hover::after { opacity: 1; transform: translateY(0); }
+
+/* ---- Account menu — roomier "help / account" surface ----------------------
+   The shared RvContextMenu is compact by default (playlist + session menus).
+   The account chip's menu opts into this wider, taller variant via
+   `className="rv-ctx-acct"`, so it reads as the app's primary account surface
+   without touching the other two. Only this class is affected; the base
+   `.menu-pop button` is out-specified, so load order is irrelevant. */
+.menu-pop.rv-ctx-acct { min-width: 264px; padding:var(--sp-8); border-radius:var(--r-lg); }
+.menu-pop.rv-ctx-acct button {
+  padding:var(--sp-8) var(--sp-12); gap:var(--sp-12); font-size:var(--text-base); font-weight:var(--fw-medium); border-radius:var(--r-md);
+}
+.menu-pop.rv-ctx-acct .ic { width: 16px; height: 16px; }
+
+/* ── Collapsed rail: instant hover tooltip of each nav item's name ───────────
+   Every NavLink already carries `title={label}` for a11y, but the native
+   tooltip only appears after the browser's ~1s delay — useless for a collapsed
+   icon-only rail. This shows the SAME text (pulled from that title attr)
+   instantly on hover/keyboard-focus, floated to the right of the rail. Only
+   applies when collapsed; the expanded rail shows its label inline. */
+/* The rail clips overflow to keep long labels from spilling when EXPANDED; when
+   collapsed the labels are display:none, so allow overflow (and lift the
+   stacking context) here so the hover tooltip below can escape the rail and
+   float over the page content instead of being clipped away. */
+.side.collapsed { overflow: visible; position: relative; z-index: 30; }
+.side.collapsed .nav { overflow: visible; }
+.side.collapsed .nav a { position: relative; }
+.side.collapsed .nav a::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  padding: var(--sp-4) var(--sp-8);
+  background: #1c1d22;
+  color: #fff;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  line-height: 1;
+  white-space: nowrap;
+  border-radius: var(--r-sm);
+  box-shadow: 0 6px 18px rgba(17, 17, 20, 0.16);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 70;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+}
+.side.collapsed .nav a:hover::after,
+.side.collapsed .nav a:focus-visible::after {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .side.collapsed .nav a::after { transition: opacity 0.12s ease; }
+}

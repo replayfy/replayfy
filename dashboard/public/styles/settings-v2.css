@@ -1,0 +1,148 @@
+/* ============================================================================
+   Settings v2 — Integrations catalog + detail  (namespace: intg-)
+   A flat, hairline catalog: search, one featured card, category card grids,
+   and a self-contained per-integration detail. Reuses the app tokens; motion
+   ≤ 220ms on transform/opacity. Brand colour only appears on logos and the
+   featured wash — the surface stays neutral.
+   ========================================================================== */
+
+/* the integrations panel needs more room than the 660px settings column */
+.set-content:has(.intg) { max-width: none; }
+
+/* ---- Danger zone — the Delete workspace action sat top-pinned against a
+   taller copy block (align-items:flex-start), so it floated high and read as
+   unaligned. Center it with the text; keep it from shrinking. ---- */
+.set-danger { align-items: center; }
+.set-danger .btn { flex-shrink: 0; }
+.intg { --ease-out: cubic-bezier(.23,1,.32,1); display: block; padding-top:var(--sp-4); }
+
+/* ---- search ---- */
+.intg-search { display: flex; align-items: center; gap:var(--sp-10); height: 42px; padding:0 var(--sp-14); border: 1px solid var(--line-strong); border-radius:var(--r-lg); background: var(--surface); color: var(--t3); margin-bottom:var(--sp-20); transition: border-color .18s ease-in-out, box-shadow .18s ease-in-out; }
+.intg-search:hover { border-color: var(--line-strong); }
+.intg-search:focus-within { border-color: var(--accent); box-shadow:var(--ring-accent); }
+.intg-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font-size:var(--text-base); font-family: inherit; color: var(--text); }
+.intg-search input::placeholder { color: var(--t4); }
+.intg-search-x { display: grid; place-items: center; width: 22px; height: 22px; border: none; background: none; border-radius:var(--r-sm); color: var(--t3); cursor: pointer; transition: background .12s var(--ease-out), color .12s var(--ease-out); }
+.intg-search-x:hover { background: var(--line-2); color: var(--text); }
+
+/* ---- brand logo tile ---- */
+.intg-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius:var(--r-lg); border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; box-shadow: 0 1px 2px rgba(17,17,20,.04); }
+.intg-logo.sm { width: 20px; height: 20px; border-radius:var(--r-sm); box-shadow: none; }
+.intg-logo.sm svg { width: 13px; height: 13px; }
+.intg-logo.lg { width: 46px; height: 46px; border-radius:var(--r-lg); }
+.intg-logo.xl { width: 56px; height: 56px; border-radius:var(--r-lg); }
+.intg-logo.xl svg { width: 28px; height: 28px; }
+/* raster/asset logos (e.g. an integration's official app icon) size to match the glyphs */
+.intg-logo img { width: 24px; height: 24px; display: block; border-radius:var(--r-xs); }
+.intg-logo.sm img { width: 15px; height: 15px; border-radius:var(--r-xs); }
+.intg-logo.lg img { width: 28px; height: 28px; }
+.intg-logo.xl img { width: 34px; height: 34px; border-radius:var(--r-sm); }
+
+/* ---- featured hero ---- */
+.intg-hero { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr); gap:var(--sp-20); align-items: center; width: 100%; text-align: left; border: 1px solid var(--line-strong); border-radius:var(--r-lg); padding:var(--sp-20) var(--sp-24); margin-bottom:var(--sp-24); cursor: pointer; overflow: hidden; position: relative;
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--panel), var(--surface));
+  transition: border-color .16s var(--ease-out), transform .16s var(--ease-out), box-shadow .16s var(--ease-out); }
+.intg-hero:hover { border-color: color-mix(in srgb, var(--brand) 34%, var(--line-strong)); box-shadow: 0 2px 8px rgba(17,17,20,.05); }
+.intg-hero:active { transform: scale(.995); }
+.intg-hero:focus-visible { border-radius:var(--r-lg); }
+.intg-hero-l { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.intg-hero-top { display: flex; align-items: center; gap:var(--sp-10); margin-bottom:var(--sp-14); }
+.intg-hero-t { font-size:var(--text-lg); font-weight:var(--fw-semibold); letter-spacing: -.01em; }
+.intg-hero-d { font-size:var(--text-base); color: var(--t2); line-height:var(--lh-normal); margin-top:var(--sp-4); max-width: 30ch; }
+.intg-hero-cta { margin-top:var(--sp-16); }
+/* the faux alert-message preview echoing the reference product shot */
+.intg-hero-art { display: flex; justify-content: flex-end; }
+.intg-msg { width: 100%; max-width: 320px; background: var(--surface); border: 1px solid var(--line); border-radius:var(--r-lg); box-shadow: 0 8px 24px rgba(17,17,20,.09); padding:var(--sp-12) var(--sp-12); }
+.intg-msg-h { display: flex; align-items: center; gap:var(--sp-8); font-size:var(--text-sm); font-weight:var(--fw-semibold); color: var(--text); }
+.intg-msg-time { color: var(--t4); font-weight:var(--fw-regular); font-size:var(--text-xs); }
+.intg-msg-b { display: block; font-size:var(--text-sm); color: var(--t2); line-height:var(--lh-normal); margin:var(--sp-8) 0 var(--sp-8); }
+.intg-msg-b b { color: var(--text); font-weight:var(--fw-semibold); }
+.intg-msg-b .mono { font-size: .92em; }
+.intg-msg-link { display: inline-flex; align-items: center; gap:var(--sp-6); font-size:var(--text-sm); font-weight:var(--fw-semibold); color: var(--accent); }
+
+/* ---- category groups + card grid ---- */
+.intg-group + .intg-group { margin-top:var(--sp-24); }
+.intg-group-h { font-size:var(--text-2xs); font-weight:var(--fw-semibold); letter-spacing: .07em; text-transform: uppercase; color: var(--t3); margin-bottom:var(--sp-10); }
+/* auto-fit + a max track so a lone category card sits at normal card width
+   (never stranded at 1/3 with a huge gutter, never ballooned to full width) */
+.intg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 340px)); gap:var(--sp-12); }
+.intg-card { display: flex; align-items: center; gap:var(--sp-12); text-align: left; width: 100%; border: 1px solid var(--line); border-radius:var(--r-lg); background: var(--surface); padding:var(--sp-14) var(--sp-14); cursor: pointer; transition: border-color .14s var(--ease-out), transform .14s var(--ease-out), box-shadow .14s var(--ease-out); }
+.intg-card:hover { border-color: var(--line-strong); box-shadow: 0 1px 2px rgba(17,17,20,.05); transform: translateY(-1px); }
+.intg-card:active { transform: translateY(0); }
+.intg-card:focus-visible { border-radius:var(--r-lg); }
+/* Static skeleton variant (add-to-cohort / add-to-playlist modals while their
+   lists load): a non-interactive <div>, so drop the button's hover lift, pointer
+   cursor and active transform. */
+.intg-card.atc-sk { cursor: default; pointer-events: none; }
+.intg-card.atc-sk:hover { border-color: var(--line); box-shadow: none; transform: none; }
+.intg-card-b { flex: 1; min-width: 0; }
+.intg-card-t { display: flex; align-items: center; gap:var(--sp-8); font-size:var(--text-base); font-weight:var(--fw-semibold); letter-spacing: -.005em; }
+/* Add-to-cohort rows can carry arbitrarily long user-named cohorts; the name
+   ellipsis-truncates on its own line so it can't shove the Member tag / count /
+   Add button out of the card. Scoped to .atc-name so Integrations cards (short,
+   fixed names) keep rendering their title verbatim. */
+.atc-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intg-card-t .tag { flex-shrink: 0; }
+.intg-card-d { display: block; font-size:var(--text-xs); color: var(--t3); line-height:var(--lh-cozy); margin-top:var(--sp-4); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.intg-card-go { color: var(--t4); flex-shrink: 0; opacity: 0; transform: translateX(-3px); transition: opacity .14s var(--ease-out), transform .16s var(--ease-out), color .14s var(--ease-out); }
+.intg-card:hover .intg-card-go { opacity: 1; transform: none; color: var(--accent); }
+
+/* Shared picker list — Create issue, Add to playlist, Add to cohort. A tighter,
+   tappable list with a PERSISTENT chevron, distinct from the Settings grid's
+   spacious hover-reveal cards, but reusing the same .intg-card / .intg-logo marks. */
+.pick-list { display: flex; flex-direction: column; gap:var(--sp-8); }
+.pick-list .intg-card { padding:var(--sp-10) var(--sp-12); }
+.pick-list .intg-card-go { opacity: 1; transform: none; color: var(--t4); }
+.pick-list .intg-card:hover .intg-card-go { color: var(--accent); }
+.intg-dot { width: 6px; height: 6px; border-radius:50%; background: var(--green); box-shadow:var(--ring-good); }
+
+.intg-empty { display: flex; align-items: center; gap:var(--sp-8); padding:var(--sp-28) var(--sp-4); font-size:var(--text-sm); color: var(--t3); }
+.intg-empty svg { color: var(--t4); }
+
+/* ======================================================================== *
+ *  Detail view                                                             *
+ * ======================================================================== */
+.intg-detail { max-width: 620px; animation: intgIn .2s var(--ease-out); }
+@keyframes intgIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .intg-detail { animation: none; }
+  .intg-hero, .intg-card, .intg-card-go { transition: none; }
+  .intg-hero:active, .intg-card:hover { transform: none; }
+  .intg-card-go { transform: none; }
+}
+.intg-back { display: inline-flex; align-items: center; gap:var(--sp-6); background: none; border: none; padding:var(--sp-6) var(--sp-8); margin:0 0 var(--sp-16) -8px; border-radius:var(--r-sm); font-size:var(--text-sm); font-weight:var(--fw-medium); color: var(--t2); cursor: pointer; transition: color .12s var(--ease-out), background .12s var(--ease-out); }
+.intg-back:hover { color: var(--text); background: var(--line-2); }
+
+.intg-detail-h { display: flex; align-items: center; gap:var(--sp-16); padding-bottom:var(--sp-20); border-bottom: 1px solid var(--line); }
+.intg-detail-hb { flex: 1; min-width: 0; }
+.intg-detail-t { display: flex; align-items: center; gap:var(--sp-10); font-size:var(--text-lg); font-weight:var(--fw-semibold); letter-spacing: -.015em; }
+.intg-detail-cat { font-size:var(--text-sm); color: var(--t3); margin-top:var(--sp-4); }
+.intg-detail-act { flex-shrink: 0; }
+
+.intg-blurb { font-size:var(--text-base); color: var(--t2); line-height:var(--lh-relaxed); margin:var(--sp-20) 0 var(--sp-4); max-width: 62ch; }
+
+.intg-sec-l { font-size:var(--text-2xs); font-weight:var(--fw-semibold); letter-spacing: .07em; text-transform: uppercase; color: var(--t3); margin:var(--sp-24) 0 var(--sp-12); }
+.intg-can { display: flex; flex-direction: column; gap:var(--sp-12); }
+.intg-can-row { display: flex; align-items: flex-start; gap:var(--sp-10); font-size:var(--text-base); color: var(--text); line-height:var(--lh-normal); }
+.intg-can-ic { width: 28px; height: 28px; flex-shrink: 0; border-radius:var(--r-md); background: var(--accent-tint); color: var(--accent); display: grid; place-items: center; }
+
+.intg-scopes { display: flex; flex-direction: column; gap:var(--sp-8); }
+.intg-scope { display: flex; align-items: center; gap:var(--sp-8); font-size:var(--text-sm); color: var(--t2); }
+.intg-scope svg { color: var(--green); flex-shrink: 0; }
+
+.intg-note { display: flex; align-items: flex-start; gap:var(--sp-10); margin-top:var(--sp-24); padding:var(--sp-12) var(--sp-14); border: 1px solid var(--line); border-radius:var(--r-lg); background: var(--panel); font-size:var(--text-sm); color: var(--t3); line-height:var(--lh-body); }
+.intg-note svg { color: var(--t4); flex-shrink: 0; margin-top:var(--sp-2); }
+
+/* ---- responsive ---- */
+@media (max-width: 900px) {
+  .intg-hero { grid-template-columns: minmax(0,1fr); }
+  .intg-hero-art { display: none; }
+}
+@media (max-width: 620px) {
+  .intg-grid { grid-template-columns: minmax(0,1fr); }
+  .intg-detail-h { flex-wrap: wrap; }
+  .intg-detail-act { width: 100%; }
+  .intg-detail-act .btn { width: 100%; justify-content: center; }
+}

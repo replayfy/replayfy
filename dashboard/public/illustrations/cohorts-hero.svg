@@ -1,0 +1,103 @@
+<svg width="640" height="320" viewBox="0 0 640 320" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-cohorts-hero">
+  <title id="title-cohorts-hero">One audience, sorted into cohorts</title>
+  <!-- Replayfy Illustration System · Hero — Cohorts · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="cohh-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.14"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.06"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="cohh-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <g id="cohh-minicat">
+      <path d="M -9.5 -9 L -4 -15.5 Q -1.6 -18 0 -15.5 L 4.5 -9 Z" fill="currentColor" transform="translate(-7 -6) rotate(-18)"/>
+      <path d="M -4.5 -9 L 0 -15.5 Q 1.6 -18 4 -15.5 L 9.5 -9 Z" fill="currentColor" transform="translate(7 -6) rotate(18)"/>
+      <path d="M-15 1.5 C -15 -8 -8.5 -13.5 0 -13.5 C 8.5 -13.5 15 -8 15 1.5 C 15 9.5 8 14 0 14 C -8 14 -15 9.5 -15 1.5 Z" fill="currentColor"/>
+      <ellipse cx="-5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <ellipse cx="5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <circle cx="-4.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <circle cx="6.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <path d="M-1.4 4.6 L 1.4 4.6 Q 2.4 4.8 1.7 5.9 L 0.7 7 Q 0 7.7 -0.7 7 L -1.7 5.9 Q -2.4 4.8 -1.4 4.6 Z" fill="#3A3F5F"/>
+    </g>
+  </defs>
+
+  <g id="ambient-marks" stroke-linecap="round">
+    <circle cx="44" cy="58" r="4.5" stroke="#C8D2ED" stroke-width="2.5"/>
+    <path d="M602 272v12M596 278h12" stroke="#D5CBF7" stroke-width="2.5"/>
+    <circle cx="614" cy="120" r="3.5" fill="#CBE8DC"/>
+    <circle cx="28" cy="246" r="3" fill="#D9E2F5"/>
+  </g>
+
+  <g id="incoming">
+    <path d="M28 160 C 86 150 140 156 212 160" stroke="#A8B6DC" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8" fill="none" opacity="0.55"/>
+    <circle cx="52" cy="157" r="4.5" fill="#7580F5"/>
+    <circle cx="78" cy="153" r="4.5" fill="#EDBE7F"/>
+    <circle cx="104" cy="153" r="4.5" fill="#8FD0B4"/>
+    <circle cx="130" cy="156" r="4.5" fill="#B39DF2"/>
+    <circle cx="156" cy="158" r="4.5" fill="#B9C4DC"/>
+    <circle cx="182" cy="160" r="4.5" fill="#6D9BFF"/>
+  </g>
+
+  <g id="prism">
+    <ellipse cx="278" cy="242" rx="52" ry="8" fill="url(#cohh-shadow)"/>
+    <path d="M224 152 L 270 106 Q 278 98 286 106 L 332 152 Q 340 160 332 168 L 286 214 Q 278 222 270 214 L 224 168 Q 216 160 224 152 Z" fill="url(#cohh-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+    <circle cx="278" cy="144" r="3.5" fill="#5B8CFF"/>
+    <circle cx="278" cy="160" r="3.5" fill="#8B5CF6"/>
+    <circle cx="278" cy="176" r="3.5" fill="#34B67F"/>
+  </g>
+
+  <g id="ribbons" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8">
+    <path d="M330 148 C 392 118 442 100 514 92" stroke="#7D9BF0" opacity="0.8"/>
+    <path d="M340 160 C 402 160 452 160 514 158" stroke="#A98FF2" opacity="0.8"/>
+    <path d="M330 172 C 392 202 442 220 514 226" stroke="#6FC8A4" opacity="0.8"/>
+  </g>
+
+  <g id="sorted-travellers">
+    <circle cx="368" cy="132" r="4.5" fill="#7580F5"/>
+    <circle cx="406" cy="116" r="4.5" fill="#6D9BFF"/>
+    <circle cx="446" cy="104" r="4.5" fill="#7580F5"/>
+    <circle cx="484" cy="96" r="4.5" fill="#6D9BFF"/>
+    <circle cx="374" cy="160" r="4.5" fill="#B39DF2"/>
+    <circle cx="412" cy="160" r="4.5" fill="#A78BFA"/>
+    <circle cx="452" cy="159" r="4.5" fill="#B39DF2"/>
+    <circle cx="490" cy="158" r="4.5" fill="#A78BFA"/>
+    <circle cx="368" cy="188" r="4.5" fill="#8FD0B4"/>
+    <circle cx="406" cy="204" r="4.5" fill="#6FC8A4"/>
+    <circle cx="446" cy="216" r="4.5" fill="#8FD0B4"/>
+    <circle cx="484" cy="222" r="4.5" fill="#6FC8A4"/>
+  </g>
+
+  <g id="segments">
+    <g id="segment-blue">
+      <ellipse cx="548" cy="118" rx="17" ry="3.5" fill="url(#cohh-shadow)"/>
+      <circle cx="548" cy="90" r="23" fill="#FFFFFF" opacity="0.55"/>
+      <circle cx="548" cy="90" r="23" fill="#5B8CFF" opacity="0.08"/>
+      <circle cx="548" cy="90" r="23" stroke="#7D9BF0" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round"/>
+      <circle cx="548" cy="90" r="15" fill="#FFFFFF"/>
+      <use href="#cohh-minicat" color="#7580F5" transform="translate(548 91) scale(0.72)"/>
+    </g>
+    <g id="segment-purple">
+      <ellipse cx="552" cy="184" rx="16" ry="3.5" fill="url(#cohh-shadow)"/>
+      <circle cx="552" cy="158" r="21" fill="#FFFFFF" opacity="0.55"/>
+      <circle cx="552" cy="158" r="21" fill="#8B5CF6" opacity="0.07"/>
+      <circle cx="552" cy="158" r="21" stroke="#A98FF2" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round"/>
+      <circle cx="552" cy="158" r="14" fill="#FFFFFF"/>
+      <use href="#cohh-minicat" color="#B39DF2" transform="translate(552 159) scale(0.66)"/>
+    </g>
+    <g id="segment-green">
+      <ellipse cx="548" cy="252" rx="15" ry="3.5" fill="url(#cohh-shadow)"/>
+      <circle cx="548" cy="228" r="20" fill="#FFFFFF" opacity="0.55"/>
+      <circle cx="548" cy="228" r="20" fill="#34B67F" opacity="0.07"/>
+      <circle cx="548" cy="228" r="20" stroke="#6FC8A4" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round"/>
+      <circle cx="548" cy="228" r="13" fill="#FFFFFF"/>
+      <use href="#cohh-minicat" color="#8FD0B4" transform="translate(548 229) scale(0.62)"/>
+    </g>
+    <g stroke="#A5AFF7" stroke-width="1.8" stroke-linecap="round" opacity="0.8">
+      <path d="M584 62 l3 -3"/>
+      <path d="M590 76 h4"/>
+    </g>
+  </g>
+</svg>

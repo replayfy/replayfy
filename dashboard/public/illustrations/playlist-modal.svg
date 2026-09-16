@@ -1,0 +1,117 @@
+<svg width="520" height="140" viewBox="0 0 520 140" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-playlist-modal" style="display:block;width:100%;height:auto">
+  <title id="title-playlist-modal">Recordings collected into playlists</title>
+  <!-- Replayfy Illustration System · Modal header — Add to playlist · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="plm-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="plm-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <linearGradient id="plm-screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFCFF"/>
+      <stop offset="1" stop-color="#F1F4FB"/>
+    </linearGradient>
+    <linearGradient id="plm-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <!-- Dissolves the band into the modal surface: no hard edge under the title. -->
+    <linearGradient id="plm-fade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="0.55" stop-color="#FFFFFF" stop-opacity="0.72"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="1"/>
+    </linearGradient>
+    <g id="plm-folder">
+      <path d="M0 3 Q0 0 3 0 L6.5 0 Q8 0 8.8 1.2 L10 3 L17 3 Q20 3 20 6 L20 13.5 Q20 16 17 16 L3 16 Q0 16 0 13.5 Z" fill="currentColor"/>
+    </g>
+  </defs>
+
+  <g id="ambient-marks" stroke-linecap="round">
+    <circle cx="30" cy="28" r="4" stroke="#C8D2ED" stroke-width="2.5"/>
+    <path d="M490 20v12M484 26h12" stroke="#D5CBF7" stroke-width="2.5"/>
+    <circle cx="500" cy="64" r="3" fill="#CBE8DC"/>
+    <circle cx="24" cy="70" r="2.5" fill="#D9E2F5"/>
+  </g>
+
+  <g id="session-stack">
+    <g id="session-ghost-2" transform="rotate(-16 100 62)" opacity="0.42">
+      <rect x="54" y="36" width="80" height="52" rx="11" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <rect x="64" y="46" width="28" height="5" rx="2.5" fill="#E0E6F2"/>
+      <rect x="64" y="57" width="58" height="20" rx="8" fill="#F1F4FB"/>
+    </g>
+    <g id="session-ghost-1" transform="rotate(-8 100 62)" opacity="0.72">
+      <rect x="66" y="32" width="86" height="58" rx="12" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <rect x="78" y="43" width="32" height="6" rx="3" fill="#DCE3F0"/>
+      <rect x="78" y="55" width="62" height="24" rx="8" fill="#EFF3FA"/>
+    </g>
+    <g id="session-front">
+      <ellipse cx="146" cy="100" rx="50" ry="6" fill="url(#plm-shadow)"/>
+      <rect x="96" y="20" width="100" height="76" rx="14" fill="url(#plm-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+      <g id="plm-chrome">
+        <circle cx="109" cy="34" r="2.5" fill="#D9E0EE"/>
+        <circle cx="118" cy="34" r="2.5" fill="#D9E0EE"/>
+        <circle cx="127" cy="34" r="2.5" fill="#D9E0EE"/>
+        <rect x="138" y="30" width="48" height="8" rx="4" fill="#EFF2F9"/>
+      </g>
+      <rect x="106" y="46" width="80" height="40" rx="8" fill="url(#plm-screen)" stroke="#E9EDF6" stroke-width="1.5"/>
+      <circle cx="146" cy="66" r="10.5" fill="url(#plm-accent)"/>
+      <path d="M143.2 61.6l8 4.4-8 4.4z" fill="#FFFFFF"/>
+    </g>
+  </g>
+
+  <g id="flow" fill="none" stroke-width="2" stroke-linecap="round" stroke-dasharray="1 8">
+    <path d="M200 52 C 244 34 296 28 344 33" stroke="#7D9BF0" opacity="0.8"/>
+    <path d="M200 62 C 244 66 296 68 344 67" stroke="#A98FF2" opacity="0.8"/>
+    <path d="M200 72 C 244 92 296 100 344 101" stroke="#6FC8A4" opacity="0.8"/>
+  </g>
+
+  <g id="travellers">
+    <circle cx="220" cy="45" r="4.5" fill="#7E8BFA"/>
+    <circle cx="249" cy="37" r="4.5" fill="#F0BE7E"/>
+    <circle cx="278" cy="33" r="4.5" fill="#8FD0B4"/>
+    <circle cx="307" cy="31" r="4.5" fill="#B9C4DC"/>
+    <circle cx="332" cy="32" r="4.5" fill="#6D9BFF"/>
+    <circle cx="220" cy="64" r="4.5" fill="#B39DF2"/>
+    <circle cx="249" cy="65" r="4.5" fill="#6D9BFF"/>
+    <circle cx="278" cy="67" r="4.5" fill="#F0BE7E"/>
+    <circle cx="307" cy="67" r="4.5" fill="#B9C4DC"/>
+    <circle cx="332" cy="67" r="4.5" fill="#7E8BFA"/>
+    <circle cx="220" cy="80" r="4.5" fill="#8FD0B4"/>
+    <circle cx="249" cy="89" r="4.5" fill="#B9C4DC"/>
+    <circle cx="278" cy="95" r="4.5" fill="#6FC8A4"/>
+  </g>
+
+  <g id="collections">
+    <g id="collection-1">
+      <rect x="350" y="20" width="124" height="28" rx="10" fill="url(#plm-panel)" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#plm-folder" color="#7580F5" transform="translate(364 27) scale(0.85)"/>
+      <rect x="390" y="27" width="42" height="6" rx="3" fill="#C9D3E6"/>
+      <rect x="390" y="37" width="26" height="5" rx="2.5" fill="#E0E6F2"/>
+      <rect x="444" y="29" width="20" height="10" rx="5" fill="#EDEFFF"/>
+      <rect x="449" y="32.5" width="10" height="3" rx="1.5" fill="#A8B6DC"/>
+    </g>
+    <g id="collection-2">
+      <rect x="350" y="54" width="124" height="28" rx="10" fill="url(#plm-panel)" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#plm-folder" color="#A98FF2" transform="translate(364 61) scale(0.85)"/>
+      <rect x="390" y="61" width="52" height="6" rx="3" fill="#C9D3E6"/>
+      <rect x="390" y="71" width="20" height="5" rx="2.5" fill="#E0E6F2"/>
+      <rect x="444" y="63" width="20" height="10" rx="5" fill="#EDEFFF"/>
+      <rect x="449" y="66.5" width="10" height="3" rx="1.5" fill="#A8B6DC"/>
+    </g>
+    <g id="collection-3">
+      <rect x="350" y="88" width="124" height="28" rx="10" fill="url(#plm-panel)" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#plm-folder" color="#8FD0B4" transform="translate(364 95) scale(0.85)"/>
+      <rect x="390" y="95" width="36" height="6" rx="3" fill="#C9D3E6"/>
+      <rect x="390" y="105" width="30" height="5" rx="2.5" fill="#E0E6F2"/>
+      <rect x="444" y="97" width="20" height="10" rx="5" fill="#EDEFFF"/>
+      <rect x="449" y="100.5" width="10" height="3" rx="1.5" fill="#A8B6DC"/>
+    </g>
+  </g>
+
+  <rect id="plm-bottom-fade" x="0" y="84" width="520" height="56" fill="url(#plm-fade)"/>
+</svg>

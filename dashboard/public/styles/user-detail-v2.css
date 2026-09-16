@@ -1,0 +1,338 @@
+/* ============================================================================
+   User detail — main column, mature enterprise register.
+   Additive; scoped entirely to `.ud-main.udx` (the `udx` modifier is added on
+   the main column element). Nothing here leaks to other routes, and the frozen
+   sheets (styles.css / pages.css) are untouched.
+
+   Same philosophy as the Overview (ox-) system: the column is TYPESET, not
+   boxed. Hierarchy comes from a strict vertical rhythm — a caps/heading label
+   over full-bleed content, hairline rules, one accent — never from card chrome.
+   Numbers are editorial: Inter tabular figures (IBM Plex Mono is reserved for
+   code entities — routes, ids, clocks). Motion is ≤ 180ms, transform/opacity
+   only, and honors prefers-reduced-motion.
+
+   The four sections read as one narrative:
+     Executive summary  →  Behaviour (activity)  →  Recent sessions  →  Timeline
+   Every `.ud-*` base rule lives in the frozen sheets; each rule here out-scopes
+   it through the `.udx` prefix. No data is added or removed — only presentation.
+   ========================================================================== */
+
+.ud-main.udx {
+  --uz-ease: cubic-bezier(.23, 1, .32, 1);
+  --uz-num: "tnum" 1, "cv01" 1, "cv03" 1;
+  padding:var(--sp-24) var(--sp-36) 96px;
+  animation: udxIn .26s var(--uz-ease);
+}
+@keyframes udxIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* A wide column shouldn't sprawl — cap the measure, left-aligned (editorial),
+   so lines and the chart stay readable on ultrawide displays. */
+.udx > * { max-width: 1120px; }
+
+/* ---- shared vocabulary ---- */
+.udx-num { font-feature-settings: var(--uz-num); }
+
+/* Section scaffold — a label row over full-bleed content, divided by a hairline
+   rule rather than a box. */
+.udx-sec { margin-top:var(--sp-28); padding-top:var(--sp-20); border-top: 1px solid var(--line-2); }
+.udx-pulse + .udx-sec { border-top: none; margin-top:var(--sp-10); padding-top:var(--sp-24); }
+.udx-sec-h { display: flex; align-items: baseline; gap:var(--sp-10); margin-bottom:var(--sp-14); min-height: 24px; }
+.udx-sec-t { font-size:var(--text-base); font-weight:var(--fw-semibold); letter-spacing: -.01em; color: var(--text); }
+.udx-sec-m { font-size:var(--text-xs); color: var(--t3); }
+.udx-sp { flex: 1; }
+
+/* ======================================================================== *
+ *  1 · Executive summary — a hairline-divided pulse, no boxes              *
+ * ======================================================================== */
+.udx-pulse {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding:var(--sp-2) 0 var(--sp-24);
+  border-bottom: 1px solid var(--line);
+}
+.udx-kpi {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding:var(--sp-2) var(--sp-18) 0 var(--sp-20);
+  border-left: 1px solid var(--line-2);
+}
+.udx-kpi:first-child { border-left: none; padding-left:0; }
+.udx-kpi-k {
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--t3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* The number owns its row — large, tight, tabular. This is the one thing in the
+   cell worth reading from across the room. */
+.udx-kpi-v {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-8);
+  margin-top:var(--sp-12);
+  font-size:var(--text-3xl);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -.025em;
+  line-height:var(--lh-none);
+  color: var(--text);
+  font-feature-settings: var(--uz-num);
+  white-space: nowrap;
+}
+.udx-kpi-v .on-dot {
+  width: 8px; height: 8px; border-radius:50%;
+  background: var(--green);
+  box-shadow:var(--ring-good);
+  flex-shrink: 0;
+}
+/* Context line: delta-or-period on the left, the micro-trend quietly on the
+   right. `min-width:0` + ellipsis mean a long period note truncates instead of
+   shoving the sparkline out of the cell. */
+.udx-kpi-d {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap:var(--sp-10);
+  margin-top:var(--sp-12);
+  min-height: 18px;
+  min-width: 0;
+}
+.udx-kpi-sub {
+  font-size:var(--text-xs);
+  color: var(--t4);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.udx-delta {
+  display: inline-flex;
+  align-items: baseline;
+  gap:var(--sp-4);
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  font-feature-settings: var(--uz-num);
+  white-space: nowrap;
+}
+.udx-delta.up { color: var(--green); }
+.udx-delta.down { color: var(--red); }
+.udx-delta .ar { font-size:var(--text-3xs); transform: translateY(-1px); }
+/* Micro-visualization — subtle by default, keyed to its metric's tone. */
+.udx-spark { display: block; flex-shrink: 0; color: var(--accent); opacity: .85; }
+.udx-spark.rage { color: var(--amber); }
+
+/* ======================================================================== *
+ *  2 · Activity — the page's visual anchor                                 *
+ * ======================================================================== */
+.udx-chart { position: relative; }
+.udx-plot { position: relative; height: 220px; }
+/* Faint reference scale behind the bars — axis treatment, not chrome. */
+.udx-grid { position: absolute; inset: 0; pointer-events: none; }
+.udx-grid .ln { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--line); }
+.udx-grid .ln.base { border-top: 1px solid var(--line-strong); }
+.udx-ymax {
+  position: absolute; top: -7px; left: 0;
+  font-size:var(--text-2xs); color: var(--t4);
+  font-feature-settings: var(--uz-num);
+  background: var(--bg); padding-right:var(--sp-6);
+}
+.udx-bars { position: absolute; inset: 0; display: flex; align-items: flex-end; gap:var(--sp-6); }
+.udx-bar {
+  flex: 1; min-height: 2px;
+  border-radius:var(--r-2xs) var(--r-2xs) 0 0;
+  background: linear-gradient(180deg, var(--accent-2), var(--accent));
+  opacity: .5;
+  transition: opacity .14s var(--uz-ease);
+}
+/* On hover the whole field recedes so the pointed-at day reads clearly. */
+.udx-bars:hover .udx-bar { opacity: .3; }
+.udx-bar:hover, .udx-bar.hot, .udx-bars:hover .udx-bar.hot { opacity: 1; }
+.udx-xaxis {
+  display: flex; justify-content: space-between;
+  margin-top:var(--sp-10);
+  font-size:var(--text-2xs); color: var(--t4);
+  font-feature-settings: var(--uz-num);
+}
+/* A light instrument tooltip, anchored above the hovered bar's top. */
+.udx-tip {
+  position: absolute;
+  transform: translateX(-50%);
+  background: linear-gradient(180deg, #fff 0%, #fbfbfc 100%);
+  border: 1px solid var(--line-strong);
+  border-radius:var(--r-md);
+  padding:var(--sp-8) var(--sp-10);
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 6;
+  box-shadow: 0 1px 2px rgba(17, 17, 20, .05), 0 10px 28px rgba(17, 17, 20, .09);
+  transition: left .14s var(--uz-ease), bottom .14s var(--uz-ease);
+}
+.udx-tip b { display: block; font-size:var(--text-base); font-weight:var(--fw-semibold); color: var(--text); font-feature-settings: var(--uz-num); }
+.udx-tip em { font-style: normal; font-size:var(--text-2xs); color: var(--t3); font-family: var(--mono); }
+
+/* ======================================================================== *
+ *  3 · Recent sessions — a high-performance investigation ledger           *
+ * ======================================================================== */
+.udx-sec table { margin:0; }
+.udx-sec thead th {
+  font-size:var(--text-xs);
+  font-weight:var(--fw-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--t3);
+  padding:0 var(--sp-12) var(--sp-10);
+  border-bottom: 1px solid var(--line);
+}
+.udx-sec thead th:first-child { padding-left:var(--sp-2); }
+.udx-sec tbody td {
+  padding:var(--sp-12);
+  border-bottom: 1px solid var(--line-2);
+  vertical-align: middle;
+}
+.udx-sec tbody td:first-child { padding-left:var(--sp-2); }
+.udx-sec tbody tr:last-child td { border-bottom: none; }
+.udx-sec tbody tr.clickable { transition: background .13s var(--uz-ease); }
+.udx-sec tbody tr.clickable:hover { background: var(--panel); }
+/* Path cell — a status dot for at-a-glance triage, then the route in mono. */
+.udx-rec-path { display: flex; align-items: center; gap:var(--sp-10); min-width: 0; }
+.udx-rec-dot { width: 7px; height: 7px; border-radius:50%; flex-shrink: 0; background: var(--green); }
+.udx-rec-dot.err { background: var(--amber); }
+.udx-rec-dot.rage { background: var(--red); }
+.udx-rec-route {
+  font-family: var(--mono);
+  font-size:var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color .12s var(--uz-ease);
+}
+.udx-sec tbody tr.clickable:hover .udx-rec-route {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+.udx-rec-dur { font-family: var(--mono); font-size:var(--text-sm); color: var(--t2); font-feature-settings: "tnum" 1; }
+.udx-rec-meta { font-size:var(--text-xs); color: var(--t3); }
+.udx-rec-when { font-size:var(--text-xs); color: var(--t3); font-feature-settings: var(--uz-num); white-space: nowrap; }
+/* Issue column — problems get a tinted pill with a leading dot; a clean session
+   is stated quietly, so the eye goes straight to the sessions that need work. */
+.udx-iss { display: inline-flex; align-items: center; gap:var(--sp-6); font-size:var(--text-xs); font-weight:var(--fw-semibold); white-space: nowrap; }
+.udx-iss.rage { color: var(--red); }
+.udx-iss.err { color: var(--amber); }
+.udx-iss .d { width: 5px; height: 5px; border-radius:50%; background: currentColor; }
+.udx-iss.clean { color: var(--t4); font-weight:var(--fw-medium); }
+
+/* ======================================================================== *
+ *  4 · Timeline — events on a rail, chronology from spacing not separators  *
+ * ======================================================================== */
+.udx-tl { position: relative; }
+/* The rail — one continuous line threaded through the dot column. Its ends stop
+   at the first/last dot centers (≈ row padding-top + node offset + dot radius). */
+.udx-tl::before {
+  content: "";
+  position: absolute;
+  left: 13px; top: 24px; bottom: 24px;
+  width: 1px;
+  background: var(--line);
+}
+/* A single event (or none) has nothing to connect — drop the rail stub. */
+.udx-tl:empty::before,
+.udx-tl:has(.udx-tl-row:only-child)::before { content: none; }
+.udx-tl-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr);
+  gap:var(--sp-12);
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding:var(--sp-10) var(--sp-32) var(--sp-10) 0;
+  border-radius:var(--r-md);
+  cursor: pointer;
+  transition: background .13s var(--uz-ease);
+}
+.udx-tl-row:hover { background: var(--panel); }
+.udx-tl-node { display: flex; justify-content: center; padding-top:var(--sp-2); }
+.udx-tl-dot {
+  position: relative;
+  z-index: 1;
+  width: 26px; height: 26px;
+  border-radius:50%;
+  background: var(--accent-tint);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  /* ring in the column's own background so the rail reads as passing behind */
+  box-shadow: 0 0 0 3px var(--bg);
+  transition: transform .16s var(--uz-ease);
+}
+.udx-tl-row:hover .udx-tl-dot { transform: scale(1.06); }
+.udx-tl-body { min-width: 0; display: flex; flex-direction: column; padding-top:var(--sp-2); }
+.udx-tl-top { display: flex; align-items: baseline; gap:var(--sp-12); }
+.udx-tl-title {
+  flex: 1;
+  min-width: 0;
+  font-size:var(--text-base);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -.005em;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.udx-tl-time { font-size:var(--text-xs); color: var(--t4); font-feature-settings: var(--uz-num); white-space: nowrap; flex-shrink: 0; }
+.udx-tl-detail { font-size:var(--text-sm); color: var(--t3); line-height:var(--lh-normal); margin-top:var(--sp-4); }
+/* Hover affordance — a chevron slides in at the trailing edge. */
+.udx-tl-go {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  color: var(--t4);
+  opacity: 0;
+  transform: translateY(-50%) translateX(-3px);
+  transition: opacity .13s var(--uz-ease), transform .16s var(--uz-ease), color .13s var(--uz-ease);
+}
+.udx-tl-row:hover .udx-tl-go { opacity: 1; transform: translateY(-50%); color: var(--accent); }
+
+/* ---- the picker, restyled to a quiet ghost control (matches ox- chartbar) -- */
+.udx .dp-trigger {
+  font-size:var(--text-xs);
+  font-weight:var(--fw-semibold);
+  color: var(--t2);
+  padding:var(--sp-6) var(--sp-10);
+  border-radius:var(--r-md);
+  background: transparent;
+  border: 1px solid var(--line);
+  transition: color .12s var(--uz-ease), background .12s var(--uz-ease), border-color .12s var(--uz-ease);
+}
+.udx .dp-trigger:hover { color: var(--text); background: var(--line-2); border-color: var(--line-strong); }
+.udx .dp-trigger .ic { color: var(--t3); }
+
+/* ======================================================================== *
+ *  Responsive                                                              *
+ * ======================================================================== */
+@media (max-width: 1080px) {
+  .ud-main.udx { padding:var(--sp-20) var(--sp-24) 80px; }
+  .udx-pulse { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap:var(--sp-20); }
+  .udx-kpi { border-left: none; padding-left:0; }
+  .udx-kpi:nth-child(2n) { border-left: 1px solid var(--line-2); padding-left:var(--sp-20); }
+  .udx-kpi:nth-child(n + 3) { border-top: 1px solid var(--line-2); padding-top:var(--sp-20); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ud-main.udx { animation: none; }
+  .udx-bar, .udx-tip, .udx-tl-dot, .udx-tl-go, .udx-rec-route { transition: none; }
+}
+
+/* identify() avatar image for the user-detail header `.u-av` chip. The image
+   carries its OWN border-radius (inherited 50%) + object-fit so it renders as a
+   circle without clipping the parent — the presence dot (.on-d) sits outside the
+   circle and must stay visible, so `.u-av` itself keeps overflow visible. */
+.u-av-img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }

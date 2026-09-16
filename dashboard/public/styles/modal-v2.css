@@ -1,0 +1,242 @@
+/* ---------- Modal — dynamic-drawer shell ------------------------------------
+   ADDITIVE. Overrides the frozen `.modal` block in styles.css by load order
+   (this file is last in index.html); every selector here matches the original
+   at the same specificity.
+
+   The reference is the Family/Vaul "dynamic drawer": one floating surface that
+   EXPANDS between states rather than a dialog that closes and reopens. Measured
+   off the reference rather than eyeballed — shell radius 36px on a 313px card,
+   32px circular close on a #F7F8F9 fill, 24px content padding.
+
+   Radius is 26px here, not the reference's 36. 36px on a 313px phone-width
+   sheet is ~11% of its width; the same absolute radius on our 560px desktop
+   modal reads as a lozenge, because radius is felt relative to the box it
+   rounds. 26px lands in the brief's 24-28px band and keeps the same softness
+   ratio at our width.
+   ---------- */
+
+/* Modals are app-level surfaces: they float over the ENTIRE product, so they
+   must speak in the app typeface (Inter) no matter what's behind them. Opened
+   from the recordings workspace, the modal sits inside `.rv-wrap`, which sets a
+   dense SF-Pro system stack for its 11px session rail on purpose — and the modal
+   was silently INHERITING it. That is what made the share modal read as "system
+   font / a typical React app". Anchoring the font on the overlay fixes every
+   modal (and the confirm variant, which renders directly under `.ov`) at once.
+   `.rv-wrap` is a distant ancestor; `.ov` is the nearest, so its value wins. */
+.ov, .modal { font-family: var(--font); }
+
+.modal {
+  border-radius:var(--r-2xl);
+  border: none;
+  /* One contact + one ambient layer, replacing the stock --shadow-3. The card
+     floats over a dimmed backdrop, so it needs lift without a dark halo. */
+  box-shadow:
+    0 2px 8px rgb(17 17 20 / .06),
+    0 24px 64px -20px rgb(17 17 20 / .24);
+  /* Entrance: scale 98%→100% + opacity, with a soft spring-shaped bezier
+     (slight settle, no bounce) rather than the stock 150ms `pop`. Nothing
+     appears instantly. Overrides the frozen `.modal { animation: pop }` at
+     equal specificity via load order. */
+  animation: modalIn .2s cubic-bezier(.32, 1.28, .5, 1) both;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(.98); }
+  to   { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .modal { animation: modalFade .18s ease both; }
+  @keyframes modalFade { from { opacity: 0; } to { opacity: 1; } }
+}
+
+/* Roomier than the stock 18px/22px, per the brief's "generous padding". The
+   header keeps its hairline: the reference has one too, and it is what stops
+   the persistent close button from floating over the content during the morph. */
+.modal-h { padding:var(--sp-20) var(--sp-24) var(--sp-16); }
+.modal-b { padding:var(--sp-20) var(--sp-24); }
+.modal-f { padding:var(--sp-16) var(--sp-24) var(--sp-20); border-top: none; }
+
+/* Circular, filled — the reference's close affordance. The stock 7px-radius
+   ghost square was invisible until hover; this one is legible at rest, which
+   matters because it PERSISTS across the morph and is the user's constant
+   escape hatch while the surface reshapes under them. */
+.modal-x {
+  width: 32px;
+  height: 32px;
+  border-radius:var(--r-pill);
+  background: var(--line-2);
+  color: var(--t2);
+  flex-shrink: 0;
+  /* Default arrow, not a pointer — overrides the frozen `button{cursor:pointer}`. */
+  cursor: default;
+  transition: background-color .12s var(--ease), color .12s var(--ease);
+}
+@media (hover: hover) and (pointer: fine) {
+  .modal-x:hover { background: var(--line-strong); color: var(--text); }
+}
+.modal-x:active { transform: scale(0.94); }
+
+/* The morphing viewport. `overflow: hidden` is load-bearing, exactly as in the
+   reference: while the height springs, the outgoing and incoming views briefly
+   overlap and overflow the shell — without this they spill past the rounded
+   corners and the whole illusion of one surface breaks. */
+.modal-morph { overflow: hidden; flex-shrink: 0; }
+
+/* Repairs the scroll chain the morph broke. `.modal-b` ships
+   `flex:1; min-height:0; overflow-y:auto` in the frozen sheet, which worked
+   because its parent WAS the `.modal` flex column. Wrapping it for the morph
+   made its parent a plain block, so `flex:1` and `min-height:0` went inert and
+   `overflow-y:auto` had no height to scroll within: a modal taller than the
+   shell was silently CLIPPED, with no way to reach the rest.
+   Inside the morph the body sizes to content (that height is what we animate
+   to) and caps itself instead, so long forms scroll again. */
+.modal-morph .modal-b {
+  flex: none;
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-x:active { transform: none; }
+}
+
+/* ---------- Share modal: colored option icons + a tighter card -------------
+   Each "Include in link" row now leads with a colored icon tile so the toggles
+   read as a legend for the panels they control. `--ic` is set per-row inline
+   (the dimension's own hue); the tile tints its background from it via
+   color-mix, so one value drives both. The card also tightens a step to keep
+   the taller (icon-bearing) rows from inflating the modal.
+
+   Additive over the frozen `.rv-sd-*` rules; loads after recordings-v2.css. */
+.rv-sd-ic {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius:var(--r-md);
+  display: grid;
+  place-items: center;
+  color: var(--ic, var(--rv-acc));
+  background: color-mix(in srgb, var(--ic, var(--rv-acc)) 13%, transparent);
+}
+/* icon + text on the left, switch pushed to the right. `.t` grows so the
+   switch stays flush-right without the frozen space-between (which would
+   scatter the three children evenly). */
+.rv-sd-card { justify-content: flex-start; gap:var(--sp-10); padding:var(--sp-8) var(--sp-10); }
+.rv-sd-card .t { flex: 1; min-width: 0; }
+.rv-sd-cards { gap:var(--sp-8); }
+.rv-sd-sec { padding:var(--sp-12) 0; }
+
+/* ---------- Share modal — enterprise dense (Direction A) --------------------
+   Flat divider rows, 8px shell radius, tight padding. Scoped to the share
+   modal wrapper so V3Drawer keeps the card + icon-tile styling. */
+.rv-shm-enterprise .modal {
+  border-radius:var(--r-md);
+  box-shadow:
+    0 2px 8px rgb(17 17 20 / .08),
+    0 16px 40px -12px rgb(17 17 20 / .18);
+}
+.rv-shm-enterprise .modal-h {
+  padding:var(--sp-14) var(--sp-16) var(--sp-10);
+  border-bottom: 1px solid var(--line);
+}
+.rv-shm-enterprise .modal-h h3 {
+  font-size:var(--text-md);
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.02em;
+}
+.rv-shm-enterprise .modal-sub {
+  font-size:var(--text-sm);
+  font-family: var(--mono);
+  margin-top:var(--sp-2);
+}
+.rv-shm-enterprise .modal-b {
+  padding:0 0 var(--sp-4);
+}
+.rv-shm-enterprise .modal-f {
+  padding:var(--sp-12) var(--sp-16) var(--sp-16);
+  border-top: 1px solid var(--line);
+}
+.rv-shm-enterprise .modal-x {
+  width: 28px;
+  height: 28px;
+  border-radius:var(--r-sm);
+  background: transparent;
+}
+@media (hover: hover) and (pointer: fine) {
+  .rv-shm-enterprise .modal-x:hover {
+    background: var(--line-2);
+    color: var(--text);
+  }
+}
+
+.rv-shm-enterprise .rv-sd-sec {
+  padding:0;
+  border-top: none;
+}
+.rv-shm-enterprise .rv-sd-st {
+  font-family: var(--mono);
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom:0;
+  padding:var(--sp-8) var(--sp-16) var(--sp-6);
+}
+.rv-shm-enterprise .rv-sd-rows {
+  display: flex;
+  flex-direction: column;
+}
+.rv-shm-enterprise .rv-sd-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap:var(--sp-12);
+  padding:var(--sp-8) var(--sp-16);
+  min-height: 44px;
+}
+.rv-shm-enterprise .rv-sd-row + .rv-sd-row {
+  border-top: 1px solid var(--line-2);
+}
+.rv-shm-enterprise .rv-sd-row .t {
+  display: flex;
+  flex-direction: column;
+  gap:var(--sp-2);
+  min-width: 0;
+  flex: 1;
+}
+.rv-shm-enterprise .rv-sd-row .l {
+  font-size:var(--text-base);
+  font-weight:var(--fw-medium);
+  color: var(--text);
+}
+.rv-shm-enterprise .rv-sd-row .s {
+  font-size:var(--text-xs);
+  color: var(--t3);
+}
+.rv-shm-enterprise .rv-sd-sec--expiry {
+  border-top: 1px solid var(--line-2);
+  margin-top:var(--sp-4);
+  padding-bottom:var(--sp-8);
+}
+.rv-shm-enterprise .rv-sd-expiry {
+  padding:var(--sp-4) var(--sp-16) 0;
+}
+.rv-shm-enterprise .rv-sd-link {
+  margin:0 var(--sp-16) var(--sp-8);
+}
+.rv-shm-enterprise .rv-sd-link-note {
+  font-size:var(--text-xs);
+  color: var(--t3);
+  line-height:var(--lh-normal);
+  margin:0 var(--sp-16) var(--sp-8);
+}
+.rv-shm-enterprise .rv-sd-primary {
+  height: 38px;
+  border-radius:var(--r-md);
+  font-size:var(--text-base);
+  box-shadow: none;
+}
+.rv-shm-enterprise .rv-sd-primary:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}

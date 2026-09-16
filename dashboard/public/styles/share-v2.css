@@ -1,0 +1,335 @@
+/* ============================================================================
+   Share recording modal — v2 surface (additive; frozen sheets untouched).
+
+   Direction: SMALL, FLAT, PREMIUM. The premium comes from restraint — a tight
+   type scale, flat surfaces, dense-but-calm rows — NOT from size. Everything
+   fits in one view; the user should never scroll to reach Generate link.
+
+   Type scale (compact):
+     modal title    Inter  15.5px  600
+     subtitle       Inter  12px    name in ink, "· Recording · 38s" muted
+     section label  Inter  10.5px  600  uppercase +tracking, muted
+     option title   Inter  13px    500
+     description    Inter  11.5px   400 muted, single line
+     buttons        Inter  13px    500
+
+   Flat: modest radius, a hairline border, a restrained shadow — enterprise, not
+   pillowy. Icons are Lucide-geometry line glyphs in a small bordered tile.
+   Scoped entirely to `shx-` / `:has(.shx-hname)`; the morph is the primitive's.
+   ========================================================================== */
+
+/* ---------- Shell ----------
+   Inherited from the shared `.modal:has(.modal-hic)` block in styles.css (the
+   share modal carries a header icon tile too), so its radius, 18px gutters,
+   borderless header/footer and 15.5px title are IDENTICAL to the other redesigned
+   modals. Only the subtitle spans below stay share-specific. */
+.modal:has(.shx-hname) .modal-morph .modal-b { max-height: min(76vh, 600px); }
+.modal-sub .shx-hname {
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  color: var(--t2);
+}
+.modal-sub .shx-hmeta {
+  font-size:var(--text-sm);
+  font-weight:var(--fw-regular);
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Body rhythm — tight ---------- */
+.shx { display: flex; flex-direction: column; gap:var(--sp-14); }
+.shx-grp { display: flex; flex-direction: column; gap:var(--sp-6); }
+
+.shx-glabel {
+  font-size:var(--text-2xs);
+  font-weight:var(--fw-semibold);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--t3);
+  padding:0 var(--sp-2);
+}
+
+/* ---------- Visibility selector + inline generate/copy ---------- */
+.shx-vis-row { display: flex; align-items: stretch; gap:var(--sp-8); }
+.shx-vis-wrap { position: relative; flex: 1; min-width: 0; }
+.shx-vis {
+  width: 100%; display: flex; align-items: center; gap:var(--sp-10);
+  border: 1px solid var(--line-strong); background: var(--surface);
+  border-radius:var(--r-md); padding:var(--sp-8) var(--sp-10); cursor: pointer; text-align: left;
+  transition: border-color .14s ease, background-color .14s ease;
+}
+.shx-vis:hover { border-color: #d8d8db; }
+.shx-vis[aria-expanded="true"] { border-color: var(--accent); }
+.shx-vis-ic {
+  flex-shrink: 0; width: 27px; height: 27px; border-radius:var(--r-sm);
+  display: grid; place-items: center; color: var(--accent); background: var(--accent-weak);
+}
+.shx-vis-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.shx-vis-t { font-size:var(--text-base); font-weight:var(--fw-medium); color: var(--text); letter-spacing: -.006em; }
+.shx-vis-s { font-size:var(--text-xs); color: var(--t3); }
+.shx-vis-cx { color: var(--t3); flex-shrink: 0; transition: transform .18s ease; }
+.shx-vis[aria-expanded="true"] .shx-vis-cx { transform: rotate(180deg); }
+
+.shx-perm-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 20;
+  background: var(--surface); border: 1px solid var(--line); border-radius:var(--r-md);
+  box-shadow: 0 6px 24px -8px rgba(17, 17, 20, .22), 0 1px 2px rgba(17, 17, 20, .06);
+  padding:var(--sp-4); animation: shxMenu .16s var(--ease) both;
+}
+@keyframes shxMenu { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.shx-perm-i {
+  display: flex; align-items: center; gap:var(--sp-10); width: 100%;
+  border: none; background: transparent; padding:var(--sp-8); border-radius:var(--r-sm);
+  cursor: pointer; text-align: left; color: var(--text); transition: background-color .12s ease;
+}
+.shx-perm-i:hover { background: rgba(17, 17, 20, .03); }
+.shx-perm-ic {
+  flex-shrink: 0; width: 26px; height: 26px; border-radius:var(--r-sm); display: grid; place-items: center;
+  color: var(--t3); background: rgba(17, 17, 20, .02); border: 1px solid var(--line);
+}
+.shx-perm-i.sel .shx-perm-ic { color: var(--accent); background: var(--accent-weak); border-color: transparent; }
+.shx-perm-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.shx-perm-t { font-size:var(--text-sm); font-weight:var(--fw-semibold); color: var(--text); }
+.shx-perm-d { font-size:var(--text-xs); color: var(--t3); margin-top: 1px; }
+.shx-perm-ck { color: var(--accent); flex-shrink: 0; }
+
+/* Inline CTA — the footer .shx-cta is full-width; this one sits in the
+   visibility row, hugs its label, and stretches to the selector's height. */
+.shx-cta.shx-cta-inline { width: auto; height: auto; flex-shrink: 0; min-width: 128px; padding:0 var(--sp-14); }
+
+/* Regenerate control inside the minted-link artifact. */
+.shx-artifact-re {
+  flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center;
+  border: none; background: transparent; color: var(--t3); border-radius:var(--r-sm);
+  cursor: pointer; transition: color .14s ease, background-color .14s ease;
+}
+.shx-artifact-re:hover { color: var(--text); background: rgba(17, 17, 20, .05); }
+.shx-artifact-re:disabled { opacity: .5; cursor: default; }
+
+.shx-rows { display: flex; flex-direction: column; gap:0; }
+
+/* ---------- Row — compact settings register ---------- */
+.shx-row {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-10);
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  border-radius:var(--r-md);
+  padding:var(--sp-8) var(--sp-8);
+  cursor: pointer;
+  transition:
+    background-color .16s ease,
+    transform .16s cubic-bezier(.22, 1, .36, 1);
+}
+@media (hover: hover) and (pointer: fine) {
+  .shx-row:hover { background: rgba(17, 17, 20, .03); }
+}
+.shx-row:active { transform: scale(.995); }
+
+/* Small, flat, bordered neutral tile. */
+.shx-ic {
+  flex-shrink: 0;
+  width: 27px;
+  height: 27px;
+  border-radius:var(--r-sm);
+  display: grid;
+  place-items: center;
+  color: var(--t3);
+  background: rgba(17, 17, 20, .02);
+  border: 1px solid var(--line);
+  transition: color .16s ease, border-color .16s ease;
+}
+.shx-row:hover .shx-ic { color: var(--t2); border-color: var(--line-strong); }
+/* Enabled row: the icon tile lights up in the accent, mirroring the option cards. */
+.shx-row.on .shx-ic { color: var(--accent); background: var(--accent-weak); border-color: transparent; }
+
+.shx-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap:var(--sp-2); }
+.shx-title {
+  font-size:var(--text-base);
+  font-weight:var(--fw-medium);
+  color: var(--text);
+  letter-spacing: -.006em;
+}
+.shx-desc {
+  font-size:var(--text-xs);
+  font-weight:var(--fw-regular);
+  color: var(--t3);
+  line-height:var(--lh-tight);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---------- Switch — small, desaturated ---------- */
+.shx-sw {
+  flex-shrink: 0;
+  width: 30px;
+  height: 18px;
+  border-radius:var(--r-pill);
+  padding:var(--sp-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  background: #dcdde2;
+  transition: background-color .2s ease;
+}
+.shx-sw.on {
+  justify-content: flex-end;
+  background: color-mix(in srgb, var(--accent) 72%, #9a9db2);
+}
+.shx-kn {
+  width: 14px;
+  height: 14px;
+  border-radius:50%;
+  background: #fff;
+  box-shadow: 0 1px 1.5px rgba(17, 17, 20, .16);
+}
+
+/* ---------- Segmented control — flat filter ---------- */
+.shx-seg {
+  display: flex;
+  gap:var(--sp-2);
+  padding:var(--sp-2);
+  border-radius:var(--r-md);
+  background: rgba(17, 17, 20, .035);
+  border: 1px solid var(--line);
+}
+.shx-seg-b {
+  position: relative;
+  flex: 1;
+  border: none;
+  background: transparent;
+  border-radius:var(--r-sm);
+  padding:var(--sp-6) 0;
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  color: var(--t3);
+  cursor: pointer;
+  transition: color .15s ease;
+}
+.shx-seg-b .l { position: relative; z-index: 1; }
+.shx-seg-b:hover { color: var(--t2); }
+.shx-seg-b.on { color: var(--text); }
+.shx-seg-pill {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius:var(--r-sm);
+  background: var(--surface);
+  box-shadow: 0 1px 1.5px rgba(17, 17, 20, .08), 0 0 0 1px rgba(17, 17, 20, .03);
+}
+
+/* ---------- Success: flat link artifact ---------- */
+.shx-artifact {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-8);
+  padding:var(--sp-8) var(--sp-8) var(--sp-8) var(--sp-12);
+  border-radius:var(--r-lg);
+  background: rgba(17, 17, 20, .02);
+  border: 1px solid var(--line);
+}
+.shx-artifact-ic {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--accent) 72%, #9a9db2);
+}
+.shx-url {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size:var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.shx-artifact-copy {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-6);
+  height: 30px;
+  padding:0 var(--sp-12);
+  border: none;
+  border-radius:var(--r-sm);
+  background: var(--accent);
+  color: #fff;
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  cursor: pointer;
+  transition: filter .14s ease, background-color .18s ease;
+}
+.shx-artifact-copy:hover { filter: brightness(1.06); }
+.shx-artifact-copy.done { background: var(--green); }
+
+.shx-note {
+  font-size:var(--text-xs);
+  font-weight:var(--fw-regular);
+  color: var(--t3);
+  line-height:var(--lh-cozy);
+  margin:var(--sp-8) var(--sp-2) 0;
+}
+
+/* Open link / Regenerate — quiet, secondary, borderless. */
+.shx-actions { display: flex; gap:var(--sp-4); margin-top:var(--sp-10); }
+.shx-action {
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-8);
+  height: 30px;
+  padding:0 var(--sp-10);
+  border: none;
+  border-radius:var(--r-sm);
+  background: transparent;
+  color: var(--t2);
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: color .14s ease, background-color .14s ease;
+}
+.shx-action:hover { color: var(--text); background: rgba(17, 17, 20, .04); }
+.shx-action svg { color: var(--t3); }
+.shx-action:hover svg { color: var(--t2); }
+.shx-action:disabled { opacity: .55; cursor: default; }
+
+/* ---------- Footer CTA — compact ---------- */
+.shx-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap:var(--sp-8);
+  width: 100%;
+  height: 38px;
+  border: none;
+  border-radius:var(--r-md);
+  background: var(--accent);
+  color: #fff;
+  font-size:var(--text-base);
+  font-weight:var(--fw-medium);
+  letter-spacing: -.004em;
+  cursor: pointer;
+  transition: filter .14s ease;
+}
+.shx-cta:hover:not(:disabled) { filter: brightness(1.06); }
+.shx-cta:disabled { cursor: default; opacity: .92; }
+
+.shx-spin {
+  width: 13px;
+  height: 13px;
+  border-radius:50%;
+  border: 2px solid rgba(255, 255, 255, .35);
+  border-top-color: #fff;
+  animation: shxSpin .6s linear infinite;
+}
+@keyframes shxSpin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .shx-row, .shx-ic, .shx-sw, .shx-artifact-copy, .shx-cta, .shx-action { transition: none; }
+  .shx-spin { animation-duration: .01ms; }
+}

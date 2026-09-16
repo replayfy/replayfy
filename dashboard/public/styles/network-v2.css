@@ -1,0 +1,33 @@
+/* ---------- Network error state -------------------------------------------
+   Additive + scoped to `.nx`, so nothing here can reach any other surface.
+   Layout is borrowed from the approved `.empty` block; only the two things
+   that differ are declared.
+   ---------- */
+
+/* NOT `.empty-art`: that applies drop-shadow(0 18px 24px rgb(17 17 20/.14))
+   and a 5s float. The illustration is drawn crisp and architectural with one
+   6%-opacity shadow of its own — the stock treatment would bury it. */
+/* The art is INLINED (see NetworkError.tsx) rather than fetched, so this sizes
+   an <svg> element — which carries its own width/height attrs that must be
+   overridden, not an <img> that would honour width:auto on its own. */
+.nx-art { margin:0 auto var(--sp-20); }
+.nx-art svg { display: block; width: 370px; max-width: 100%; height: auto; margin:0 auto; }
+
+/* Terminal-flavoured headline. Uses the product's own --mono (IBM Plex Mono):
+   Geist Mono is not loaded anywhere in this app, and adding a font family is
+   an owner decision, not a side effect of shipping an error state. */
+.nx-head {
+  font-family: var(--mono);
+  font-size:var(--text-2xl);
+  font-weight:var(--fw-medium);
+  letter-spacing: -.01em;
+  color: var(--text);
+  margin-bottom:var(--sp-8);
+}
+.nx-caret { color: var(--t4); margin-right:var(--sp-6); }
+.nx p { line-height: 1.4375rem; font-weight:var(--fw-medium); }
+
+/* `.empty` is min-height:62vh, so it centres inside 62vh measured from the top
+   of the content region — which parks the whole state high on the page. Filling
+   the region makes place-items:center mean what it looks like it means. */
+.nx { min-height: 100%; }

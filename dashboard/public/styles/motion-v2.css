@@ -1,0 +1,472 @@
+/* ---------- Motion — press feedback + touch hover gating -------------------
+   ADDITIVE. Nothing in the approved sheets is edited; this file only adds what
+   was missing and neutralises hover lifts on devices that can't hover. It must
+   stay LAST in index.html: every rule here matches the frozen selectors at the
+   SAME specificity, so load order is what lets it win. Media queries add no
+   specificity of their own.
+   ---------- */
+
+/* ---------- 1 · Press feedback ---------------------------------------------
+   `.btn` had :hover but no :active, in 35 files — so no button in the product
+   ever confirmed it heard the press. The one motion gap that is felt on every
+   single click.
+
+   No `transition` is declared here on purpose. `.btn` already ships
+   `transition:.12s var(--ease)` with no property named, which IS
+   transition-property:all — so transform is already transitioned at 120ms,
+   inside the 100-160ms press window. Re-declaring the shorthand here would
+   silently drop the background/border/shadow transitions with it.
+
+   :not(:disabled) — a disabled button must not answer a press it will ignore.
+   ---------- */
+.btn:not(:disabled):active { transform: scale(0.97); }
+
+/* ---------- 1b · Press feedback — the non-.btn clickables -------------------
+   The global rule above only reaches elements classed `.btn`. Icon buttons,
+   segmented controls, popover triggers, close/×, sidebar links and the
+   selectable mode cards are all real click targets that were confirming
+   nothing on press. Values taper with size — smaller controls take a deeper
+   scale so the press still reads (`.94` on a 24px icon button ≈ `.97` on a
+   full button, visually).
+
+   Group A already ships `transition:.12s var(--ease)` (= transition-property
+   ALL), so transform is already animated — only the :active state is added.
+   Group B has no transform transition, so a short transform-only transition is
+   added alongside (safe: these selectors declared none, so nothing is dropped).
+   The two mode cards keep their existing property list and append transform.
+   Everything resets under prefers-reduced-motion at the foot of this file. */
+
+/* Group A — transition:all already present, add the press only. */
+.ibtn:not(:disabled):active { transform: scale(0.95); }
+.rv-iconbtn:not(:disabled):active { transform: scale(0.94); }
+.bl-co-x:not(:disabled):active { transform: scale(0.94); }
+.nav a:active,
+.set-nav button:active { transform: scale(0.98); }
+.nav-sm:active { transform: scale(0.98); }
+.ctl:not(.on):not(:disabled):active { transform: scale(0.97); }
+.bl-back:not(:disabled):active { transform: scale(0.96); }
+.pl-type:active { transform: scale(0.99); }
+
+/* Group B — add a transform-only transition so the press animates, then the
+   press. (transition-property:transform, so no other transition is affected.) */
+.seg button,
+.sel-trigger,
+.dp-trigger,
+.ws-trigger,
+.fn-ai-x,
+.nav-sm { transition: transform .12s var(--ease-out); }
+/* Primary nav links were missed by the interaction speed-up: `.nav a` still
+   rides `.12s var(--ease)` (ease-IN-out), so moving the cursor between items
+   cross-fades the hover fill softly and reads as laggy. Match the snappy
+   standard — a shorter ease-OUT — keeping transition-property:all from the base
+   so nothing that already animates is dropped. */
+.nav a,
+.nav a .ic { transition-duration: .07s; transition-timing-function: var(--ease-out); }
+.seg button:not(.on):not(:disabled):active { transform: scale(0.96); }
+.sel-trigger:not(:disabled):active,
+.dp-trigger:not(:disabled):active,
+.ws-trigger:active { transform: scale(0.98); }
+.fn-ai-x:not(:disabled):active { transform: scale(0.94); }
+
+/* Mode/selectable cards — re-declare their exact transition + transform so the
+   existing border/background/shadow easing is preserved, not clobbered. */
+.co-mode { transition: border-color .14s var(--ease), background .14s var(--ease), box-shadow .14s var(--ease), transform .14s var(--ease-out); }
+.ai-mode { transition: border-color .14s var(--ease), box-shadow .18s var(--ease), background .14s var(--ease), transform .14s var(--ease-out); }
+.co-mode:active,
+.ai-mode:active { transform: scale(0.99); }
+
+/* ---------- 2 · Hover gating ------------------------------------------------
+   Touch taps fire :hover and it STICKS until the next tap elsewhere, so a
+   decorative lift reads as a stuck, half-broken control.
+
+   Scoped deliberately to the 12 DECORATIVE lifts (translateY(-1px), scale(1.x),
+   translateX(1px)). The other ~275 hover rules are colour/background/border
+   only — a brief flash on tap, harmless — and the reveal-on-hover patterns
+   (`opacity:1; transform:none`, e.g. a card's go-arrow) are deliberately left
+   alone: on touch, tapping SHOULD surface the affordance. Neutralising those
+   would hide functionality from touch users, not protect them.
+   ---------- */
+@media (hover: none), (pointer: coarse) {
+  .af-region:hover,
+  .fnt-card:hover,
+  .intg-card:hover,
+  .ox-fab:hover,
+  .rv-play:hover,
+  .rv-hud-play:hover { transform: none; }
+
+  .ox-link:hover .ic,
+  .ox-story2-all:hover .ic,
+  .ox-sig:hover .ox-sig-ic,
+  .fn-add:hover .ring,
+  .fn2-add:hover .ring,
+  .fn-hbar-row:hover .fn-hbar-count { transform: none; }
+}
+
+/* ---------- 3 · Ask AI — panel elevation + the FAB⇄dismiss morph -------------
+   The stock shadow was `0 12px 28px /.16` stacked on `0 40px 80px -24px /.3` —
+   an 80px-blur layer at 30% under a 420px panel. It read as a heavy drop
+   rather than elevation, and darkened a big region of the page behind it.
+   Same two-layer structure, roughly half the weight: a tight contact shadow
+   plus a soft ambient one.
+
+   `bottom` moves 24 → 66px to open the lane the dismiss button lives in. The
+   max height is re-capped against it — `82vh + 66px` still fits, but the
+   maximized `92vh + 66px` would have run off the top of a short viewport.
+   ---------- */
+.askp {
+  bottom: 66px;
+  box-shadow:
+    0 2px 8px rgb(17 17 20 / .06),
+    0 18px 44px -18px rgb(17 17 20 / .16);
+  /* Maximize/restore, previously framer's `layout` prop. That prop had to go —
+     it seized transform-origin and forced 50% 50%, which made the panel
+     collapse into its own middle instead of into the Ask AI button. width and
+     height are layout-triggering properties and normally a poor animation
+     choice, but maximize is a rare, deliberate press on ONE element, and the
+     alternative was breaking the open/close on every use to smooth a control
+     most sessions never touch. */
+  transition: width .26s var(--ease-out), height .26s var(--ease-out);
+}
+.askp.max { height: min(92vh, calc(100vh - 92px)); }
+@media (prefers-reduced-motion: reduce) {
+  .askp { transition: none; }
+}
+
+/* The collapsed FAB and this share a `layoutId`, so framer morphs one into the
+   other: the purple pill deflates into a quiet text button parked under the
+   panel. It is the SAME control throughout — press it to open, press it to
+   close — which is the point of morphing rather than swapping. */
+/* A tinted chip — no border, no shadow, no white fill. The `.btn` treatment
+   (surface + hairline + contact shadow) was wrong here: it is the vocabulary
+   of the PAGE's controls, so the button read as furniture belonging to
+   whatever sat behind it rather than as the AI's own. A flat fill against the
+   page reads as one self-contained pill, which is what the collapsed FAB is
+   too — the morph then has something coherent to morph between.
+
+   No :hover state: the resting fill already says "pressable", so a hover
+   change would be decoration on a control that has already made its case.
+   That also means nothing to gate for touch. */
+.askp-dismiss {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 95;
+  display: inline-flex;
+  align-items: center;
+  gap:var(--sp-8);
+  height: 30px;
+  padding:0 var(--sp-10);
+  border: none;
+  border-radius:var(--r-md);
+  background: var(--line-2);
+  color: var(--t2);
+  font-size:var(--text-sm);
+  font-weight:var(--fw-medium);
+  letter-spacing: -.01em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+/* Accent spark in both shapes — the one carry-over from the FAB that keeps
+   this reading as the AI's control and not a generic chip. */
+.askp-dismiss svg { color: var(--accent); }
+/* The label carries the icon + text through the morph in both shapes; the
+   frozen .askp-fab already lays its own content out, so this only has to hold
+   them together as one measurable box for layout="position". */
+.askp-morph-l { display: inline-flex; align-items: center; gap:var(--sp-8); }
+.askp-fab .askp-morph-l { gap:var(--sp-8); }
+
+/* NO `:active { transform }` here, and none can work on .askp-fab any more
+   either: both carry a `layoutId`, so framer writes inline `transform` on
+   every frame of the morph and inline always beats a stylesheet rule. The
+   press is `whileTap` in the component instead, which framer composes with the
+   layout transform rather than fighting it. (This is also why the frozen
+   `.askp-fab:active` rule is now inert — see AskPanel.tsx.) */
+
+/* ---------- 4 · Texts reveal (staggered lines) -------------------------------
+   Usage:
+     <div class="t-stagger">
+       <strong class="t-stagger-line t-stagger-line--1">…</strong>
+       <span class="t-stagger-line t-stagger-line--2">…</span>
+     </div>
+
+   State:
+     - Add `.is-shown` to play the staggered entrance.
+     - Add `.is-hiding` (and remove `.is-shown`) to fade out in place over a
+       short 200ms — independent of the entrance timing so the exit doesn't
+       replay the stagger.
+
+   Add more lines by adding `.t-stagger-line--N` with
+   `transition-delay: calc(var(--stagger-stagger) * (N - 1))`.
+   ---------- */
+
+/* Tuning note — why BOTH numbers moved, and why the curve did too.
+   The stock 500ms/40ms read as instant, and duration alone was never going to
+   fix it: cubic-bezier(0.22, 1, 0.36, 1) is a quint ease-out that is ~78% done
+   in the first fifth of its run, so ~400ms of that 500 was spent creeping
+   through the last few percent where the eye can't follow it. Stretching a
+   front-loaded curve just makes the invisible tail longer.
+   So: a gentler cubic ease-out spreads the travel across the whole duration,
+   the duration carries it, and the stagger is what actually makes four lines
+   read as a sequence rather than one block — at 40ms they effectively moved
+   together. Everything lands by ~1.04s: long for UI, correct here, because
+   this greeting plays once per conversation and is the AI's entrance. */
+:root {
+  --stagger-dur: 800ms;
+  --stagger-distance: 12px;
+  --stagger-stagger: 80ms;
+  --stagger-blur: 3px;
+  --stagger-ease: cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+/* Lines start translated down + blurred + invisible; .is-shown on the parent
+   flips them to their resting state. Each line's transition-delay holds it
+   back by --stagger-stagger so the eye lands on the headline first. */
+.t-stagger-line {
+  display: block;
+  opacity: 0;
+  transform: translateY(var(--stagger-distance));
+  filter: blur(var(--stagger-blur));
+  transition:
+    opacity   var(--stagger-dur) var(--stagger-ease),
+    transform var(--stagger-dur) var(--stagger-ease),
+    filter    var(--stagger-dur) var(--stagger-ease);
+  will-change: transform, opacity, filter;
+}
+.t-stagger-line--2 { transition-delay: var(--stagger-stagger); }
+.t-stagger-line--3 { transition-delay: calc(var(--stagger-stagger) * 2); }
+.t-stagger-line--4 { transition-delay: calc(var(--stagger-stagger) * 3); }
+
+.t-stagger.is-shown .t-stagger-line {
+  opacity: 1;
+  transform: translateY(0);
+  filter: blur(0);
+}
+/* Exit decouples from the stagger: same fade for every line, no Y return, no
+   blur — so the disappearance reads as a single quiet fade instead of a
+   reverse reveal. */
+.t-stagger.is-hiding .t-stagger-line {
+  opacity: 0;
+  transform: translateY(0);
+  filter: blur(0);
+  transition:
+    opacity 200ms ease,
+    transform 0s linear,
+    filter 0s linear;
+  transition-delay: 0s;
+}
+
+/* `.t-stagger-line` forces display:block to make inline elements animatable,
+   which would flatten these two: the orb is a `grid` that centres its icon,
+   and the chip list is a `column flex` whose `gap` carries its spacing. Both
+   are 2-class selectors, so they win on specificity regardless of order. */
+.askp-orb.t-stagger-line { display: grid; }
+.askp-quick.t-stagger-line { display: flex; }
+
+/* ---------- 5 · Easing + origin corrections (Emil Kowalski tips 4 & 5) -------
+   Enter/exit animations read best with a strong ease-out (fast start, gentle
+   settle) — the app's own --ease-out: cubic-bezier(.23,1,.32,1) — not the
+   Material --ease or a symmetric ease-in-out. And a popover should scale FROM
+   the point it belongs to, not its own centre.
+
+   These override only the TIMING FUNCTION (via the longhand) and add a
+   transform-origin: the frozen keyframes, durations and every other property
+   are left untouched, and load order (this file is last of the design sheets)
+   is what lets the equal-specificity selectors win. Under reduced motion the
+   frozen sheets already set `transition/animation: none`, so nothing here
+   re-introduces movement.
+   ---------- */
+
+/* 4 · ease-out on the app-wide overlays that were on the Material --ease. */
+.palette,
+.drawer { animation-timing-function: var(--ease-out); }
+
+/* Origin-aware dropdown reveal — the menu scales from the trigger corner it
+   opened out of, replacing the frozen translate-only `selpop`. `data-side` is
+   set by Popover.tsx from the computed open direction (b/t below/above × l/r
+   aligned left/right), so a menu that flips upward or right-aligns still grows
+   from the correct corner. The `:has(.sel-menu)` selector matches the Select
+   variant the frozen sheet animates separately. */
+.menu-pop,
+.menu-pop:has(.sel-menu) { animation: menuPopIn .16s var(--ease-out); transform-origin: top left; }
+.menu-pop[data-side="br"] { transform-origin: top right; }
+.menu-pop[data-side="tl"] { transform-origin: bottom left; }
+.menu-pop[data-side="tr"] { transform-origin: bottom right; }
+@keyframes menuPopIn { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+
+/* Single hover standard — the sliding `.pop-hl` continuity pill is gone (removed
+   in Popover.tsx). Menu rows now take a plain background on hover, one treatment
+   everywhere. The DatePicker is excluded: its calendar days and presets carry
+   their own hovers, and the pill only ever double-painted over them. */
+/* A .cbox is a checkbox INDICATOR, not a hoverable menu row — repainting its
+   background flips an unchecked box from white to a pale grey fill on hover
+   (the "we already fixed this" regression). The row's own hover tint handles
+   the affordance; the box must stay a clean bordered square. */
+.menu-pop:not(:has(.dp-pop)):not(.ins-plat-menu) button:not(.cbox):hover:not(:disabled) { background: var(--line-2); }
+.menu-pop:not(:has(.dp-pop)) button.danger:hover:not(:disabled) { background: var(--red-weak); }
+
+/* Keep the trigger looking hovered while its menu is OPEN — a ⋯ action button
+   used to go flat the instant you clicked it, so the open menu felt detached
+   from its source (the trigger stays lit). Mirrors `.ibtn:hover`; the
+   `.pop-tw.open .sel-trigger` state already exists in the frozen sheet.
+
+   The funnel-row action button (`.fnx-more`) is included: its frozen hover/open
+   state was the near-invisible `line-2` fill, so it read as flat next to the
+   Users list. Its transparent base border (added here) means the lit border
+   adds no size jump — box-sizing is border-box — matching `.ibtn` exactly. */
+.fnx-more { border: 1px solid transparent; }
+.pop-tw.open .ibtn,
+.fnx-more:hover,
+.pop-tw.open .fnx-more {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--text);
+}
+/* The funnel row's action container is hover-revealed (`.fnx-actions` opacity
+   0 → 1 on row hover), so opening the menu and moving the pointer onto it lost
+   the row hover and the ⋯ vanished mid-interaction. Keep the container shown
+   whenever its dropdown is open. */
+.fnx-actions:has(.pop-tw.open) { opacity: 1; }
+
+/* The same single standard extended to the app's OTHER bespoke menus, each of
+   which slid its own `.line-2` pill between rows (useMovingHL / a local hl).
+   • Mouse-only menus (workspace switcher, Ask suggestions) drop the pill for the
+     identical plain :hover.
+   • The overview filter dropdowns and the value autocompletes keep the pill —
+     in the autocompletes it doubles as the ARROW-KEY cursor (FnValueField et al.
+     drive it from the active index), so deleting it would blind keyboard nav —
+     but it no longer SLIDES: it snaps to the hovered/active row, reading exactly
+     like the plain hover. One instant line-2 highlight, no gliding, everywhere. */
+.wsx-hl,
+.ask-sug-hl { display: none; }
+.wsx-row:hover,
+.ask-sug-row:hover { background: var(--line-2); }
+.ox-dd-hl,
+.fn-ac-hl { transition: none; }
+
+/* 4 · ease-out on the ease-in-out hover crossfade + focus glow. */
+.fn-hbar-count,
+.fn-hbar-view,
+.ox-askbar .ask-cmd-box { transition-timing-function: var(--ease-out); }
+
+/* 5 · origin-aware — scale from the trigger/point, not the default centre. */
+.ox-tip,
+.rv-tiptip { transform-origin: bottom center; } /* both sit ABOVE their point */
+.fn-ac-pop { transform-origin: top center; }      /* opens BELOW its input */
+
+/* ---------- 6 · Faster (Emil Kowalski tip 6) --------------------------------
+   Interaction/enter-exit animations should run <300ms. These were the handful
+   over the line — the session side-drawer worst of all: a .52s slide over a
+   content sequence whose footer only finished ~1.08s after open. Durations and
+   the stagger delays are compressed through the longhands, so the frozen
+   keyframes and easing curves are untouched; the drawer body now settles by
+   ~.4s and the slide by ~.24s. (Toast/modal/panel timings handled alongside in
+   modal-v2.css and the framer components.) */
+
+/* session side-drawer — the slide, then header → sections → cards → footer */
+.rv-sd { transition-duration: .24s; }
+.rv-sd-head, .rv-sd-sec, .rv-sd-card, .rv-sd-foot { transition-duration: .2s; }
+.rv-sd-root.sd-in .rv-sd-head { transition-delay: .03s; }
+.rv-sd-root.sd-in .rv-sd-sec  { transition-delay: calc(.07s + var(--i) * .035s); }
+.rv-sd-root.sd-in .rv-sd-card { transition-delay: calc(.12s + var(--c) * .03s); }
+.rv-sd-root.sd-in .rv-sd-foot { transition-delay: .17s; }
+
+/* cohort/V3 drawer — same element classes, `.in` state re-declares its reveal */
+.rv-sd-root.in .rv-sd-head,
+.rv-sd-root.in .rv-sd-foot { transition-duration: .2s; }
+.rv-sd-root.in .rv-sd-head { transition-delay: .04s; }
+.rv-sd-root.in .rv-sd-foot { transition-delay: .13s; }
+
+/* toast enter — was .32s; match its own .26s exit band */
+.toast { animation-duration: .2s; }
+
+/* The V3Drawer (cohort builder + overview drawers) now springs open via framer,
+   which writes an inline transform every frame — so the frozen `.rv-sd`
+   transform transition must not also try to animate it. Scoped to `.v3dr` so
+   the recordings native drawer (`.rv-sd` without `.v3dr`) keeps its own slide. */
+.rv-sd-root.v3dr .rv-sd { transition: none; }
+
+/* ---------- 7 · Enter near-size + blur bridges (Emil Kowalski tips 2 & 7) ----
+   Tip 2: two hover-reveal affordances (the funnel connector insert buttons) and
+   the scrubber knob were popping in from a tiny scale (.6/.7/0). Starting near
+   full size reads as easing in rather than materialising from nothing — the
+   overshoot/hover still carries them the last few percent to 1.
+   Tip 7: the session inspector's tab bodies hard-swapped on every tab change.
+   A short blur-fade on mount bridges the two contents; each panel is
+   conditionally mounted, so the entrance replays on each switch. (The
+   ActivityTrend number crossfade and the GenerateKeyModal form↔reveal swap get
+   the same blur treatment in their components.) */
+
+/* 2 · start the hover-reveal micro-affordances near full size, not from tiny */
+.fn-gap .d { transform: scale(.9); }
+.fn2-ins { transform: scale(.9); }
+.rv-scrub-head { transform: translate(-50%, -50%) scale(.85); }
+
+/* 7 · blur-fade the inspector tab panels in on mount */
+.rv-panel { animation: rvPanelIn .16s var(--ease-out); }
+@keyframes rvPanelIn {
+  from { opacity: 0; filter: blur(2px); }
+  to   { opacity: 1; filter: blur(0); }
+}
+
+/* ---------- 8 · One close affordance (single design system) ------------------
+   The modal's close (`.modal-x`) is a 32px circular, filled button with a
+   default arrow. Every other dialog / panel / drawer close was a 7px ghost
+   square that only appeared on hover, so they read as different components.
+   Circle + fill + default cursor them all so a close is a close everywhere.
+   Panel/modal closes take the full 32px; the two drawers keep their tuned
+   size + corner margin, only the shape and fill change. ---------- */
+.ks-x, .bl-co-x, .fn-ai-x {
+  width: 32px;
+  height: 32px;
+}
+.ks-x, .bl-co-x, .fn-ai-x, .rv-sd-x, .sigw-x {
+  border-radius:var(--r-pill);
+  background: var(--line-2);
+  color: var(--t2);
+  cursor: default;
+}
+.ks-x:hover, .bl-co-x:hover, .fn-ai-x:hover, .rv-sd-x:hover, .sigw-x:hover {
+  background: var(--line-strong);
+  color: var(--text);
+}
+.ks-x:active, .bl-co-x:active, .fn-ai-x:active, .rv-sd-x:active, .sigw-x:active {
+  transform: scale(0.94);
+}
+/* signals-workspace.css loads AFTER this file, so its own `.sigw-x` radius and
+   hover win at equal specificity — reach past it with the parent scope. */
+.sigw .sigw-x { border-radius:var(--r-pill); }
+.sigw .sigw-x:hover { background: var(--line-strong); color: var(--text); }
+
+/* ---------- 4 · Reduced motion ----------------------------------------------
+   Matches the convention every other sheet in this app already follows: drop
+   the movement, keep everything that carries meaning (the button's colour and
+   border feedback on :hover/:active are untouched).
+   ---------- */
+@media (prefers-reduced-motion: reduce) {
+  .btn:not(:disabled):active { transform: none; }
+  /* the 1b press-feedback sweep */
+  .ibtn:active,
+  .rv-iconbtn:active,
+  .bl-co-x:active,
+  .nav a:active,
+  .set-nav button:active,
+  .nav-sm:active,
+  .ctl:active,
+  .bl-back:active,
+  .pl-type:active,
+  .seg button:active,
+  .sel-trigger:active,
+  .dp-trigger:active,
+  .ws-trigger:active,
+  .fn-ai-x:active,
+  .co-mode:active,
+  .ai-mode:active { transform: none; }
+  .askp-dismiss:active { transform: none; }
+  .t-stagger-line { transition: none !important; }
+  /* recordings-v2's own reduce rule shortens the drawer slide to .15s; keep
+     that rather than letting the .24s speed-up above leak into reduced motion. */
+  .rv-sd { transition-duration: .15s; }
+  .rv-panel { animation: none; }
+  .ks-x:active, .bl-co-x:active, .fn-ai-x:active,
+  .rv-sd-x:active, .sigw-x:active { transform: none; }
+}

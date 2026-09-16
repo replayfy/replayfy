@@ -1,0 +1,488 @@
+/* ============================================================================
+   responsive-routes-v2.css  —  per-route MOBILE (<=768px) content rules.
+   Curated from the route-by-route mobile audit. Companion to responsive-v2.css
+   (shell + bottom-sheet + modal). Loaded LAST after responsive-v2.css.
+
+   SAME RULE: every block is inside @media (max-width: 768px) so DESKTOP IS
+   UNCHANGED. Selectors were verified against the real JSX/CSS during the audit.
+   ============================================================================ */
+
+
+/* ================= OVERVIEW ================= */
+
+/* Crash-category segmented control overflows the row */
+@media (max-width: 768px) {
+  .ox-cathead { flex-wrap: wrap; row-gap: var(--sp-8); }
+  .ox-catseg { flex-wrap: wrap; }
+}
+
+/* Pulse KPI figure (30px, nowrap) clips in the 2-col cell */
+@media (max-width: 768px) {
+  .ox-kpi .v { font-size: var(--text-2xl); }
+}
+
+/* 'Ask Replayfy' hero heading oversized on phone */
+@media (max-width: 768px) {
+  .ox-askbar-l { font-size: var(--text-2xl); margin-bottom: var(--sp-14); }
+}
+
+/* Stability numbers row uses a 44px gap on mobile */
+@media (max-width: 768px) {
+  .ox-stab-nums { gap: var(--sp-20); }
+}
+
+/* Activity stat line uses a 36px column gap on mobile */
+@media (max-width: 768px) {
+  .ox-statline { gap: var(--sp-6) var(--sp-20); }
+}
+
+
+/* ================= RECORDINGS-LIST ================= */
+
+/* Search autocomplete dropdown stays 360px (capped) instead of matching the now full-width field */
+@media (max-width: 768px){
+  .rv-ac{ left:0; width:100%; max-width:100%; }
+}
+
+/* Suggested-filter rows cram chip + example + meaning onto one line in the narrow dropdown */
+@media (max-width: 768px){
+  .rv-ac-item.rv-sug{ flex-wrap:wrap; }
+  .rv-ac-item.rv-sug .rv-sug-desc{ flex-basis:100%; max-width:100%; text-align:left; }
+}
+
+
+/* ================= RECORDINGS-PLAYER ================= */
+
+/* Three-pane IDE never collapses to one column — player + panels crushed to ~81px at 375px */
+@media (max-width: 768px){
+  .rv-wrap:not(.theatre):not(.cmp-mode){
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-areas:
+      "rail"
+      "stage"
+      "dock";
+  }
+  .rv-wrap:not(.theatre):not(.cmp-mode) > .rv-rail{
+    grid-area: rail;
+    width: auto;
+    max-height: 38vh;
+    border-right: none;
+    border-bottom: 1px solid var(--rv-line);
+  }
+  .rv-wrap:not(.theatre):not(.cmp-mode) > .rv-main{
+    grid-area: stage;
+    min-width: 0;
+    min-height: 0;
+  }
+  .rv-wrap:not(.theatre):not(.cmp-mode) > .rv-inspect{
+    grid-area: dock;
+    width: auto !important;
+    min-width: 0;
+    border-top: 1px solid var(--rv-line);
+  }
+  .rv-wrap:not(.theatre):not(.cmp-mode) > .rv-resize{ display: none; }
+}
+
+/* Player HUD controls (Skip inactivity / Focus on the right) clip off the edge at 375px */
+@media (max-width: 768px){
+  .rv-hud{ width: calc(100% - 16px); padding: var(--sp-6) var(--sp-8); }
+  .rv-hud-row{ gap: var(--sp-4); }
+  .rv-hud-time{ margin-left: var(--sp-6); }
+}
+
+/* Stagebar identity block starved beside the action cluster at 375px */
+@media (max-width: 768px){
+  .rv-stagebar{ padding: var(--sp-8) var(--sp-10); gap: var(--sp-8); }
+}
+
+
+/* ================= ANALYTICS ================= */
+
+/* Sub-tab bar overflows the viewport */
+@media (max-width: 768px) {
+  .anl-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .anl-tabs::-webkit-scrollbar { display: none; }
+  .anl-tab { flex-shrink: 0; white-space: nowrap; }
+}
+
+/* Trends legend/comparison grid forces horizontal page scroll */
+@media (max-width: 768px) {
+  .anl-res-head,
+  .anl-res-row {
+    grid-template-columns: minmax(0, 1fr) 56px 56px 72px 48px;
+    gap: var(--sp-6);
+  }
+  .anl-res-num { font-size: var(--text-xs); }
+}
+
+/* Breakdowns ranked table overflows (no scroll wrapper) */
+@media (max-width: 768px) {
+  .anl-bd-tbl th.c-dist,
+  .anl-bd-tbl td.c-dist { display: none; }
+  .anl-bd-tbl th.c-rank,
+  .anl-bd-tbl td.c-rank { width: 30px; }
+  .anl-bd-tbl th.c-count { width: 68px; }
+  .anl-bd-tbl th.c-share { width: 54px; }
+  .anl-bd-tbl th.c-delta { width: 52px; }
+  .anl-bd-tbl td,
+  .anl-bd-tbl th { padding-left: var(--sp-6); padding-right: var(--sp-6); }
+}
+
+/* Events lexicon table overflows (6 columns, no scroll wrapper) */
+@media (max-width: 768px) {
+  .anl-ev-tbl thead th:nth-child(4),
+  .anl-ev-tbl tbody td:nth-child(4),
+  .anl-ev-tbl thead th:nth-child(5),
+  .anl-ev-tbl tbody td:nth-child(5),
+  .anl-ev-tbl thead th:nth-child(6),
+  .anl-ev-tbl tbody td:nth-child(6) { display: none; }
+  .anl-ev-tbl thead th,
+  .anl-ev-tbl tbody td {
+    padding-left: var(--sp-8);
+    padding-right: var(--sp-8);
+  }
+}
+
+/* Web Vitals KPI row crushes 5 metrics into one flex row */
+@media (max-width: 768px) {
+  .anl-wv-stats {
+    flex-wrap: wrap;
+    row-gap: var(--sp-16);
+  }
+  .anl-wv-stat {
+    flex: 1 1 42%;
+    padding: 0 var(--sp-12);
+  }
+}
+
+/* Retention KPI strip gap too wide / can overflow */
+@media (max-width: 768px) {
+  .anl-ret-summary-row {
+    gap: var(--sp-24);
+    flex-wrap: wrap;
+  }
+}
+
+/* Breakdowns toolbar overflows on narrow screens */
+@media (max-width: 768px) {
+  .anl-bd .fbar { flex-wrap: wrap; }
+}
+
+/* Retention toolbar overflows on narrow screens */
+@media (max-width: 768px) {
+  .anl-ret .fbar { flex-wrap: wrap; }
+}
+
+/* Sticky Trends filter rail overlaps the canvas when stacked */
+@media (max-width: 768px) {
+  .anl-rail {
+    position: static;
+    top: auto;
+    z-index: auto;
+  }
+}
+
+
+/* ================= FUNNELS ================= */
+
+/* Index list rows are a fixed 6-column grid (~458px min) that overflows 375px */
+@media (max-width:768px){
+  .fnx .fnx-colhead{display:none;}
+  .fnx .fnx-row{display:flex;flex-wrap:wrap;align-items:center;column-gap:var(--sp-12);row-gap:var(--sp-4);}
+  .fnx .fnx-row .fnx-main{flex:1 1 100%;min-width:0;}
+}
+
+/* Row action menu (⋯) is hover-only, so it is unreachable on touch */
+@media (max-width:768px){
+  .fnx .fnx-row .fnx-actions{opacity:1;margin-left:auto;}
+}
+
+/* Index search box is pinned to min-width:240px inside the filter bar */
+@media (max-width:768px){
+  .fnx .fnx-bar .fnx-search{flex:1 1 100%;min-width:0;width:100%;}
+}
+
+/* Keyboard-shortcut chips ('N then F') pad the New-funnel button for no reason on touch */
+@media (max-width:768px){
+  .fnx .actions .empty-kbd{display:none;}
+}
+
+/* Builder page header packs 3 action buttons that overflow beside the title */
+@media (max-width:768px){
+  .fn .head{flex-direction:column;gap:var(--sp-12);}
+  .fn .head .head-l,.fn .head .actions{width:100%;}
+  .fn .head .actions{flex-wrap:wrap;}
+}
+
+/* 5-column KPI stat strip overflows (fixed 24px side padding + dividers) */
+@media (max-width:768px){
+  .fn .stats.fn-sum{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-18) var(--sp-12);}
+  .fn .fn-sum .stat{padding:0;border-left:none;align-items:flex-start;text-align:left;}
+}
+
+/* View tab bar + inline controls do not wrap and overflow the viewport */
+@media (max-width:768px){
+  .fn .fn-tabs-row{overflow-x:auto;flex-wrap:nowrap;}
+}
+
+/* Per-step detail header (title + 3 buttons) does not wrap */
+@media (max-width:768px){
+  .fn .fn-det-h{flex-wrap:wrap;row-gap:var(--sp-10);}
+}
+
+/* 4-column per-step metric strip overflows (fixed 24px padding + dividers) */
+@media (max-width:768px){
+  .fn .fn-det-m{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-16) var(--sp-12);justify-content:stretch;}
+  .fn .fn-det-m .fn-dm{padding:0;border-left:none;text-align:left;}
+}
+
+/* Breakdown conversion rows are a fixed 150 + 1fr + 132 grid that overflows */
+@media (max-width:768px){
+  .fn .bd-row{grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"nm stat" "track track";gap:var(--sp-6) var(--sp-12);}
+  .fn .bd-nm{grid-area:nm;}
+  .fn .bd-track{grid-area:track;}
+  .fn .bd-stat{grid-area:stat;}
+}
+
+
+/* ================= CRASHLYTICS-SIGNALS ================= */
+
+/* Page header + DatePicker don't stack (title/desc crushed beside the picker) */
+@media (max-width:768px){
+  .cr2 .head{flex-direction:column;align-items:stretch;gap:var(--sp-12);}
+  .cr2 .head .actions{width:100%;flex-wrap:wrap;}
+}
+
+/* Issues table (8 columns) crushes instead of scrolling */
+@media (max-width:768px){
+  .cr2-issues{min-width:700px;}
+}
+
+/* Filter/search toolbar: search box stuck at fixed 240px (inline width) */
+@media (max-width:768px){
+  .cr2-trend-head .cr2-controls{width:100%;}
+  .cr2-controls .search{width:100% !important;}
+}
+
+/* Metric row: hanging divider + oversized gutters on the 2nd wrapped row */
+@media (max-width:768px){
+  .cr2-metric{flex:1 1 44%;padding:0 var(--sp-14);}
+  .cr2-metric:first-child{padding-left:0;}
+  .cr2-metric:nth-child(3){padding-left:0;border-left:none;}
+}
+
+/* Release-health table crushes instead of scrolling */
+@media (max-width:768px){
+  .cr2-rel{min-width:440px;}
+}
+
+/* Page side gutters too wide at 375px */
+@media (max-width:768px){
+  .wrap.cr2{padding-left:var(--sp-16);padding-right:var(--sp-16);}
+}
+
+
+/* ================= USERS-COHORTS ================= */
+
+/* User detail is a hard 280px + fluid two-column flex row */
+@media (max-width: 768px){
+  .user-detail{flex-direction:column;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .ud-side{width:100%;flex-shrink:0;border-right:none;border-bottom:1px solid var(--line);overflow-y:visible;padding:var(--sp-16) var(--sp-16) var(--sp-20);}
+  .ud-main{overflow-y:visible;}
+}
+
+/* Cohorts stats strip forces 4 columns across */
+@media (max-width: 768px){
+  .rd-page .stats{display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-16) var(--sp-20);align-items:start;}
+  .rd-page .stats .stat{padding:0;border-left:none;}
+}
+
+/* Users table is wider than the viewport (5 fixed columns) */
+@media (max-width: 768px){
+  .uatt{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
+
+/* Cohorts table is wider than the viewport (5 fixed columns) */
+@media (max-width: 768px){
+  .co-tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
+
+/* User-detail recent-sessions table overflows the main column */
+@media (max-width: 768px){
+  .udx-sec table{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
+
+/* Activity section header can't fit title + meta + date picker on one line */
+@media (max-width: 768px){
+  .udx-sec-h{flex-wrap:wrap;}
+}
+
+/* Users pagination footer doesn't wrap */
+@media (max-width: 768px){
+  .tfoot{flex-wrap:wrap;gap:var(--sp-8);}
+  .tfoot .r{width:100%;justify-content:flex-end;}
+}
+
+/* Search box is pinned to a fixed 260px in the filter bars */
+@media (max-width: 768px){
+  .rd-page .fbar .search{width:100% !important;}
+}
+
+/* User-detail main column keeps desktop-scale horizontal padding */
+@media (max-width: 768px){
+  .ud-main.udx{padding:var(--sp-18) var(--sp-16) 64px;}
+}
+
+
+/* ================= ALERTS-COMMENTS ================= */
+
+/* Alerts table (4 fixed-width columns) overflows the viewport horizontally */
+@media (max-width:768px){
+  .al-page .co-tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+}
+
+/* Alerts stat strip (3 stats, big side padding + separators) overflows on one row */
+@media (max-width:768px){
+  .al-page .stat{padding:0 var(--sp-12);}
+  .al-page .stat:first-child{padding-left:0;}
+}
+
+/* Comment row delete button is hover-only — invisible/unusable on touch, and both action buttons are sub-40px tap targets */
+@media (max-width:768px){
+  .cmt-page .crow .c-act{opacity:1;width:40px;height:40px;}
+  .cmt-page .c-open{min-height:40px;padding-top:var(--sp-8);padding-bottom:var(--sp-8);}
+}
+
+/* Long session URL in comment meta line overflows horizontally */
+@media (max-width:768px){
+  .cmt-page .c-url{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+}
+
+/* Comments header + author filter stay side-by-side, cramping the title and the 140px Select */
+@media (max-width:768px){
+  .cmt-page .head{flex-direction:column;align-items:stretch;gap:var(--sp-12);}
+  .cmt-page .actions{width:100%;}
+  .cmt-page .actions .sel-trigger{width:100%;}
+}
+
+
+/* ================= SETTINGS-BILLING ================= */
+
+/* Current-plan card header doesn't stack; long CTA / locked-note can overflow at 375px */
+@media (max-width:768px){
+  .bl-plan-top{flex-direction:column;align-items:stretch;gap:var(--sp-14);padding:var(--sp-16) var(--sp-16) var(--sp-16);}
+  .bl-plan-top .bl-cta{width:100%;justify-content:center;}
+  .bl-plan-top .bl-locked{text-align:left;max-width:none;}
+}
+
+/* AI-credits usage rows: long surface names can't ellipsize and push the credit value */
+@media (max-width:768px){
+  .blt-name{min-width:0;}
+}
+
+
+/* ================= SHARE-ONBOARDING ================= */
+
+/* Install-step SDK snippet toolbar overflows and clips the Copy button */
+@media (max-width: 768px) {
+  .ins-code-h { flex-wrap: wrap; }
+}
+
+/* Share inspector filter bar (Console/Network) does not wrap on narrow phones */
+@media (max-width: 768px) {
+  .rv-toolbar { flex-wrap: wrap; }
+}
+
+
+/* ================= SHARED-PAGES ================= */
+
+/* Page header collides at 375px — title and action buttons share one flex row */
+@media (max-width: 768px){
+  .head{flex-direction:column;align-items:stretch;gap:var(--sp-12);}
+}
+
+/* Header actions cluster overflows — needs to wrap */
+@media (max-width: 768px){
+  .head .actions{flex-wrap:wrap;gap:var(--sp-8);}
+}
+
+/* Inline stat strip overflows the viewport at 375px */
+@media (max-width: 768px){
+  .stats{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;}
+  .stats .stat{flex-shrink:0;}
+}
+
+/* Filter bar controls don't stack — search + filter squeeze on one wrapped row */
+@media (max-width: 768px){
+  .fbar{flex-direction:column;align-items:stretch;gap:var(--sp-8);}
+  .fbar .sp{display:none;}
+  .fbar .search{width:100% !important;}
+}
+
+/* Table cell padding is too generous for a phone */
+@media (max-width: 768px){
+  thead th{padding:var(--sp-8) var(--sp-10);}
+  tbody td{padding:var(--sp-10) var(--sp-10);}
+}
+
+/* Table footer (pagination) can overflow one row */
+@media (max-width: 768px){
+  .tfoot{flex-wrap:wrap;gap:var(--sp-8);}
+}
+
+/* Empty-state illustration is a fixed 370px — wider than the phone */
+@media (max-width: 768px){
+  .empty-illo{width:100%;max-width:280px;}
+}
+
+/* Empty-state padding too large on mobile */
+@media (max-width: 768px){
+  .empty{min-height:52vh;padding:var(--sp-32) var(--sp-16);}
+}
+
+/* Empty-state action buttons don't wrap */
+@media (max-width: 768px){
+  .empty-actions{flex-wrap:wrap;}
+}
+
+/* Segmented control can overflow when it has many options */
+@media (max-width: 768px){
+  .seg{max-width:100%;overflow-x:auto;}
+}
+
+
+/* ================= ADDITIONS (shell + inline-style hooks) ================= */
+
+/* Crashlytics release-health vs platform split — the source div sets its
+   grid-template-columns INLINE, so overriding needs a class (added:
+   className="cr2-split") + !important. Stack it on mobile. */
+@media (max-width: 768px){
+  .cr2-split{ grid-template-columns: 1fr !important; gap: var(--sp-24) !important; }
+}
+
+/* Settings shell: .set-layout is a fixed 188px sticky nav + content flex row
+   with no responsive rule — unusable at 375px. Turn the nav into a horizontal
+   scrolling tab strip above the content. */
+@media (max-width: 768px){
+  .set-layout{ flex-direction: column; gap: var(--sp-16); }
+  .set-nav{
+    width: 100%;
+    position: static;
+    flex-direction: row;
+    gap: var(--sp-4);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--sp-6);
+    border-bottom: 1px solid var(--line);
+    scrollbar-width: none;
+  }
+  .set-nav::-webkit-scrollbar{ display: none; }
+  .set-nav button{ white-space: nowrap; flex: none; }
+  .set-content{ max-width: 100%; }
+}

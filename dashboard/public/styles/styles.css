@@ -1,0 +1,498 @@
+/* ============================================================================
+   Replayfy — approved flat "enterprise" design system (React build)
+   Converted 1:1 from the approved HTML mockups. Design only.
+   ========================================================================== */
+:root{
+  --bg:#fafafa; --surface:#ffffff; --stage:#ececed; --panel:#fcfcfd;
+  --text:#111114; --t2:#6b7280; --t3:#9aa1ac; --t4:#c2c7ce;
+  --line:#ececec; --line-2:#f3f3f3; --line-strong:#e3e3e6;
+  --accent:#5b5ceb; --accent-2:#7173f0; --accent-weak:#eeeefc; --accent-tint:rgba(91,92,235,.06);
+  --green:#3f9468; --green-weak:#eaf4ee;
+  --red:#d2576a; --red-weak:#fbecef;
+  --amber:#c08a3e; --amber-weak:#f7efe1;
+  --blue:#3b76b0; --blue-weak:#e7eff7;
+  --hue-violet:#8b72d6; --hue-magenta:#c2599f; --hue-slate:#7a8aa6;
+  --font:'Inter','Inter Variable',-apple-system,BlinkMacSystemFont,system-ui,'Segoe UI',sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+  /* Was declared only on .intg / .fnt / .cmt-page, so anything using it
+     outside those — .intg-card in the Create-issue modal — resolved it to
+     nothing and silently lost its transition. Same value, global scope. */
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --r-sm:6px; --r-md:8px; --r-lg:12px;
+  --shadow-1:0 1px 2px rgb(17 17 20 / .05);
+  --shadow-2:0 4px 12px rgb(17 17 20 / .08),0 1px 3px rgb(17 17 20 / .06);
+  --shadow-3:0 16px 40px rgb(17 17 20 / .12),0 2px 8px rgb(17 17 20 / .06);
+  /* ── Type scale (type-system pilot) ─────────────────────────────────────
+     The intentional rungs that replace the per-element 0.5px font-size ramp
+     and the ~16 ad-hoc font-weights. Every text element maps to ONE size + ONE
+     weight token. 3xs–2xl are UI text; 3xl–5xl are the big KPI/display numbers.
+     Applied across the whole dashboard — every CSS rule and inline style routes
+     through these tokens (unique display one-offs stay literal). */
+  --text-3xs:8px; --text-2xs:10px; --text-xs:11px; --text-sm:12px; --text-base:13px;
+  --text-md:14px; --text-lg:17px; --text-xl:21px; --text-2xl:26px;
+  --text-3xl:30px; --text-4xl:40px; --text-5xl:62px;
+  --fw-regular:400; --fw-medium:500; --fw-semibold:600; --fw-bold:700;
+  /* Spacing — even (2px-grid) rhythm, px-named. The tokens sit ON the values
+     the Overview already uses most; odd one-offs snap to the nearest (≤1px,
+     imperceptible), so the ~40 ad-hoc padding/gap/margin atoms collapse to a
+     defined set without the layout moving. */
+  --sp-2:2px; --sp-4:4px; --sp-6:6px; --sp-8:8px; --sp-10:10px; --sp-12:12px;
+  --sp-14:14px; --sp-16:16px; --sp-18:18px; --sp-20:20px; --sp-24:24px;
+  --sp-28:28px; --sp-32:32px; --sp-36:36px; --sp-40:40px; --sp-44:44px;
+  --sp-48:48px; --sp-52:52px; --sp-56:56px; --sp-60:60px; --sp-64:64px;
+  /* Radius — extends the existing --r-sm/md/lg (6/8/12). Corners snap within
+     ≤2px (the least perceptible axis); pills/circles keep their own tokens. */
+  --r-2xs:2px; --r-xs:4px; --r-xl:16px; --r-2xl:24px; --r-pill:999px;
+  /* Line-height — the intentional steps text blocks map to; only near-exact
+     neighbours fold (≤0.05), so vertical rhythm is unchanged. */
+  --lh-none:1; --lh-flush:1.1; --lh-snug:1.25; --lh-tight:1.35; --lh-cozy:1.45;
+  --lh-normal:1.5; --lh-body:1.55; --lh-relaxed:1.6; --lh-loose:1.7; --lh-spacious:1.8; --lh-double:2;
+  /* Elevation — the recurring menu/popover drop shadow + the accent/positive
+     selection rings, tokenized. The one-off lifts (FAB, drawers) stay bespoke. */
+  --shadow-menu:0 1px 3px rgba(17,17,20,.05),0 10px 28px rgba(17,17,20,.09);
+  --ring-accent:0 0 0 3px var(--accent-tint);
+  --ring-good:0 0 0 3px var(--green-weak);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+/* No rubber-band / pull-to-refresh overscroll — the app is a fixed-height shell,
+   not a scrolling document (a common app convention). */
+html,body,#root{height:100%;overscroll-behavior:none;}
+body{font-family:var(--font);font-size:var(--text-base);line-height:var(--lh-normal);color:var(--text);background:var(--bg);
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+.mono{font-family:var(--mono);font-feature-settings:"tnum" 1;}
+button{font-family:inherit;cursor:pointer;color:inherit;background:none;border:none;}
+input{font-family:inherit;}
+a{color:inherit;text-decoration:none;}
+::selection{background:var(--accent-weak);}
+svg{display:block;}
+.ic{fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+.app{display:flex;height:100vh;overflow:hidden;}
+
+/* ===== Sidebar (canonical — with Playlists) ===== */
+.side{width:212px;flex-shrink:0;height:100%;background:#F3F2EE;display:flex;flex-direction:column;border-right:1px solid var(--line);}
+.side.collapsed{width:54px;align-items:center;}
+.side-top{display:flex;align-items:center;gap:var(--sp-8);padding:var(--sp-14) var(--sp-10) var(--sp-8);}
+.ws-trigger{display:flex;align-items:center;gap:var(--sp-8);flex:1;min-width:0;padding:var(--sp-6) var(--sp-6);border-radius:var(--r-sm);color:inherit;}
+.ws-trigger:hover{background:var(--accent-tint);}
+.side.collapsed .side-top{justify-content:center;padding:var(--sp-14) 0 var(--sp-8);}
+.side.collapsed .ws-trigger{padding:0;flex:none;}
+.ws-mark{width:22px;height:22px;border-radius:var(--r-sm);background:linear-gradient(140deg,var(--accent-2),var(--accent));display:grid;place-items:center;color:#fff;font-weight:var(--fw-bold);font-size:var(--text-sm);flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.3);}
+.ws-name{font-weight:var(--fw-semibold);font-size:var(--text-base);letter-spacing:-.1px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ws-c{color:var(--t3);flex-shrink:0;}
+.side.collapsed .ws-name,.side.collapsed .ws-c{display:none;}
+.side.collapsed .ws-trigger .ic{display:none;}
+.side.collapsed .side-search{display:none;}
+.side-search{width:28px;height:28px;display:grid;place-items:center;border-radius:var(--r-sm);color:var(--t3);border:1px solid transparent;background:transparent;flex-shrink:0;margin-left:auto;}
+.side-search:hover{background:var(--accent-tint);color:var(--text);}
+.nav{padding:var(--sp-6) var(--sp-8) var(--sp-2);display:flex;flex-direction:column;gap:var(--sp-2);}
+.side.collapsed .nav{padding:var(--sp-2) 0;align-items:center;}
+.nav a{display:flex;align-items:center;gap:var(--sp-10);padding:var(--sp-6) var(--sp-8);border-radius:var(--r-sm);color:lch(38.376% 1.25 282 / 1);font-size:var(--text-base);font-weight:var(--fw-medium);cursor:pointer;transition:.12s var(--ease);position:relative;}
+.side.collapsed .nav a{width:36px;height:34px;justify-content:center;padding:0;}
+.nav a .ic{color:lch(38.376% 1.25 282 / 1);width:16px;height:16px;transition:.12s var(--ease);}
+.nav a:hover{background:var(--accent-tint);color:var(--text);}
+.nav a:hover .ic{color:var(--t2);}
+.nav a.on{color:var(--text);font-weight:var(--fw-semibold);background:var(--accent-tint);}
+.nav a.on .ic{color:var(--accent);}
+.nav a .cnt{margin-left:auto;font-family:var(--mono);font-size:var(--text-2xs);color:var(--t3);}
+.side.collapsed .nav a .cnt{display:none;}
+.side.collapsed .nav-lbl{display:none;}
+.nav-gap{height:14px;}
+.nav-h{font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.5px;text-transform:uppercase;color:var(--t4);padding:var(--sp-6) var(--sp-10) var(--sp-4);display:flex;align-items:center;}
+.nav-h-add{margin-left:auto;width:20px;height:20px;display:grid;place-items:center;border-radius:var(--r-sm);color:var(--t3);transition:background .12s var(--ease),color .12s var(--ease);}
+.nav-h-add:hover{background:var(--line-2);color:var(--accent);}
+.pl-type{flex:1;display:flex;align-items:center;gap:var(--sp-10);padding:var(--sp-12);border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--surface);cursor:pointer;transition:.13s var(--ease);}
+.pl-type-ic{width:30px;height:30px;flex-shrink:0;display:grid;place-items:center;border-radius:var(--r-sm);background:var(--line-2);color:var(--t2);transition:.12s var(--ease);}
+.pl-type.on .pl-type-ic{background:var(--accent-weak);color:var(--accent);}
+.pl-type-tx{flex:1;min-width:0;display:flex;flex-direction:column;}
+.pl-type:hover{border-color:var(--accent-weak);background:var(--accent-tint);}
+.pl-type.on{border-color:var(--accent);background:var(--accent-tint);}
+.pl-type-t{font-weight:var(--fw-semibold);font-size:var(--text-sm);color:var(--text);}
+.pl-type.on .pl-type-t{color:var(--accent);}
+.pl-type-d{font-size:var(--text-xs);color:var(--t3);margin-top:var(--sp-4);}
+/* Workspace switcher menu */
+.wsm{width:288px;margin:-6px;}
+.wsm-search{display:flex;align-items:center;gap:var(--sp-8);padding:var(--sp-12) var(--sp-14);border-bottom:1px solid var(--line-2);color:var(--t3);}
+.wsm-search input{flex:1;border:none;outline:none;background:none;font-size:var(--text-base);color:var(--text);font-family:inherit;}
+.wsm-kbd{font-family:var(--mono);font-size:var(--text-2xs);color:var(--t4);border:1px solid var(--line-strong);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-6);}
+.wsm-body{position:relative;padding:var(--sp-6);}
+.wsm-hl{position:absolute;left:6px;right:6px;top:0;border-radius:var(--r-md);background:var(--line-2);pointer-events:none;z-index:0;opacity:0;transition:transform .17s var(--ease),height .17s var(--ease),opacity .13s var(--ease);}
+.wsm-hl.on{opacity:1;}
+.wsm-sec{font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.5px;text-transform:uppercase;color:var(--t4);padding:var(--sp-8) var(--sp-8) var(--sp-6);}
+.wsm .wsm-row{position:relative;z-index:1;display:flex;align-items:center;gap:var(--sp-10);width:100%;text-align:left;padding:var(--sp-8) var(--sp-8);border-radius:var(--r-md);background:none;border:none;transition:none;}
+.wsm-av{width:32px;height:32px;flex-shrink:0;border-radius:var(--r-md);display:grid;place-items:center;font-weight:var(--fw-semibold);font-size:var(--text-md);color:#fff;box-shadow:inset 0 1px 0 rgba(255,255,255,.2);}
+.wsm-info{flex:1;min-width:0;display:flex;flex-direction:column;gap:var(--sp-2);}
+.wsm-name{font-size:var(--text-base);font-weight:var(--fw-medium);letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.wsm-meta{font-size:var(--text-xs);color:var(--t3);}
+.wsm-check{color:var(--accent);flex-shrink:0;}
+.wsm-empty{padding:var(--sp-16) var(--sp-10);text-align:center;font-size:var(--text-sm);color:var(--t3);}
+.wsm-foot{border-top:1px solid var(--line-2);padding:var(--sp-6);}
+.wsm .wsm-action{position:relative;z-index:1;display:flex;align-items:center;gap:var(--sp-10);width:100%;text-align:left;padding:var(--sp-8) var(--sp-8);border-radius:var(--r-md);font-size:var(--text-base);font-weight:var(--fw-medium);color:var(--text);background:none;border:none;}
+.wsm-plus{width:32px;height:32px;flex-shrink:0;border-radius:var(--r-md);border:1.5px dashed var(--line-strong);display:grid;place-items:center;color:var(--t3);}
+.wsm-plus.ghost{border-style:solid;border-color:var(--line-2);background:var(--line-2);}
+/* 500, not the inherited 400: at 13.5px in --t2 the subtitle was de-emphasised
+   twice over — small AND grey — which pushed it toward placeholder. Size and
+   colour already carry the hierarchy against the 600 title, so weight doesn't
+   need to pile on a third time. mt 6 pulls it into one block with the title. */
+.modal-sub{font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--t2);line-height:var(--lh-body);margin-top:var(--sp-6);}
+.field-row{margin-bottom:var(--sp-16);}
+.field-row label{display:block;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--t2);margin-bottom:var(--sp-8);}
+.text-input{height:40px;padding:0 var(--sp-12);border:1px solid var(--line-strong);border-radius:var(--r-md);background:var(--bg);font-size:var(--text-base);font-family:inherit;color:var(--text);outline:none;transition:.13s var(--ease);}
+.text-input:focus{border-color:var(--accent);box-shadow:var(--ring-accent);background:var(--surface);}
+.text-input::placeholder{color:var(--t4);}
+.in.in-err,.text-input.in-err{border-color:var(--red);}
+.fld-hint{font-size:var(--text-xs);color:var(--t3);margin-top:var(--sp-6);}
+.fld-hint .err{color:var(--red);}
+.side.collapsed .nav-h{display:none;}
+.nav-sm{display:flex;align-items:center;gap:var(--sp-8);padding:var(--sp-6) var(--sp-10);border-radius:var(--r-sm);color:#3a3d44;font-size:var(--text-sm);cursor:pointer;}
+.nav-sm:hover{background:var(--accent-tint);color:var(--text);}
+.nav-sm .d{width:7px;height:7px;border-radius:var(--r-2xs);flex-shrink:0;}
+/* "See all" — sits with the playlists, deliberately quieter than a row so it
+   reads as an affordance rather than another playlist. */
+/* padding/gap mirror the EFFECTIVE playlist-row geometry, which is `.nav a`'s
+   8px/10px — not the 10px/9px `.nav-sm` declares, since `.nav a` outranks it.
+   This row is a <button>, so it never inherits that, and had to match by hand
+   or the ellipsis would sit 2px off the dot column. */
+.nav-all{display:flex;align-items:center;gap:var(--sp-10);padding:var(--sp-6) var(--sp-8);margin-top:var(--sp-2);border-radius:var(--r-sm);
+  font-size:var(--text-xs);font-weight:var(--fw-medium);color:var(--t3);background:none;border:none;width:100%;text-align:left;cursor:default;}
+.nav-all:hover{background:var(--accent-tint);color:var(--t2);}
+/* The ellipsis rides the 7px dot column: the glyph is wider than the dots, so it
+   overflows the slot symmetrically and reads as optically centred on them, while
+   the label still starts at the same 26px as every playlist title above it. */
+.nav-all .nav-all-ic{width:7px;flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--t4);transition:.12s var(--ease);}
+/* the glyph must keep its own size — as a flex child it would otherwise shrink
+   to the 7px slot and crush the ellipsis */
+.nav-all .nav-all-ic svg{flex-shrink:0;}
+.nav-all:hover .nav-all-ic{color:var(--t2);}
+
+/* ===== playlists flyout (the sidebar's "See all" second nav) =====
+   Floats OVER the page rather than shrinking it, flush to the main nav — whose
+   own border-right is the line between the two. Tonally it's the middle layer:
+   nav #F3F2EE -> panel #F8F7F3 -> white content, each step lighter as it comes
+   forward, and the shadow only falls to the right (onto the page) so the seam
+   with the nav stays flat. Rows reuse `.nav-sm`, so playlists look identical
+   here and in the nav. */
+.pl-fly-catch{position:fixed;inset:0;z-index:59;}
+.pl-fly{position:fixed;top:0;bottom:0;left:212px;width:212px;z-index:60;
+  background:#F8F7F3;display:flex;flex-direction:column;
+  box-shadow:3px 0 10px rgba(17,17,20,.045),14px 0 40px -14px rgba(17,17,20,.10);}
+.side.collapsed ~ .pl-fly{left:64px;}
+.pl-fly-h{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-8);
+  padding:var(--sp-16) var(--sp-10) var(--sp-4) var(--sp-12);font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.5px;
+  text-transform:uppercase;color:var(--t4);flex-shrink:0;}
+.pl-fly-x{display:grid;place-items:center;width:22px;height:22px;border-radius:var(--r-sm);
+  color:var(--t3);background:none;border:none;cursor:default;transition:.12s var(--ease);}
+.pl-fly-x:hover{background:var(--line);color:var(--text);}
+.pl-fly-list{flex:1;overflow-y:auto;padding:var(--sp-2) var(--sp-8) var(--sp-12);display:flex;flex-direction:column;}
+.side.collapsed .nav-sm{display:none;}
+.side-foot{margin-top:auto;padding:var(--sp-10) var(--sp-12);display:flex;align-items:center;gap:var(--sp-8);border-top:1px solid var(--line);}
+.side.collapsed .side-foot{justify-content:center;padding:var(--sp-10) 0;}
+.av{width:25px;height:25px;border-radius:50%;background:#e6e6ea;display:grid;place-items:center;font-size:var(--text-xs);font-weight:var(--fw-semibold);color:var(--t2);flex-shrink:0;}
+.side-foot .nm{font-size:var(--text-sm);font-weight:var(--fw-medium);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.side-foot .nm span{color:var(--t3);font-weight:var(--fw-regular);}
+.side.collapsed .side-foot .nm,.side.collapsed .umore{display:none;}
+.umore{width:24px;height:24px;display:grid;place-items:center;border-radius:var(--r-sm);color:var(--t3);border:1px solid transparent;background:transparent;}
+.umore:hover{background:var(--accent-tint);color:var(--text);}
+
+/* ===== Main column ===== */
+/* .main{flex:1;min-width:0;height:100%;overflow-y:auto;background:var(--bg);} */
+.main{flex:1;min-width:0;height:100%;overflow-y:auto;background: #FCFCFD;}
+.main:has(.rec-wrap),.main:has(.user-detail){overflow:hidden;}
+.wrap{max-width:1180px;margin:0 auto;padding:var(--sp-20) var(--sp-32) 80px;}
+
+/* ===== Buttons / controls ===== */
+.btn{display:inline-flex;align-items:center;gap:var(--sp-6);font-size:var(--text-sm);font-weight:var(--fw-medium);border-radius:var(--r-sm);padding:var(--sp-6) var(--sp-12);border:1px solid var(--line-strong);background:var(--surface);color:var(--text);transition:.12s var(--ease);box-shadow:0 1px 1px rgba(17,17,20,.03);white-space:nowrap;}
+.btn:hover{border-color:#d8d8db;box-shadow:0 1px 3px rgba(17,17,20,.06);}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;box-shadow:0 1px 2px rgba(91,92,235,.3);}
+.btn.primary:hover{background:#5152e0;box-shadow:0 2px 6px rgba(91,92,235,.35);}
+.btn.sm{padding:var(--sp-4) var(--sp-8);font-size:var(--text-xs);font-weight:var(--fw-medium);}
+.btn.q,.btn.ghost{border-color:transparent;background:transparent;box-shadow:none;color:var(--t2);}
+.btn.q:hover,.btn.ghost:hover{background:var(--surface);border-color:var(--line);color:var(--text);}
+.btn.danger{color:var(--red);border-color:var(--red-weak);}
+.btn.danger:hover{background:var(--red-weak);}
+/* Disabled buttons must LOOK disabled — dim + not-allowed + no hover lift.
+   (A disabled .btn.primary was rendering full-indigo, so it read as clickable.) */
+.btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none;}
+.btn:disabled:hover{box-shadow:none;border-color:var(--line-strong);background:var(--surface);}
+.btn.primary:disabled:hover{background:var(--accent);border-color:var(--accent);}
+.ibtn{width:30px;height:30px;display:grid;place-items:center;border-radius:var(--r-sm);color:var(--t2);background:transparent;border:1px solid transparent;transition:.12s var(--ease);}
+.ibtn:hover{background:var(--surface);border-color:var(--line);color:var(--text);}
+.ctl{display:inline-flex;align-items:center;gap:var(--sp-8);font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--t2);border:1px solid var(--line);background:var(--surface);border-radius:var(--r-md);padding:var(--sp-6) var(--sp-10);transition:.12s var(--ease);position:relative;white-space:nowrap;}
+.ctl:hover{border-color:var(--line-strong);color:var(--text);}
+.ctl .ic{color:var(--t3);}
+.ctl.on{border-color:var(--accent-weak);background:var(--accent-tint);color:var(--accent);}
+.ctl.on .ic{color:var(--accent);}
+
+/* segmented control */
+.seg{display:inline-flex;gap:var(--sp-2);background:var(--line-2);border:1px solid var(--line);border-radius:var(--r-md);padding:var(--sp-2);}
+.seg button{border:none;background:none;font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--t2);padding:var(--sp-4) var(--sp-10);border-radius:var(--r-sm);display:inline-flex;align-items:center;gap:var(--sp-6);}
+.seg button.on{background:var(--surface);color:var(--text);box-shadow:var(--shadow-1);font-weight:var(--fw-semibold);}
+
+/* search box */
+.search{display:flex;align-items:center;gap:var(--sp-8);border:1px solid var(--line-strong);background:var(--surface);border-radius:var(--r-md);padding:var(--sp-6) var(--sp-10);}
+.search:focus-within{border-color:var(--accent);box-shadow:var(--ring-accent);}
+.search input{border:none;outline:none;flex:1;font-size:var(--text-sm);background:transparent;color:var(--text);}
+.search .ic{color:var(--t3);}
+
+/* toggle + checkbox */
+.toggle{width:34px;height:20px;border-radius:var(--r-pill);background:var(--line-strong);position:relative;transition:.15s var(--ease);flex-shrink:0;cursor:pointer;border:none;}
+.toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.2);transition:.15s var(--ease);}
+.toggle.on{background:var(--accent);}
+.toggle.on::after{left:16px;}
+.cbox{width:16px;height:16px;border-radius:var(--r-xs);border:1.5px solid var(--line-strong);display:grid;place-items:center;cursor:pointer;background:var(--surface);color:transparent;flex-shrink:0;}
+.cbox.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+/* Inside popovers, the checkbox <button> is also matched by `.menu-pop button.on`
+   (styles.css) which sets color:var(--accent) and out-specifies `.cbox.on{color:#fff}`
+   — so a checked box painted an accent-coloured tick on the accent fill (invisible).
+   The tick is a Phosphor `<svg fill=currentColor>` and carries NO `.ic` class (the
+   old stroke set added `.ic`; Phosphor does not), so target the bare svg — specificity
+   0,3,1 beats `.menu-pop button.on` at 0,2,1 — to force the check white. */
+.menu-pop .cbox.on svg{color:#fff;}
+
+/* tag */
+.tag{display:inline-flex;align-items:center;gap:var(--sp-4);font-size:var(--text-2xs);font-weight:var(--fw-semibold);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-8);background:var(--line);color:var(--t2);}
+.tag.info{background:var(--accent-tint);color:var(--accent);}
+.tag.ok,.tag.auto{background:var(--green-weak);color:var(--green);}
+.tag.warn{background:var(--amber-weak);color:var(--amber);}
+.tag.err{background:var(--red-weak);color:var(--red);}
+
+/* ===== Page header ===== */
+.head{display:flex;align-items:flex-start;gap:var(--sp-16);}
+.head-l{flex:1;min-width:0;}
+.title-row{display:flex;align-items:center;gap:var(--sp-10);}
+h1{font-size:var(--text-xl);font-weight:var(--fw-semibold);letter-spacing:-.4px;}
+.sub{font-size:var(--text-sm);color:var(--t3);margin-top:var(--sp-4);}
+.actions{display:flex;align-items:center;gap:var(--sp-8);flex-shrink:0;}
+
+/* ===== stat strip (inline metrics) ===== */
+.stats{display:flex;align-items:stretch;}
+.stat{padding:0 var(--sp-24);border-left:1px solid var(--line);display:flex;flex-direction:column;justify-content:center;min-width:0;}
+.stat:first-child{padding-left:0;border-left:none;}
+.stat-l{font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.4px;text-transform:uppercase;color:var(--t3);white-space:nowrap;}
+.stat-v{font-family:var(--mono);font-size:var(--text-xl);font-weight:var(--fw-semibold);letter-spacing:-.6px;line-height:var(--lh-none);margin-top:var(--sp-8);font-feature-settings:"tnum";white-space:nowrap;}
+.stat-s{font-size:var(--text-xs);color:var(--t3);margin-top:var(--sp-6);}
+.delta{font-family:var(--mono);font-size:var(--text-xs);font-weight:var(--fw-semibold);display:inline-flex;align-items:center;gap:var(--sp-2);font-feature-settings:"tnum";}
+.delta.up{color:var(--green);} .delta.down{color:var(--red);}
+
+/* ===== table ===== */
+table{width:100%;border-collapse:collapse;}
+thead th{font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.4px;text-transform:uppercase;color:var(--t3);text-align:left;padding:var(--sp-10) var(--sp-14);white-space:nowrap;border-bottom:1px solid var(--line-strong);}
+thead th.num{text-align:right;}
+tbody td{padding:var(--sp-12) var(--sp-14);border-bottom:1px solid var(--line-2);vertical-align:middle;}
+tbody tr{transition:.1s var(--ease);}
+tbody tr.clickable{cursor:pointer;}
+tbody tr.clickable:hover{background:var(--surface);}
+td.num{text-align:right;font-family:var(--mono);font-feature-settings:"tnum";}
+.check{width:34px;}
+.cell-user{display:flex;align-items:center;gap:var(--sp-10);min-width:0;}
+.u-av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-size:var(--text-xs);font-weight:var(--fw-semibold);color:#fff;flex-shrink:0;position:relative;}
+.u-av .on-d{position:absolute;right:-1px;bottom:-1px;width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 2px var(--surface);}
+.u-name{font-size:var(--text-base);font-weight:var(--fw-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.u-email{font-family:var(--mono);font-size:var(--text-xs);color:var(--t3);margin-top:var(--sp-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tfoot{display:flex;align-items:center;justify-content:space-between;padding:var(--sp-14) var(--sp-2);font-size:var(--text-sm);color:var(--t3);}
+.tfoot .r{display:flex;gap:var(--sp-6);}
+
+/* ===== filter bar ===== */
+.fbar{display:flex;align-items:center;gap:var(--sp-10);flex-wrap:wrap;}
+.fbar .sp{flex:1;}
+
+/* ===== modal ===== */
+.ov{position:fixed;inset:0;background:rgba(17,17,20,.32);z-index:100;display:grid;place-items:center;padding:var(--sp-24);}
+.modal{width:560px;max-width:100%;max-height:86vh;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-lg);box-shadow:var(--shadow-3);display:flex;flex-direction:column;overflow:hidden;animation:pop .15s var(--ease);}
+@keyframes pop{from{opacity:0;transform:translateY(6px) scale(.99);}to{opacity:1;transform:none;}}
+.modal-h{display:flex;align-items:flex-start;gap:var(--sp-10);padding:var(--sp-18) var(--sp-20);border-bottom:1px solid var(--line);}
+.modal-h>div:first-child{flex:1;min-width:0;}
+/* Optional leading icon tile in the default header (Modal headerIcon prop). The
+   text block carries its own flex:1 so it still fills the row once the tile is
+   inserted ahead of it. */
+.modal-htx{flex:1;min-width:0;}
+.modal-hic{width:34px;height:34px;flex-shrink:0;display:grid;place-items:center;border-radius:var(--r-md);background:var(--accent-weak);color:var(--accent);}
+.modal-hic.ok{background:var(--green-weak);color:var(--green);}
+/* === Redesigned modal shell — matches the approved prototype exactly. ==========
+   modal-v2.css restyles ALL modals into a 24px-radius / 24px-gutter / 17px-title
+   "dynamic drawer". For the redesigned set (any modal carrying a header icon tile)
+   we override the WHOLE shell back to the prototype — 12px card, 18px gutters, a
+   15.5px title, borderless header + footer — rather than patching a property at a
+   time. Scoped via :has(.modal-hic), so the ~90 legacy modals keep the v2 drawer
+   untouched. Every rule here out-specifies modal-v2's `.modal*` (0,1,0) selectors. */
+.modal:has(.modal-hic){border-radius:var(--r-lg);border:1px solid var(--line);box-shadow:0 1px 2px rgb(17 17 20 / .05),0 12px 32px -16px rgb(17 17 20 / .22);}
+.modal:has(.modal-hic) .modal-h{padding:var(--sp-18) var(--sp-18) var(--sp-14);border-bottom:none;}
+.modal:has(.modal-hic) .modal-h h3{font-size:15.5px;font-weight:var(--fw-semibold);letter-spacing:-.01em;line-height:var(--lh-snug);}
+.modal:has(.modal-hic) .modal-sub{font-size:var(--text-sm);font-weight:var(--fw-medium);color:var(--t2);line-height:var(--lh-body);margin-top:var(--sp-6);}
+.modal:has(.modal-hic) .modal-b{padding:var(--sp-4) var(--sp-18) var(--sp-6);}
+.modal:has(.modal-hic) .modal-f{padding:var(--sp-10) var(--sp-18) var(--sp-16);border-top:none;}
+/* Footerless redesigned modals (Create issue, Share) end with the body, so it must
+   carry the bottom gutter itself — otherwise the last row/note sits flush on the edge. */
+.modal:has(.modal-hic):not(:has(.modal-f)) .modal-b{padding-bottom:var(--sp-16);}
+.modal-h h3{font-size:var(--text-lg);font-weight:var(--fw-semibold);letter-spacing:-.012em;line-height:var(--lh-tight);}
+.modal-x{width:28px;height:28px;display:grid;place-items:center;border-radius:var(--r-sm);color:var(--t3);background:none;}
+.modal-x:hover{background:var(--line-2);color:var(--text);}
+/* min-height:0 is what makes overflow-y:auto actually work here: as a flex item
+   the body defaults to min-height:auto, which refuses to shrink below its
+   content, so a long list grew past the 86vh cap and .modal's overflow:hidden
+   sliced the last rows off with no way to scroll to them. */
+.modal-b{padding:var(--sp-20) var(--sp-20);overflow-y:auto;flex:1;min-height:0;}
+.modal-f{display:flex;align-items:center;gap:var(--sp-8);padding:var(--sp-14) var(--sp-20);border-top:1px solid var(--line);}
+
+/* ===== cursor: menus + these actions read as app chrome, not links =====
+   `button{cursor:pointer}` above is the global default and stays that way for
+   ordinary buttons. Dropdowns (their trigger AND their rows), the recording
+   stagebar's Share / Create issue, and empty-state actions opt back out to the
+   default arrow. Scoped selectors only — nothing else is touched. */
+.sel-trigger,.sel-row,.pop-tw,.pop-tw>button,.menu-pop button,.dp-trigger,
+.rv-share,.rv-issue,.empty-actions .btn{cursor:default;}
+.modal-f .sp{flex:1;}
+.fld{margin-bottom:var(--sp-16);}
+.fld-l{font-size:var(--text-xs);font-weight:var(--fw-semibold);margin-bottom:var(--sp-6);}
+.in{width:100%;border:1px solid var(--line-strong);border-radius:var(--r-md);padding:var(--sp-8) var(--sp-10);font-size:var(--text-base);outline:none;background:var(--surface);color:var(--text);}
+.in:focus{border-color:var(--accent);box-shadow:var(--ring-accent);}
+
+/* ===== popover menu / select ===== */
+/* ── popover shadow · TO REVERT: restore the old value on this rule AND on
+   .menu-pop:has(.sel-menu) below — they carry the same shadow so the panel
+   and the select dropdowns never diverge. Old value was:
+   box-shadow:0 1px 3px rgba(17,17,20,.05),0 6px 18px rgba(17,17,20,.07);
+   ── */
+.menu-pop{position:fixed;z-index:1200;background:var(--surface);border:none;border-radius:var(--r-lg);box-shadow:0 6px 18px lch(0% 0 0 / 0.02),0 3px 9px lch(0% 0 0 / 0.04),0 1px 1px lch(0% 0 0 / 0.04);padding:var(--sp-6);min-width:158px;overflow-y:auto;overscroll-behavior:contain;animation:selpop .16s var(--ease);}
+/* Scrollbar stays hidden by default (the menu still scrolls) and only fades in
+   on hover — a bare-by-default popover, not one with a rail parked in it. */
+.menu-pop{scrollbar-width:none;}
+.menu-pop:hover{scrollbar-width:thin;scrollbar-color:var(--line-strong) transparent;}
+.menu-pop::-webkit-scrollbar{width:8px;}
+.menu-pop::-webkit-scrollbar-thumb{background:transparent;border-radius:var(--r-md);border:2px solid var(--surface);transition:background .15s ease;}
+.menu-pop:hover::-webkit-scrollbar-thumb{background:var(--line-strong);}
+.menu-pop::-webkit-scrollbar-track{background:transparent;}
+.pop-hl{position:absolute;top:0;left:0;height:0;border-radius:var(--r-sm);background:var(--line-2);pointer-events:none;z-index:0;transition:transform .18s cubic-bezier(.22,1,.36,1),width .18s cubic-bezier(.22,1,.36,1),height .18s cubic-bezier(.22,1,.36,1),opacity .12s ease;}
+.menu-pop button{position:relative;z-index:1;display:flex;align-items:center;gap:var(--sp-8);width:100%;text-align:left;border:none;background:transparent;font-size:var(--text-sm);color:var(--text);padding:var(--sp-8) var(--sp-10);border-radius:var(--r-sm);cursor:default;font-weight:var(--fw-medium);}
+.menu-pop button:hover{background:transparent;}
+.menu-pop button.on{color:var(--accent);font-weight:var(--fw-semibold);}
+.menu-pop button.danger{color:var(--red);}
+.menu-pop .ic{color:lch(38.376% 1.25 282 / 1);width:14px;height:14px;}
+.menu-pop .sep{height:1px;background:var(--line);margin:var(--sp-4) 0;}
+/* reference-style Select menu — section label, whitespace groups, selected dot,
+   continuity sliding highlight, default cursor, minimal shadow + padding + soft fade */
+/* ── popover shadow · TO REVERT: see the .menu-pop note above. Old value:
+   box-shadow:0 1px 3px rgba(17,17,20,.05),0 6px 18px rgba(17,17,20,.07); ── */
+.menu-pop:has(.sel-menu){box-shadow:0 6px 18px lch(0% 0 0 / 0.02),0 3px 9px lch(0% 0 0 / 0.04),0 1px 1px lch(0% 0 0 / 0.04);padding:var(--sp-6);animation:selpop .16s var(--ease);}
+@keyframes selpop{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:none;}}
+.sel-menu{width:100%;min-width:0;box-sizing:border-box;}
+.sel-menu .sel-hl{position:absolute;left:0;right:0;top:0;height:0;border-radius:var(--r-sm);background:var(--line-2);pointer-events:none;z-index:0;
+  transition:transform .18s cubic-bezier(.22,1,.36,1),height .18s cubic-bezier(.22,1,.36,1),opacity .12s ease;}
+.menu-pop .sel-lbl{position:relative;z-index:1;font-size:var(--text-xs);color:var(--t3);font-weight:var(--fw-medium);padding:var(--sp-6) var(--sp-10) var(--sp-4);letter-spacing:.1px;}
+.menu-pop .sel-lbl.sub{padding-top:var(--sp-8);}
+.menu-pop .sel-gap{position:relative;z-index:1;height:7px;}
+.menu-pop button.sel-row{position:relative;z-index:1;cursor:default;justify-content:flex-start;transition:color .12s ease;}
+.menu-pop button.sel-row:hover{background:transparent;}
+.menu-pop button.sel-row .sel-row-l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.menu-pop button.sel-row.on{color:var(--text);font-weight:var(--fw-medium);}
+.menu-pop button.sel-row .sel-dot{margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.menu-pop .mh{font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.4px;text-transform:uppercase;color:var(--t3);padding:var(--sp-6) var(--sp-8) var(--sp-4);}
+.sel-trigger{display:inline-flex;align-items:center;gap:var(--sp-8);border:1px solid transparent;background:var(--line-2);border-radius:var(--r-md);padding:var(--sp-6) var(--sp-10);font-size:var(--text-sm);font-weight:var(--fw-medium);white-space:nowrap;justify-content:space-between;}
+.sel-trigger:hover{background:var(--line-strong);border-color:transparent;}
+.pop-tw.open .sel-trigger{background:var(--line-strong);border-color:transparent;}
+.sel-trigger .ic{color:var(--t3);}
+/* canonical Select menu — continuity hover, keyboard, search */
+.sel-menu.legacy{min-width:150px;max-width:100%;}
+.sel-search{display:flex;align-items:center;gap:var(--sp-8);padding:var(--sp-8) var(--sp-8) var(--sp-8);margin:-2px -2px var(--sp-4);border-bottom:1px solid var(--line-2);color:var(--t3);}
+.sel-search input{border:none;outline:none;background:none;font-size:var(--text-base);width:100%;color:var(--text);}
+.sel-list{position:relative;max-height:280px;overflow-y:auto;overflow-x:hidden;}
+.sel-hl{position:absolute;left:0;right:0;top:0;box-sizing:border-box;border-radius:var(--r-sm);background:var(--line-2);pointer-events:none;z-index:0;opacity:0;transition:transform .17s cubic-bezier(.22,1,.36,1),height .17s cubic-bezier(.22,1,.36,1),opacity .13s var(--ease);}
+.sel-hl.on{opacity:1;}
+.sel-menu .sel-opt{position:relative;z-index:1;display:flex;align-items:center;gap:var(--sp-10);width:100%;text-align:left;padding:var(--sp-8) var(--sp-12);border:none;background:none !important;border-radius:var(--r-sm);font-size:var(--text-base);color:var(--text);transition:color .1s var(--ease);}
+.sel-menu .sel-opt svg{color:var(--t3);flex-shrink:0;}
+.sel-menu .sel-opt .sel-opt-l{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.sel-menu .sel-opt.on{color:var(--accent);font-weight:var(--fw-medium);}
+.sel-menu .sel-opt.on svg{color:var(--accent);}
+.sel-menu .sel-opt .sel-check{margin-left:auto;}
+.sel-empty{padding:var(--sp-12);text-align:center;font-size:var(--text-sm);color:var(--t3);}
+/* CodeBlock — syntax highlight + line numbers (#48) */
+.cb{position:relative;border:1px solid var(--line-strong);border-radius:0 0 var(--r-lg) var(--r-lg);background:#f8f8fa;overflow:hidden;}
+.cb-copy{position:absolute;top:9px;right:9px;z-index:2;display:inline-flex;align-items:center;gap:var(--sp-6);font-size:var(--text-xs);font-weight:var(--fw-medium);color:var(--t2);background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-sm);padding:var(--sp-4) var(--sp-8);transition:.12s var(--ease);}
+.cb-copy:hover{border-color:var(--accent-weak);color:var(--accent);background:var(--accent-tint);}
+.cb-pre{margin:0;padding:var(--sp-14) 0;overflow-x:auto;font-family:var(--mono);font-size:var(--text-sm);line-height:var(--lh-loose);}
+.cb-line{display:flex;}
+.cb-ln{flex:none;width:40px;text-align:right;padding-right:var(--sp-14);color:var(--t4);user-select:none;-webkit-user-select:none;}
+.cb-code{white-space:pre;padding-right:var(--sp-16);color:var(--text);}
+.cb-kw{color:#8250df;font-weight:var(--fw-medium);}
+.cb-str{color:#1f8a5b;}
+.cb-cm{color:var(--t4);font-style:italic;}
+
+/* ===== skeleton ===== */
+.sk{display:block;background:linear-gradient(90deg,var(--line-2) 25%,var(--line) 37%,var(--line-2) 63%);background-size:400% 100%;animation:sk 1.3s ease infinite;border-radius:var(--r-xs);}
+@keyframes sk{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+.rd-spinner{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--accent);animation:spin .7s linear infinite;flex-shrink:0;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ===== toast notifications ===== */
+.toast-stack{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column-reverse;gap:var(--sp-8);z-index:5000;pointer-events:none;}
+.toast{background:#17181b;color:#fff;border-radius:var(--r-md);padding:var(--sp-8) var(--sp-14);font-size:var(--text-sm);font-weight:var(--fw-medium);display:flex;align-items:center;gap:var(--sp-10);box-shadow:0 8px 24px rgba(0,0,0,.18);pointer-events:auto;min-width:220px;max-width:420px;animation:toastIn .32s cubic-bezier(.22,1,.36,1);}
+.toast.ok{background:var(--green);}
+.toast.err{background:var(--red);}
+.toast.out{animation:toastOut .26s cubic-bezier(.22,1,.36,1) forwards;}
+.toast-action{background:rgba(255,255,255,.15);color:#fff;padding:var(--sp-4) var(--sp-8);font-size:var(--text-xs);font-weight:var(--fw-semibold);border-radius:var(--r-sm);margin-left:auto;border:none;cursor:pointer;}
+.toast-action:hover{background:rgba(255,255,255,.25);}
+@keyframes toastIn{from{opacity:0;transform:translateX(60px) scale(.96);}to{opacity:1;transform:none;}}
+@keyframes toastOut{to{opacity:0;transform:translateX(60px) scale(.96);}}
+
+/* command palette */
+.pov{position:fixed;inset:0;background:rgba(17,17,20,.28);z-index:130;display:grid;place-items:start center;padding-top:13vh;}
+.palette{width:560px;max-width:92vw;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--r-lg);box-shadow:var(--shadow-3);overflow:hidden;animation:pop .14s var(--ease);}
+.pal-in{display:flex;align-items:center;gap:var(--sp-10);padding:var(--sp-14) var(--sp-16);border-bottom:1px solid var(--line);}
+.pal-in .ic{color:var(--t3);}
+.pal-in input{border:none;outline:none;font-size:var(--text-md);flex:1;background:transparent;}
+.pal-in .esc{font-family:var(--mono);font-size:var(--text-2xs);color:var(--t3);border:1px solid var(--line);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-6);}
+.pal-list{max-height:52vh;overflow-y:auto;padding:var(--sp-6);}
+.pal-h{font-size:var(--text-2xs);font-weight:var(--fw-semibold);letter-spacing:.4px;text-transform:uppercase;color:var(--t3);padding:var(--sp-8) var(--sp-10) var(--sp-4);}
+.pal-i{display:flex;align-items:center;gap:var(--sp-10);padding:var(--sp-8) var(--sp-10);border-radius:var(--r-md);font-size:var(--text-base);cursor:pointer;}
+.pal-i .ic{color:var(--t3);}
+.pal-i:hover,.pal-i.active{background:var(--accent-tint);}
+.pal-i:hover .ic,.pal-i.active .ic{color:var(--accent);}
+.pal-i .k{margin-left:auto;font-family:var(--mono);font-size:var(--text-2xs);color:var(--t3);}
+
+/* drawer */
+.drawer-ov{justify-items:end;place-items:stretch end;}
+.drawer{height:100%;max-height:100vh;width:480px;max-width:96vw;background:var(--surface);border-left:1px solid var(--line-strong);box-shadow:-16px 0 50px rgb(17 17 20 / .16);display:flex;flex-direction:column;animation:slideIn .2s var(--ease);}
+@keyframes slideIn{from{transform:translateX(30px);opacity:.6;}to{transform:none;opacity:1;}}
+.drawer-b{flex:1;overflow-y:auto;padding:var(--sp-18);}
+
+/* ===== empty state (4D) ===== */
+.empty{display:grid;place-items:center;min-height:62vh;padding:var(--sp-40);text-align:center;}
+.empty-art{margin:0 auto var(--sp-20);filter:drop-shadow(0 18px 24px rgb(17 17 20 / .14));animation:float 5s var(--ease) infinite;}
+/* Brand illustration in the empty state (replaces the generated art). */
+.empty-illo{width:370px;height:auto;display:block;margin:0 auto;}
+@keyframes float{0%,100%{transform:translateY(0);}50%{transform:translateY(-8px);}}
+.empty h2{font-size:var(--text-md);font-weight:var(--fw-semibold);letter-spacing:-.01em;margin-bottom:var(--sp-8);}
+.empty p{font-size:var(--text-base);color:var(--t2);line-height:var(--lh-body);max-width:400px;margin:0 auto var(--sp-20);}
+.empty-actions{display:flex;gap:var(--sp-8);justify-content:center;}
+/* Keyboard-shortcut chips inside an empty-state button (keyboard-first). */
+.empty-kbd{display:inline-flex;align-items:center;gap:var(--sp-4);margin-left:var(--sp-8);}
+.empty-kbd kbd{font-family:var(--mono);font-size:var(--text-2xs);line-height:var(--lh-none);color:var(--t3);background:var(--line-2);border:1px solid var(--line-strong);border-radius:var(--r-xs);padding:var(--sp-2) var(--sp-6);min-width:15px;text-align:center;}
+.empty-kbd .then{font-size:var(--text-2xs);color:var(--t4);}
+.btn.primary .empty-kbd kbd{color:rgba(255,255,255,.92);background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28);}
+.btn.primary .empty-kbd .then{color:rgba(255,255,255,.72);}
+@media (prefers-reduced-motion:reduce){.empty-art{animation:none;}}
+
+/* section block (overview etc.) */
+.block{margin-top:var(--sp-32);}
+.bh{display:flex;align-items:baseline;gap:var(--sp-10);padding-bottom:var(--sp-12);border-bottom:1px solid var(--line);margin-bottom:var(--sp-4);}
+.bh .eyebrow{font-size:var(--text-base);font-weight:var(--fw-semibold);letter-spacing:-.1px;color:var(--text);}
+.bh .hint{font-size:var(--text-sm);color:var(--t3);}
+.bh .sp{flex:1;}
+
+/* A long workspace name ("nolohundare's Workspace") pushed the chevron outside
+   the 212px rail instead of ellipsising. .ws-name and .ws-trigger already carry
+   min-width:0, but the Popover primitive wraps the trigger in a <span> and
+   .pop-tw, and a flex item defaults to min-width:auto — it will not shrink below
+   its content, so the constraint never reached the name. Scoped to .side-top so
+   every other Popover in the app keeps sizing to its own trigger. */
+.side-top > span,
+.side-top .pop-tw { min-width: 0; }
+.side-top > span { flex: 1; }
+/* width:100% is the one that actually does it: .ws-trigger is a <button>, and
+   form controls shrink-to-fit under width:auto instead of filling their parent
+   the way a block would — so it sized to its text (225px) and ignored the
+   155px it had been given. Its own flex:1 is inert here because .pop-tw is a
+   block, not a flex container. Not applied while collapsed: the rail is 54px
+   and the name is hidden there anyway. */
+.side:not(.collapsed) .ws-trigger { width: 100%; }

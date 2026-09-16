@@ -1,0 +1,137 @@
+/* ============================================================================
+   Billing — "credit usage by product" ticked bars (additive; owner-directed).
+
+   Replaces the AI-credits per-surface SOLID meters with a ticked / equalizer
+   bar: thin vertical ticks, filled in the product's own hue up to its share of
+   the top consumer, the remainder a light neutral. A colour dot leads each row
+   and rows separate on whitespace, not dividers.
+
+   Scoped `blt-` so the frozen `.bl-usage-*` rules in pages.css simply go unused
+   (that markup is replaced in PanelBilling). The ticks are a two-layer
+   repeating-linear-gradient — no per-tick DOM — so the phase of the coloured
+   fill lines up exactly over the neutral track.
+   ========================================================================== */
+
+.bl-usage.blt {
+  border: 1px solid var(--line);
+  border-radius:var(--r-lg);
+  padding:var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.blt-row {
+  padding:var(--sp-12) var(--sp-14) var(--sp-14);
+  border-radius:var(--r-md);
+}
+
+/* Head: dot + product (+ calls) on the left, credits on the right. */
+.blt-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap:var(--sp-12);
+  margin-bottom:var(--sp-10);
+}
+.blt-k {
+  display: flex;
+  align-items: baseline;
+  gap:var(--sp-8);
+  min-width: 0;
+  flex: 1;
+}
+.blt-dot {
+  flex-shrink: 0;
+  width: 7px;
+  height: 7px;
+  border-radius:50%;
+  background: var(--c);
+  transform: translateY(-1px);
+}
+.blt-name {
+  font-size:var(--text-base);
+  font-weight:var(--fw-medium);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.blt-calls {
+  flex-shrink: 0;
+  font-size:var(--text-xs);
+  font-weight:var(--fw-regular);
+  color: var(--t3);
+  font-feature-settings: "tnum" 1;
+}
+.blt-v {
+  flex-shrink: 0;
+  font-size:var(--text-base);
+  font-weight:var(--fw-medium);
+  color: var(--text);
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+.blt-v small { color: var(--t3); font-weight:var(--fw-regular); margin-left:var(--sp-2); }
+
+/* The ticked bar. Track = neutral ticks across the full width; fill = the same
+   tick grid in the row's hue, clipped to the value's width. Same 5px period and
+   left origin on both, so a coloured tick sits precisely over a neutral one. */
+.blt-bar {
+  position: relative;
+  height: 22px;
+  border-radius:var(--r-2xs);
+  overflow: hidden;
+  background: repeating-linear-gradient(to right, var(--line-strong) 0 2px, transparent 2px 5px);
+}
+.blt-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: repeating-linear-gradient(to right, var(--c) 0 2px, transparent 2px 5px);
+  transition: width .5s cubic-bezier(.23, 1, .32, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blt-fill { transition: none; }
+}
+
+/* Deep-link target: keep the AI-credits section clear of the scroll-top edge
+   when reached from the AI settings page. */
+#ai-credits { scroll-margin-top:var(--sp-16); }
+
+/* ---------------------------------------------------------------------------
+   "View AI usage in billing" — the link that replaces the (now removed)
+   duplicate usage panel on the AI settings page. A quiet, full-width row that
+   reads as a way OUT to the real breakdown, not a control.
+   --------------------------------------------------------------------------- */
+.set-ai-bill-link {
+  display: flex;
+  align-items: center;
+  gap:var(--sp-12);
+  padding:var(--sp-14) var(--sp-16);
+  border: 1px solid var(--line);
+  border-radius:var(--r-lg);
+  background: var(--surface);
+  text-decoration: none;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.set-ai-bill-link:hover { border-color: var(--line-strong); background: var(--line-2); }
+.set-ai-bill-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.set-ai-bill-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap:var(--sp-2); }
+.set-ai-bill-t { font-size:var(--text-base); font-weight:var(--fw-medium); color: var(--text); }
+.set-ai-bill-d { font-size:var(--text-sm); color: var(--t3); }
+.set-ai-bill-arr {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--t3);
+  transition: transform .15s ease, color .15s ease;
+}
+.set-ai-bill-arr svg { transform: rotate(-90deg); }
+.set-ai-bill-link:hover .set-ai-bill-arr { color: var(--t2); transform: translateX(2px); }
+
+@media (prefers-reduced-motion: reduce) {
+  .set-ai-bill-arr { transition: color .15s ease; }
+  .set-ai-bill-link:hover .set-ai-bill-arr { transform: none; }
+}

@@ -1,0 +1,215 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-analytics">
+  <title id="title-analytics">Analytics — trends, retention, web vitals and breakdowns across everything your SDK captures</title>
+  <!-- Replayfy Illustration System · 09 Analytics · hand-crafted SVG -->
+  <!--
+    STORY: the hero is a TRENDS CHART — the product's actual job, a metric rising
+    over time. Built on the exact frame, palette, glow, ambient and cat mascot of
+    the set (crashes/funnels/users), so it sits beside them as one family; only
+    the hero card's contents change (a filled area chart + a summary row instead
+    of crash rows). Behind: a breakdown-bars card and a big-number metric card —
+    the other analytics surfaces. A trend chip says the number is moving up. Indigo
+    leads; one restrained mint accent (already in the ambient palette) marks the
+    positive trend. Copy is added in code (system rule: no <text> in the SVG).
+  -->
+
+  <defs>
+    <radialGradient id="an-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E9EEFA" stop-opacity="0.7"/>
+      <stop offset="0.7" stop-color="#EDF1FA" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#EDF1FA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="an-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="an-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <linearGradient id="an-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <linearGradient id="an-area" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF" stop-opacity="0.36"/>
+      <stop offset="1" stop-color="#6D9BFF" stop-opacity="0.02"/>
+    </linearGradient>
+    <linearGradient id="an-cat-indigo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7E8BFA"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <radialGradient id="an-soft-indigo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#EDEFFF" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#EDEFFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#EDEFFF" stop-opacity="0"/>
+    </radialGradient>
+    <path id="an-ear" d="M -16 14 Q -20 17 -17.5 10 L -4.5 -14 Q 0 -21 4.5 -14 L 17.5 10 Q 20 17 16 14 Q 0 7 -16 14 Z"/>
+  </defs>
+
+  <style>
+    /* One calm pulse on the trend's leading point — the same "this is live" beat
+       the set uses on its focal mark. Nothing bounces. */
+    @keyframes an-pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+    .an-pulse { animation: an-pulse 2.6s ease-in-out infinite }
+    @media (prefers-reduced-motion: reduce) { .an-pulse { animation: none } }
+  </style>
+
+  <g id="background">
+    <ellipse cx="404" cy="316" rx="382" ry="262" fill="url(#an-glow)"/>
+    <g id="ambient-marks" stroke-linecap="round">
+      <circle cx="98" cy="150" r="5" stroke="#C8D2ED" stroke-width="2.5"/>
+      <path d="M714 118v14M707 125h14" stroke="#D5CBF7" stroke-width="2.5"/>
+      <circle cx="686" cy="470" r="4" fill="#CBE8DC"/>
+      <circle cx="128" cy="332" r="3.5" fill="#D9E2F5"/>
+      <circle cx="724" cy="300" r="4.5" stroke="#D7DEF0" stroke-width="2.5"/>
+      <path d="M150 486v11M144.5 491.5h11" stroke="#D9E2F5" stroke-width="2.2"/>
+    </g>
+  </g>
+
+  <!-- ══ BEHIND: a breakdown-bars card and a big-number metric card. Rotated,
+       dimmed — context, not subject. ══ -->
+  <g id="behind-cards">
+    <g id="breakdown-card" transform="rotate(-6 168 214)" opacity="0.92">
+      <rect x="92" y="156" width="152" height="116" rx="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <g fill="#DCE3F0"><circle cx="108" cy="172" r="3"/><circle cx="118" cy="172" r="3"/><circle cx="128" cy="172" r="3"/></g>
+      <rect x="104" y="186" width="64" height="7" rx="3.5" fill="#CBD5E8"/>
+      <!-- a small vertical bar chart, tallest in accent -->
+      <g>
+        <rect x="106" y="234" width="11" height="24" rx="3" fill="#D9E0F0"/>
+        <rect x="124" y="224" width="11" height="34" rx="3" fill="#C7CEF8"/>
+        <rect x="142" y="230" width="11" height="28" rx="3" fill="#D9E0F0"/>
+        <rect x="160" y="214" width="11" height="44" rx="3" fill="url(#an-accent)"/>
+        <rect x="178" y="228" width="11" height="30" rx="3" fill="#C7CEF8"/>
+        <rect x="196" y="238" width="11" height="20" rx="3" fill="#D9E0F0"/>
+      </g>
+    </g>
+
+    <g id="metric-card" transform="rotate(5 662 200)" opacity="0.92">
+      <rect x="588" y="150" width="148" height="100" rx="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <!-- big number + a positive-trend pill -->
+      <rect x="604" y="168" width="70" height="14" rx="4" fill="#2E3450"/>
+      <rect x="690" y="170" width="30" height="12" rx="6" fill="#DDEEE4"/>
+      <path d="M700 178 l4 -5 l4 5 z" fill="#3F9468"/>
+      <!-- a rising sparkline -->
+      <polyline points="604,224 620,218 636,222 652,210 668,214 684,202 702,206" fill="none" stroke="url(#an-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="604" y="236" width="86" height="6" rx="3" fill="#E0E6F2"/>
+    </g>
+  </g>
+
+  <!-- ══ HERO: the trends chart — a metric rising over time ══ -->
+  <g id="report">
+    <ellipse cx="416" cy="430" rx="220" ry="17" fill="url(#an-shadow)"/>
+    <rect x="200" y="112" width="432" height="300" rx="22" fill="url(#an-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+
+    <!-- header: chart mark · title · the current total (rising) -->
+    <g id="report-head">
+      <g transform="translate(240 148)">
+        <rect x="-14" y="-14" width="28" height="28" rx="8" fill="url(#an-cat-indigo)"/>
+        <polyline points="-7,5 -2,-1 2,2 8,-6" fill="none" stroke="#EDEFFF" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="8" cy="-6" r="1.8" fill="#EDEFFF"/>
+      </g>
+      <rect x="264" y="136" width="120" height="10" rx="5" fill="#CBD5E8"/>
+      <rect x="264" y="153" width="74" height="7" rx="3.5" fill="#DFE5F2"/>
+
+      <!-- the current total, moving up -->
+      <rect x="516" y="137" width="64" height="13" rx="4" fill="#2E3450"/>
+      <path d="M592 148 l5 -7 l5 7 z" fill="#3F9468"/>
+      <rect x="590" y="156" width="26" height="7" rx="3.5" fill="#BFD9CC"/>
+    </g>
+
+    <line x1="220" y1="180" x2="612" y2="180" stroke="#EDF1F8" stroke-width="1.5"/>
+
+    <!-- faint value gridlines -->
+    <g stroke="#EEF2F9" stroke-width="1.4">
+      <line x1="232" y1="252" x2="600" y2="252"/>
+      <line x1="232" y1="306" x2="600" y2="306"/>
+    </g>
+
+    <!-- the filled area + trend line -->
+    <path d="M236 360 L236 328 L294 316 L352 298 L410 308 L468 264 L526 246 L584 228 L584 360 Z" fill="url(#an-area)"/>
+    <polyline points="236,328 294,316 352,298 410,308 468,264 526,246 584,228" fill="none" stroke="url(#an-accent)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- baseline -->
+    <line x1="232" y1="360" x2="600" y2="360" stroke="#E5EAF3" stroke-width="1.5"/>
+    <!-- leading point -->
+    <circle class="an-pulse" cx="584" cy="228" r="9" fill="#6D9BFF" opacity="0.18"/>
+    <circle cx="584" cy="228" r="5" fill="url(#an-accent)"/>
+    <circle cx="584" cy="228" r="2" fill="#FFFFFF"/>
+
+    <!-- x-axis ticks -->
+    <g fill="#E4E9F3">
+      <rect x="244" y="372" width="28" height="6" rx="3"/>
+      <rect x="316" y="372" width="28" height="6" rx="3"/>
+      <rect x="388" y="372" width="28" height="6" rx="3"/>
+      <rect x="460" y="372" width="28" height="6" rx="3"/>
+      <rect x="540" y="372" width="28" height="6" rx="3"/>
+    </g>
+
+    <!-- summary row: legend · series · total -->
+    <circle cx="234" cy="394" r="4" fill="url(#an-accent)"/>
+    <rect x="246" y="390" width="72" height="8" rx="4" fill="#C3CBDE"/>
+    <rect x="478" y="390" width="46" height="8" rx="4" fill="#2E3450"/>
+    <rect x="548" y="390" width="38" height="8" rx="4" fill="#B7C0D8"/>
+  </g>
+
+  <!-- moving up -->
+  <g id="trend-chip" transform="rotate(4 601 444)">
+    <rect x="556" y="430" width="90" height="28" rx="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+    <circle cx="574" cy="444" r="9" fill="url(#an-accent)"/>
+    <path d="M570 447 l4 -6 l4 6 z" fill="#FFFFFF"/>
+    <rect x="590" y="440" width="40" height="8" rx="4" fill="#DCE3F0"/>
+  </g>
+
+  <!-- ══ CAT — reused from the set, watching the chart. ══ -->
+  <g id="cat-hero" aria-label="Cat watching the analytics chart">
+    <ellipse id="cat-shadow" cx="150" cy="588" rx="82" ry="12" fill="url(#an-shadow)"/>
+    <g transform="translate(150 452) rotate(2)">
+      <g id="cat-tail">
+        <path d="M32 106 C 66 116 88 106 92 82 C 94.5 68 82 64 79 76 C 76 90 62 98 36 94 Z" fill="#5F6CEC"/>
+        <circle cx="86.5" cy="72" r="7" fill="#EDEFFF"/>
+      </g>
+      <g id="cat-ears">
+        <g id="ear-left" transform="translate(-33 -45) rotate(-26)">
+          <use href="#an-ear" fill="#6874F0"/>
+          <use href="#an-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g id="ear-right" transform="translate(33 -45) rotate(26)">
+          <use href="#an-ear" fill="#6874F0"/>
+          <use href="#an-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="cat-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#an-cat-indigo)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#4A55CF" opacity="0.1"/>
+        <ellipse cx="0" cy="94" rx="15" ry="21" fill="url(#an-soft-indigo)"/>
+        <g id="cat-paws">
+          <rect x="-25" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+          <rect x="7" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+          <path d="M-19 125v5M-13 125v5M13 125v5M19 125v5" stroke="#C9CDF4" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+      </g>
+      <g id="cat-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 30 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#an-cat-indigo)"/>
+        <g id="cat-face" transform="translate(7 -6)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#an-soft-indigo)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-15" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="23" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="-21" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="17" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#3A3F5F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#3A3F5F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <g id="whiskers" stroke="#4A55CF" stroke-width="1.5" stroke-linecap="round" opacity="0.4">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

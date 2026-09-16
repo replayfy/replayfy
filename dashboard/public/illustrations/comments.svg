@@ -1,0 +1,251 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-comments">
+  <title id="title-comments">Comments — teams discussing user sessions</title>
+  <!-- Replayfy Illustration System · 04 Comments · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="com-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E9EEFA" stop-opacity="0.7"/>
+      <stop offset="0.7" stop-color="#EDF1FA" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#EDF1FA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="com-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="com-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <linearGradient id="com-screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFCFF"/>
+      <stop offset="1" stop-color="#F1F4FB"/>
+    </linearGradient>
+    <linearGradient id="com-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <linearGradient id="com-cat-indigo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7E8BFA"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <linearGradient id="com-cat-sand" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#F4CD96"/>
+      <stop offset="1" stop-color="#E8AF66"/>
+    </linearGradient>
+    <path id="com-ear" d="M -16 14 Q -20 17 -17.5 10 L -4.5 -14 Q 0 -21 4.5 -14 L 17.5 10 Q 20 17 16 14 Q 0 7 -16 14 Z"/>
+    <g id="com-minicat">
+      <path d="M -9.5 -9 L -4 -15.5 Q -1.6 -18 0 -15.5 L 4.5 -9 Z" fill="currentColor" transform="translate(-7 -6) rotate(-18)"/>
+      <path d="M -4.5 -9 L 0 -15.5 Q 1.6 -18 4 -15.5 L 9.5 -9 Z" fill="currentColor" transform="translate(7 -6) rotate(18)"/>
+      <path d="M-15 1.5 C -15 -8 -8.5 -13.5 0 -13.5 C 8.5 -13.5 15 -8 15 1.5 C 15 9.5 8 14 0 14 C -8 14 -15 9.5 -15 1.5 Z" fill="currentColor"/>
+      <ellipse cx="-5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <ellipse cx="5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <circle cx="-4.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <circle cx="6.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <path d="M-1.4 4.6 L 1.4 4.6 Q 2.4 4.8 1.7 5.9 L 0.7 7 Q 0 7.7 -0.7 7 L -1.7 5.9 Q -2.4 4.8 -1.4 4.6 Z" fill="#3A3F5F"/>
+    </g>
+    <radialGradient id="com-soft-indigo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#EDEFFF" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#EDEFFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#EDEFFF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="com-soft-sand" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#FCEFDD" stop-opacity="0.97"/>
+      <stop offset="0.7" stop-color="#FCEFDD" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FCEFDD" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="background">
+    <ellipse cx="400" cy="320" rx="380" ry="262" fill="url(#com-glow)"/>
+    <g id="ambient-marks" stroke-linecap="round">
+      <circle cx="86" cy="130" r="5" stroke="#C8D2ED" stroke-width="2.5"/>
+      <path d="M742 96v14M735 103h14" stroke="#D5CBF7" stroke-width="2.5"/>
+      <circle cx="748" cy="404" r="4" fill="#CBE8DC"/>
+      <circle cx="82" cy="384" r="3.5" fill="#D9E2F5"/>
+      <circle cx="620" cy="540" r="4.5" stroke="#D7DEF0" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <g id="session-frame">
+    <ellipse cx="340" cy="372" rx="188" ry="15" fill="url(#com-shadow)"/>
+    <rect x="150" y="96" width="380" height="262" rx="20" fill="url(#com-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+    <g id="frame-chrome">
+      <circle cx="174" cy="120" r="4" fill="#D9E0EE"/>
+      <circle cx="188" cy="120" r="4" fill="#D9E0EE"/>
+      <circle cx="202" cy="120" r="4" fill="#D9E0EE"/>
+      <rect x="222" y="111" width="176" height="18" rx="9" fill="#EFF2F9"/>
+      <rect x="234" y="117" width="76" height="6" rx="3" fill="#D9E0EE"/>
+    </g>
+    <g id="frame-viewport">
+      <rect x="166" y="140" width="348" height="160" rx="10" fill="url(#com-screen)" stroke="#E9EDF6"/>
+      <g id="image-placeholder">
+        <rect x="182" y="156" width="118" height="82" rx="8" fill="#EFF3FA"/>
+        <circle cx="212" cy="180" r="7" fill="#D3DCEC"/>
+        <path d="M188 226 L 214 200 L 232 216 L 246 204 L 262 222 Q 264 226 258 226 Z" fill="#D3DCEC"/>
+      </g>
+      <rect x="314" y="160" width="148" height="11" rx="5.5" fill="#CBD5E8"/>
+      <rect x="314" y="182" width="178" height="8" rx="4" fill="#E0E6F2"/>
+      <rect x="314" y="198" width="132" height="8" rx="4" fill="#E0E6F2"/>
+      <rect x="182" y="254" width="296" height="8" rx="4" fill="#E0E6F2"/>
+      <rect x="182" y="270" width="236" height="8" rx="4" fill="#E0E6F2"/>
+    </g>
+    <g id="frame-timeline">
+      <rect x="170" y="326" width="336" height="7" rx="3.5" fill="#E7EBF4"/>
+      <rect x="170" y="326" width="150" height="7" rx="3.5" fill="url(#com-accent)"/>
+      <circle cx="270" cy="329.5" r="5.5" fill="#F0A45C" stroke="#FFFFFF" stroke-width="2"/>
+      <circle cx="420" cy="329.5" r="5.5" fill="#8B5CF6" stroke="#FFFFFF" stroke-width="2"/>
+      <circle cx="320" cy="329.5" r="8" fill="#FFFFFF" stroke="#4066F0" stroke-width="3"/>
+    </g>
+  </g>
+
+  <g id="annotation">
+    <circle cx="400" cy="206" r="19" stroke="#7E8BFA" stroke-width="2" opacity="0.3"/>
+    <path d="M400 190 C 391.5 190 385 196.5 385 204.5 C 385 213.5 392 219.5 400 228 C 408 219.5 415 213.5 415 204.5 C 415 196.5 408.5 190 400 190 Z" fill="url(#com-accent)"/>
+    <circle cx="400" cy="205" r="5" fill="#FFFFFF"/>
+    <path id="thread-link" d="M414 212 C 450 198 464 170 494 152" stroke="#A8B6DC" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" fill="none"/>
+  </g>
+
+  <g id="thread">
+    <g id="bubble-1">
+      <ellipse cx="612" cy="204" rx="102" ry="8" fill="url(#com-shadow)"/>
+      <path d="M516 120 H 704 Q 720 120 720 136 V 182 Q 720 198 704 198 H 536 L 516 198 Q 500 198 500 182 V 136 Q 500 120 516 120 Z" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <g transform="translate(526 146)">
+        <circle r="14" fill="#FDF3E3"/>
+        <use href="#com-minicat" color="#EDBE7F" transform="scale(0.72)"/>
+      </g>
+      <rect x="548" y="134" width="58" height="8" rx="4" fill="#C9D3E6"/>
+      <rect x="612" y="134" width="26" height="8" rx="4" fill="#E4E9F4"/>
+      <rect x="548" y="152" width="152" height="8" rx="4" fill="#E0E6F2"/>
+      <rect x="548" y="168" width="112" height="8" rx="4" fill="#E0E6F2"/>
+      <g id="reaction-chip">
+        <rect x="514" y="188" width="46" height="21" rx="10.5" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <path d="M528.5 194.2 c -1.8 -1.9 -4.8 -1.6 -6.1 0.5 c -0.9 1.5 -0.6 3.4 0.6 4.7 l 5.5 5 l 5.5 -5 c 1.2 -1.3 1.5 -3.2 0.6 -4.7 c -1.3 -2.1 -4.3 -2.4 -6.1 -0.5 Z" fill="#F0708A"/>
+        <rect x="540" y="195" width="12" height="7" rx="3.5" fill="#D6DEED"/>
+      </g>
+    </g>
+    <g id="bubble-2">
+      <ellipse cx="628" cy="284" rx="86" ry="7" fill="url(#com-shadow)"/>
+      <path d="M548 216 H 700 Q 716 216 716 232 V 264 Q 716 280 700 280 H 568 L 548 280 Q 532 280 532 264 V 232 Q 532 216 548 216 Z" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <g transform="translate(556 240)">
+        <circle r="12" fill="#E9F6EF"/>
+        <use href="#com-minicat" color="#8FD0B4" transform="scale(0.62)"/>
+      </g>
+      <rect x="576" y="230" width="48" height="8" rx="4" fill="#C9D3E6"/>
+      <rect x="576" y="248" width="118" height="8" rx="4" fill="#E0E6F2"/>
+    </g>
+    <g id="bubble-typing">
+      <path d="M532 298 H 592 Q 608 298 608 314 Q 608 330 592 330 H 552 L 532 330 Q 516 330 516 314 Q 516 298 532 298 Z" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <g transform="translate(508 314)">
+        <circle r="12" fill="#F1EDFE"/>
+        <use href="#com-minicat" color="#B39DF2" transform="scale(0.62)"/>
+      </g>
+      <circle cx="548" cy="314" r="4" fill="#9FB0D6"/>
+      <circle cx="562" cy="314" r="4" fill="#9FB0D6" opacity="0.6"/>
+      <circle cx="576" cy="314" r="4" fill="#9FB0D6" opacity="0.35"/>
+    </g>
+  </g>
+
+  <g id="cat-sand" aria-label="Cat pointing at the annotation">
+    <ellipse cx="304" cy="580" rx="80" ry="12" fill="url(#com-shadow)"/>
+    <g transform="translate(300 444) rotate(-2)">
+      <g id="sand-tail">
+        <path d="M-32 106 C -66 116 -88 106 -92 82 C -94.5 68 -82 64 -79 76 C -76 90 -62 98 -36 94 Z" fill="#E8AF66"/>
+        <circle cx="-86.5" cy="72" r="7" fill="#FCEFDD"/>
+      </g>
+      <g id="sand-ears">
+        <g transform="translate(-33 -45) rotate(-26)">
+          <use href="#com-ear" fill="#EFBB80"/>
+          <use href="#com-ear" fill="#F7C1A6" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g transform="translate(33 -45) rotate(26)">
+          <use href="#com-ear" fill="#EFBB80"/>
+          <use href="#com-ear" fill="#F7C1A6" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="sand-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#com-cat-sand)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#D89A55" opacity="0.12"/>
+        <ellipse cx="-2" cy="94" rx="15" ry="21" fill="url(#com-soft-sand)"/>
+        <rect x="-25" y="108" width="18" height="24" rx="9" fill="#FCEFDD"/>
+        <path d="M-19 125v5M-13 125v5" stroke="#E3C49B" stroke-width="1.6" stroke-linecap="round"/>
+      </g>
+      <g id="sand-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 28 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#com-cat-sand)"/>
+        <g id="sand-face" transform="translate(7 -6)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#com-soft-sand)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-15" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="23" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="-21" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="17" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#8A6A3F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#8A6A3F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.35"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.35"/>
+          <g stroke="#C98F4B" stroke-width="1.5" stroke-linecap="round" opacity="0.45">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+      <g id="sand-arm">
+        <rect x="33.5" y="28" width="17" height="56" rx="8.5" transform="rotate(36 42 56)" fill="url(#com-cat-sand)"/>
+        <circle cx="59" cy="31" r="8" fill="#FCEFDD"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="cat-indigo" aria-label="Cat listening">
+    <ellipse cx="436" cy="588" rx="80" ry="12" fill="url(#com-shadow)"/>
+    <g transform="translate(432 452) rotate(2)">
+      <g id="indigo-tail">
+        <path d="M32 106 C 66 116 88 106 92 82 C 94.5 68 82 64 79 76 C 76 90 62 98 36 94 Z" fill="#5F6CEC"/>
+        <circle cx="86.5" cy="72" r="7" fill="#EDEFFF"/>
+      </g>
+      <g id="indigo-ears">
+        <g transform="translate(-33 -45) rotate(-26)">
+          <use href="#com-ear" fill="#6874F0"/>
+          <use href="#com-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g transform="translate(33 -45) rotate(26)">
+          <use href="#com-ear" fill="#6874F0"/>
+          <use href="#com-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="indigo-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#com-cat-indigo)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#4A55CF" opacity="0.1"/>
+        <ellipse cx="0" cy="94" rx="15" ry="21" fill="url(#com-soft-indigo)"/>
+        <rect x="-25" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+        <rect x="7" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+        <path d="M-19 125v5M-13 125v5M13 125v5M19 125v5" stroke="#C9CDF4" stroke-width="1.6" stroke-linecap="round"/>
+      </g>
+      <g id="indigo-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 28 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#com-cat-indigo)"/>
+        <g id="indigo-face" transform="translate(-7 -6)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#com-soft-indigo)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-21" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="17" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="-14.5" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="24.5" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#3A3F5F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#3A3F5F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <g stroke="#4A55CF" stroke-width="1.5" stroke-linecap="round" opacity="0.4">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

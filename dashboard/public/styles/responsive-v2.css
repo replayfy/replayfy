@@ -1,0 +1,253 @@
+/* ============================================================================
+   responsive-v2.css — MOBILE responsiveness (<= 768px).
+
+   ONE rule: this file must never change the desktop appearance. Every rule
+   below is either
+     (a) inside `@media (max-width: 768px)`, or
+     (b) a class that ONLY renders on mobile (`.msheet*`, `.m-topbar`,
+         `.side-backdrop`, `.side-m-open`) — those components are gated on
+         useIsMobile() in JS, so their selectors never match on desktop.
+
+   Loaded LAST in index.html so these win same-specificity ties at <=768px.
+   Breakpoint: 768px (phones + small tablets portrait). Light mode only.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------------------
+   Bottom sheet (MobileSheet.tsx) — the vaul-style surface our side drawers and
+   modals become on mobile. Mobile-only components, so not media-gated.
+   --------------------------------------------------------------------------- */
+.msheet-ov {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  background: rgba(17, 17, 20, 0.42);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.msheet {
+  width: 100%;
+  max-width: 640px;
+  max-height: 92dvh;
+  background: var(--surface);
+  border-radius: 18px 18px 0 0;
+  box-shadow: 0 -10px 44px rgba(17, 17, 20, 0.24);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* Extend the sheet's own background under the home-indicator inset so a
+     rubber-band drag never reveals the page behind it. */
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.msheet-grab {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 0 5px;
+  cursor: grab;
+  touch-action: none; /* dragging the handle must not scroll the page */
+}
+.msheet-grab:active {
+  cursor: grabbing;
+}
+.msheet-grab span {
+  display: block;
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: var(--line-strong);
+}
+.msheet-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+}
+/* The drawer primitives reuse their desktop header/body/footer markup inside the
+   sheet; drop the desktop panel chrome that assumed a full-height side column. */
+.msheet .modal-h,
+.msheet .rv-sd-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+}
+.msheet .drawer-b,
+.msheet .rv-sd-body {
+  overflow: visible; /* the .msheet-scroll parent owns scrolling now */
+  height: auto;
+}
+/* V3Drawer's rv-sd-* parts have a SEQUENCED entrance (opacity/translate driven
+   by a `.in`/`.sd-in` class on the desktop .rv-sd-root, which the sheet doesn't
+   add) — so inside the sheet they'd stay invisible. The sheet plays its own
+   slide-up, so pin the inner parts fully visible. */
+.msheet .rv-sd-head,
+.msheet .rv-sd-body,
+.msheet .rv-sd-foot {
+  opacity: 1 !important;
+  transform: none !important;
+  filter: none !important;
+}
+
+/* ---------------------------------------------------------------------------
+   App shell — off-canvas sidebar + hamburger top bar (<=768px)
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .app[data-type="rf"] {
+    height: 100dvh;
+  }
+
+  /* Sidebar slides in from the left over a scrim; it is out of flow so .main
+     takes the full width. Full panel (never the icon rail) on mobile. */
+  .side,
+  .side.collapsed {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100dvh;
+    width: min(86vw, 300px);
+    max-width: 300px;
+    align-items: stretch;
+    z-index: 300;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    will-change: transform;
+  }
+  .side.side-m-open {
+    transform: translateX(0);
+    box-shadow: 12px 0 48px rgba(17, 17, 20, 0.22);
+  }
+  /* Neutralise the collapsed icon-rail overrides in case the class lingers. */
+  .side.collapsed .nav,
+  .side.collapsed .side-top {
+    padding: var(--sp-6) var(--sp-8) var(--sp-2);
+    align-items: stretch;
+  }
+  .side.collapsed .nav-lbl,
+  .side.collapsed .ws-name,
+  .side.collapsed .nav a .cnt,
+  .side.collapsed .nav-h {
+    display: revert;
+  }
+  .side.collapsed .nav a {
+    width: auto;
+    height: auto;
+    justify-content: flex-start;
+    padding: var(--sp-6) var(--sp-8);
+  }
+
+  .side-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 290;
+    background: rgba(17, 17, 20, 0.4);
+    animation: rBackdropIn 0.2s ease;
+  }
+  @keyframes rBackdropIn {
+    from {
+      opacity: 0;
+    }
+  }
+
+  /* Mobile top bar (rendered only on mobile from AppLayout). */
+  .m-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: var(--sp-10);
+    height: 52px;
+    padding: 0 var(--sp-12);
+    background: color-mix(in srgb, var(--surface) 88%, transparent);
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+    backdrop-filter: saturate(1.4) blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .m-burger {
+    width: 40px;
+    height: 40px;
+    margin-left: -6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    border-radius: var(--r-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    flex: none;
+  }
+  .m-burger:active {
+    background: var(--accent-tint);
+  }
+  .m-burger span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--t2);
+  }
+  .m-topbar-title {
+    font-weight: var(--fw-semibold);
+    font-size: var(--text-md);
+    letter-spacing: -0.1px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+
+  /* Content region full width, tighter gutters. */
+  .main {
+    width: 100%;
+  }
+  .wrap {
+    padding: var(--sp-16) var(--sp-16) 64px;
+    max-width: 100%;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Modals -> bottom sheet (<=768px). Modal.tsx is unchanged; the centered card
+   becomes a bottom-anchored full-width sheet. (.modal width is an inline style,
+   hence !important.) The compact `icon` confirm variant keeps its own inline
+   padding, so it just bottom-docks with a gutter — fine for a small dialog.
+   --------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .ov {
+    place-items: end center;
+    padding: 0;
+  }
+  .modal {
+    width: 100% !important;
+    max-width: 100%;
+    max-height: 92dvh;
+    border-radius: 18px 18px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    animation: rSheetUp 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  @keyframes rSheetUp {
+    from {
+      transform: translateY(100%);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+  /* The floating Ask-AI FAB clears the thumb zone / any bottom UI. */
+  .ox-fab {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0));
+    right: 14px;
+  }
+}
+
+/* ===========================================================================
+   PER-ROUTE / SHARED CONTENT RULES  (curated from the mobile audit)
+   All strictly inside @media (max-width: 768px). Appended below.
+   =========================================================================== */

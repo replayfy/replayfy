@@ -1,0 +1,236 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-cohorts">
+  <title id="title-cohorts">Cohorts — users organized by behavior</title>
+  <!-- Replayfy Illustration System · 03 Cohorts · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="coh-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E9EEFA" stop-opacity="0.7"/>
+      <stop offset="0.7" stop-color="#EDF1FA" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#EDF1FA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="coh-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="coh-cat-indigo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7E8BFA"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <path id="coh-ear" d="M -16 14 Q -20 17 -17.5 10 L -4.5 -14 Q 0 -21 4.5 -14 L 17.5 10 Q 20 17 16 14 Q 0 7 -16 14 Z"/>
+    <g id="coh-minicat">
+      <path d="M -9.5 -9 L -4 -15.5 Q -1.6 -18 0 -15.5 L 4.5 -9 Z" fill="currentColor" transform="translate(-7 -6) rotate(-18)"/>
+      <path d="M -4.5 -9 L 0 -15.5 Q 1.6 -18 4 -15.5 L 9.5 -9 Z" fill="currentColor" transform="translate(7 -6) rotate(18)"/>
+      <path d="M-15 1.5 C -15 -8 -8.5 -13.5 0 -13.5 C 8.5 -13.5 15 -8 15 1.5 C 15 9.5 8 14 0 14 C -8 14 -15 9.5 -15 1.5 Z" fill="currentColor"/>
+      <ellipse cx="-5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <ellipse cx="5.2" cy="-1" rx="2.4" ry="3.1" fill="#262B45"/>
+      <circle cx="-4.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <circle cx="6.2" cy="-2.2" r="0.9" fill="#FFFFFF"/>
+      <path d="M-1.4 4.6 L 1.4 4.6 Q 2.4 4.8 1.7 5.9 L 0.7 7 Q 0 7.7 -0.7 7 L -1.7 5.9 Q -2.4 4.8 -1.4 4.6 Z" fill="#3A3F5F"/>
+    </g>
+    <radialGradient id="coh-soft-indigo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#EDEFFF" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#EDEFFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#EDEFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="background">
+    <ellipse cx="400" cy="316" rx="380" ry="262" fill="url(#coh-glow)"/>
+    <g id="ambient-marks" stroke-linecap="round">
+      <circle cx="712" cy="104" r="5" stroke="#C8D2ED" stroke-width="2.5"/>
+      <path d="M738 380v14M731 387h14" stroke="#D5CBF7" stroke-width="2.5"/>
+      <circle cx="392" cy="544" r="4" fill="#CBE8DC"/>
+      <circle cx="70" cy="238" r="3.5" fill="#D9E2F5"/>
+      <circle cx="424" cy="96" r="4.5" stroke="#D7DEF0" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <g id="filter-links" stroke-width="2" fill="none" stroke-linecap="round" stroke-dasharray="1 8">
+    <path d="M238 130 C 300 160 296 200 284 236" stroke="#93B1F2" opacity="0.7"/>
+    <path d="M238 116 C 360 100 470 140 530 176" stroke="#B9A6F5" opacity="0.7"/>
+    <path d="M238 150 C 380 220 470 330 540 392" stroke="#8FD0B4" opacity="0.7"/>
+  </g>
+
+  <g id="clusters">
+    <g id="cluster-blue">
+      <circle cx="272" cy="330" r="100" fill="#5B8CFF" opacity="0.09"/>
+      <circle cx="272" cy="330" r="100" stroke="#93B1F2" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+      <g id="chip-size-blue">
+        <rect x="336" y="238" width="46" height="22" rx="11" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <circle cx="350" cy="249" r="4" fill="#5B8CFF"/>
+        <rect x="358" y="245.5" width="16" height="7" rx="3.5" fill="#D6DEED"/>
+      </g>
+    </g>
+    <g id="cluster-purple">
+      <circle cx="560" cy="250" r="100" fill="#8B5CF6" opacity="0.08"/>
+      <circle cx="560" cy="250" r="100" stroke="#B9A6F5" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+      <g id="chip-size-purple">
+        <rect x="620" y="158" width="46" height="22" rx="11" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <circle cx="634" cy="169" r="4" fill="#8B5CF6"/>
+        <rect x="642" y="165.5" width="16" height="7" rx="3.5" fill="#D6DEED"/>
+      </g>
+    </g>
+    <g id="cluster-green">
+      <circle cx="585" cy="455" r="84" fill="#34B67F" opacity="0.08"/>
+      <circle cx="585" cy="455" r="84" stroke="#8FD0B4" stroke-width="2.5" stroke-dasharray="1 10" stroke-linecap="round"/>
+      <g id="chip-size-green">
+        <rect x="630" y="376" width="46" height="22" rx="11" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <circle cx="644" cy="387" r="4" fill="#34B67F"/>
+        <rect x="652" y="383.5" width="16" height="7" rx="3.5" fill="#D6DEED"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="avatars">
+    <g id="avatars-blue">
+      <g transform="translate(240 296)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#7580F5" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#5B8CFF" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(306 306)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#EDBE7F" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#5B8CFF" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(258 362)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#B9C4DC" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#5B8CFF" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(316 354)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#B39DF2" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#5B8CFF" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+    </g>
+    <g id="avatars-purple">
+      <g transform="translate(528 214)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#B39DF2" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#8B5CF6" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(590 232)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#6D9BFF" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#8B5CF6" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(548 284)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#EDBE7F" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#8B5CF6" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+    </g>
+    <g id="avatars-green">
+      <g transform="translate(562 432)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#8FD0B4" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#34B67F" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(614 452)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#7580F5" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#34B67F" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+      <g transform="translate(576 482)">
+        <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+        <use href="#coh-minicat" color="#B9C4DC" transform="translate(0 1)"/>
+        <circle cx="14" cy="14" r="5" fill="#34B67F" stroke="#FFFFFF" stroke-width="2"/>
+      </g>
+    </g>
+  </g>
+
+  <g id="filter-stack">
+    <g transform="rotate(-2 162 118)">
+      <rect x="86" y="84" width="152" height="34" rx="17" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <path d="M100 94 h14 l-5.2 6.5 v6 l-3.6 -2.4 v-3.6 Z" fill="#8B5CF6" opacity="0.85"/>
+      <rect x="124" y="97" width="64" height="8" rx="4" fill="#D6DEED"/>
+      <circle cx="216" cy="101" r="6" stroke="#C9D3E6" stroke-width="2"/>
+    </g>
+    <g transform="rotate(1 166 152)">
+      <rect x="94" y="122" width="152" height="34" rx="17" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <path d="M108 132 h14 l-5.2 6.5 v6 l-3.6 -2.4 v-3.6 Z" fill="#5B8CFF" opacity="0.85"/>
+      <rect x="132" y="135" width="56" height="8" rx="4" fill="#D6DEED"/>
+      <circle cx="224" cy="139" r="6" stroke="#C9D3E6" stroke-width="2"/>
+    </g>
+    <g transform="rotate(-1 160 188)">
+      <rect x="88" y="160" width="152" height="34" rx="17" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <path d="M102 170 h14 l-5.2 6.5 v6 l-3.6 -2.4 v-3.6 Z" fill="#34B67F" opacity="0.85"/>
+      <rect x="126" y="173" width="60" height="8" rx="4" fill="#D6DEED"/>
+      <circle cx="218" cy="177" r="6" stroke="#C9D3E6" stroke-width="2"/>
+    </g>
+  </g>
+
+  <g id="assign-path">
+    <path d="M264 492 C 272 470 266 450 258 434" stroke="#93B1F2" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" fill="none" opacity="0.8"/>
+    <path d="M252 442 L 258 434 L 264 442" stroke="#93B1F2" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+  </g>
+
+  <g id="cat-hero" aria-label="Cat nudging a user into a cohort">
+    <ellipse id="cat-shadow" cx="176" cy="584" rx="82" ry="12" fill="url(#coh-shadow)"/>
+    <g transform="translate(170 448) rotate(2)">
+      <g id="hero-tail">
+        <path d="M-32 106 C -66 116 -88 106 -92 82 C -94.5 68 -82 64 -79 76 C -76 90 -62 98 -36 94 Z" fill="#5F6CEC"/>
+        <circle cx="-86.5" cy="72" r="7" fill="#EDEFFF"/>
+      </g>
+      <g id="hero-ears">
+        <g transform="translate(-33 -45) rotate(-26)">
+          <use href="#coh-ear" fill="#6874F0"/>
+          <use href="#coh-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g transform="translate(33 -45) rotate(26)">
+          <use href="#coh-ear" fill="#6874F0"/>
+          <use href="#coh-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="hero-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#coh-cat-indigo)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#4A55CF" opacity="0.1"/>
+        <ellipse cx="-2" cy="94" rx="15" ry="21" fill="url(#coh-soft-indigo)"/>
+        <rect x="-25" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+        <path d="M-19 125v5M-13 125v5" stroke="#C9CDF4" stroke-width="1.6" stroke-linecap="round"/>
+      </g>
+      <g id="hero-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 28 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#coh-cat-indigo)"/>
+        <g id="hero-face" transform="translate(7 2)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#coh-soft-indigo)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-15" cy="-9" r="3" fill="#FFFFFF"/>
+          <circle cx="23" cy="-9" r="3" fill="#FFFFFF"/>
+          <circle cx="-21" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="17" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#3A3F5F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#3A3F5F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <g stroke="#4A55CF" stroke-width="1.5" stroke-linecap="round" opacity="0.4">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <g id="stray-user">
+    <g id="motion-dashes" stroke="#9FB0D6" stroke-width="2" stroke-linecap="round" opacity="0.4">
+      <path d="M218 500 h10"/>
+      <path d="M214 509 h8"/>
+      <path d="M220 518 h10"/>
+    </g>
+    <g transform="translate(256 510)">
+      <ellipse cx="0" cy="26" rx="26" ry="5" fill="url(#coh-shadow)"/>
+      <circle r="20" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <use href="#coh-minicat" color="#7580F5" transform="translate(0 1)"/>
+      <circle cx="14" cy="14" r="5" fill="#5B8CFF" stroke="#FFFFFF" stroke-width="2"/>
+    </g>
+    <g id="hero-arm" transform="translate(170 448) rotate(2)">
+      <rect x="20" y="47" width="52" height="17" rx="8.5" transform="rotate(14 20 55)" fill="url(#coh-cat-indigo)"/>
+      <circle cx="68" cy="66" r="8" fill="#EDEFFF"/>
+    </g>
+  </g>
+</svg>

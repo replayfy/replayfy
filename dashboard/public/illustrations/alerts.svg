@@ -1,0 +1,174 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-alerts">
+  <title id="title-alerts">Alerts — intelligent monitoring watching your product</title>
+  <!-- Replayfy Illustration System · 06 Alerts · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="alr-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E9EEFA" stop-opacity="0.7"/>
+      <stop offset="0.7" stop-color="#EDF1FA" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#EDF1FA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="alr-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="alr-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <linearGradient id="alr-screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFCFF"/>
+      <stop offset="1" stop-color="#F1F4FB"/>
+    </linearGradient>
+    <linearGradient id="alr-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <linearGradient id="alr-sweep" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6D9BFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#6D9BFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="alr-cat-indigo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7E8BFA"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <radialGradient id="alr-soft-indigo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#EDEFFF" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#EDEFFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#EDEFFF" stop-opacity="0"/>
+    </radialGradient>
+    <path id="alr-ear" d="M -16 14 Q -20 17 -17.5 10 L -4.5 -14 Q 0 -21 4.5 -14 L 17.5 10 Q 20 17 16 14 Q 0 7 -16 14 Z"/>
+  </defs>
+
+  <g id="background">
+    <ellipse cx="400" cy="320" rx="380" ry="265" fill="url(#alr-glow)"/>
+    <g id="ambient-marks" stroke-linecap="round">
+      <circle cx="86" cy="168" r="5" stroke="#C8D2ED" stroke-width="2.5"/>
+      <path d="M732 320v14M725 327h14" stroke="#D5CBF7" stroke-width="2.5"/>
+      <circle cx="712" cy="474" r="4" fill="#CBE8DC"/>
+      <circle cx="120" cy="340" r="3.5" fill="#D9E2F5"/>
+      <circle cx="392" cy="76" r="4.5" stroke="#D7DEF0" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <g id="console">
+    <ellipse id="console-shadow" cx="400" cy="404" rx="200" ry="16" fill="url(#alr-shadow)"/>
+    <rect id="console-frame" x="190" y="110" width="420" height="280" rx="22" fill="url(#alr-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+    <g id="console-chrome">
+      <circle cx="216" cy="136" r="4.5" fill="#D9E0EE"/>
+      <circle cx="232" cy="136" r="4.5" fill="#D9E0EE"/>
+      <circle cx="248" cy="136" r="4.5" fill="#D9E0EE"/>
+      <rect x="268" y="127" width="172" height="18" rx="9" fill="#EFF2F9"/>
+      <rect x="280" y="133" width="80" height="6" rx="3" fill="#D9E0EE"/>
+    </g>
+    <g id="pulse-monitor">
+      <rect x="206" y="156" width="388" height="172" rx="12" fill="url(#alr-screen)" stroke="#E9EDF6"/>
+      <g id="grid" stroke="#EDF1F8" stroke-width="1">
+        <path d="M254 164 V 320"/>
+        <path d="M302 164 V 320"/>
+        <path d="M350 164 V 320"/>
+        <path d="M398 164 V 320"/>
+        <path d="M446 164 V 320"/>
+        <path d="M494 164 V 320"/>
+        <path d="M542 164 V 320"/>
+        <path d="M214 242 H 586"/>
+      </g>
+      <path id="pulse-line" d="M218 242 H 298 L 314 242 L 325 206 L 338 278 L 350 232 L 359 242 H 418 L 434 242 L 445 212 L 456 266 L 465 242 H 542" stroke="url(#alr-accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+      <g id="pulse-live">
+        <circle cx="548" cy="242" r="10" stroke="#3FBF89" stroke-width="1.5" opacity="0.35"/>
+        <circle cx="548" cy="242" r="15" stroke="#3FBF89" stroke-width="1.5" opacity="0.16"/>
+        <circle cx="548" cy="242" r="5" fill="#3FBF89" stroke="#FFFFFF" stroke-width="2.5"/>
+      </g>
+    </g>
+    <g id="signal-chips">
+      <rect x="206" y="344" width="108" height="28" rx="14" fill="#F1F4FB"/>
+      <circle cx="224" cy="358" r="4.5" fill="#3FBF89"/>
+      <rect x="236" y="354.5" width="56" height="7" rx="3.5" fill="#D6DEED"/>
+      <rect x="326" y="344" width="108" height="28" rx="14" fill="#F1F4FB"/>
+      <circle cx="344" cy="358" r="4.5" fill="#3FBF89"/>
+      <rect x="356" y="354.5" width="56" height="7" rx="3.5" fill="#D6DEED"/>
+      <rect x="446" y="344" width="108" height="28" rx="14" fill="#F1F4FB"/>
+      <circle cx="464" cy="358" r="4.5" fill="#F0A45C"/>
+      <rect x="476" y="354.5" width="56" height="7" rx="3.5" fill="#D6DEED"/>
+    </g>
+  </g>
+
+  <g id="radar">
+    <ellipse cx="648" cy="232" rx="58" ry="8" fill="url(#alr-shadow)"/>
+    <circle cx="648" cy="152" r="66" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+    <g stroke="#C9D3E6" stroke-width="1.5" stroke-dasharray="1 8" stroke-linecap="round">
+      <circle cx="648" cy="152" r="44"/>
+      <circle cx="648" cy="152" r="22"/>
+    </g>
+    <path id="radar-sweep" d="M648 152 L 648 90 A 62 62 0 0 1 701 121 Z" fill="url(#alr-sweep)"/>
+    <path d="M648 152 L 701 121" stroke="#6D9BFF" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="648" cy="152" r="3" fill="#8A96B8"/>
+    <circle cx="622" cy="130" r="3.5" fill="#7E8BFA" opacity="0.7"/>
+    <g id="radar-blip">
+      <circle cx="676" cy="178" r="4.5" fill="#F0A45C"/>
+      <circle cx="676" cy="178" r="9" stroke="#F0A45C" stroke-width="1.5" opacity="0.45"/>
+      <circle cx="676" cy="178" r="14" stroke="#F0A45C" stroke-width="1.5" opacity="0.22"/>
+    </g>
+  </g>
+
+  <g id="alert-born">
+    <path d="M672 196 C 664 240 638 266 600 288" stroke="#E3B98C" stroke-width="2" stroke-dasharray="1 8" stroke-linecap="round" fill="none" opacity="0.7"/>
+    <g id="alert-chip" transform="rotate(-3 584 305)">
+      <rect x="536" y="290" width="96" height="30" rx="15" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <circle cx="556" cy="305" r="5" fill="#F0A45C"/>
+      <circle cx="556" cy="305" r="9" stroke="#F0A45C" stroke-width="1.5" opacity="0.35"/>
+      <rect x="570" y="301" width="44" height="8" rx="4" fill="#DCE3F0"/>
+    </g>
+  </g>
+
+  <g id="cat-hero" aria-label="Cat on monitoring duty, ears perked">
+    <ellipse id="cat-shadow" cx="172" cy="580" rx="82" ry="12" fill="url(#alr-shadow)"/>
+    <g transform="translate(168 440) rotate(2)">
+      <g id="cat-tail">
+        <path d="M32 106 C 66 116 88 106 92 82 C 94.5 68 82 64 79 76 C 76 90 62 98 36 94 Z" fill="#5F6CEC"/>
+        <circle cx="86.5" cy="72" r="7" fill="#EDEFFF"/>
+      </g>
+      <g id="cat-ears">
+        <g transform="translate(-30 -47) rotate(-18)">
+          <use href="#alr-ear" fill="#6874F0"/>
+          <use href="#alr-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g transform="translate(30 -47) rotate(18)">
+          <use href="#alr-ear" fill="#6874F0"/>
+          <use href="#alr-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="cat-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#alr-cat-indigo)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#4A55CF" opacity="0.1"/>
+        <ellipse cx="0" cy="94" rx="15" ry="21" fill="url(#alr-soft-indigo)"/>
+        <rect x="-25" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+        <rect x="7" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+        <path d="M-19 125v5M-13 125v5M13 125v5M19 125v5" stroke="#C9CDF4" stroke-width="1.6" stroke-linecap="round"/>
+      </g>
+      <g id="cat-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 28 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#alr-cat-indigo)"/>
+        <g id="cat-face" transform="translate(7 -6)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#alr-soft-indigo)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-15" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="23" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="-21" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="17" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#3A3F5F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#3A3F5F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <g stroke="#4A55CF" stroke-width="1.5" stroke-linecap="round" opacity="0.4">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

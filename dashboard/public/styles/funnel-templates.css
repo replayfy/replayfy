@@ -1,0 +1,65 @@
+/* ============================================================================
+   Funnel template gallery — cloned from the Integrations catalog design
+   (settings-v2.css .intg-*) so the two features stay fully decoupled per the
+   frozen-CSS rule. Reuses the global .btn / .tag / .mono / <Icon> utilities.
+   ========================================================================== */
+.fnt { --ease-out: cubic-bezier(.23,1,.32,1); display: block; padding-top:var(--sp-4); }
+
+/* search */
+.fnt-search { display: flex; align-items: center; gap:var(--sp-10); height: 42px; padding:0 var(--sp-14); border: 1px solid var(--line-strong); border-radius:var(--r-lg); background: var(--surface); color: var(--t3); margin-bottom:var(--sp-20); transition: border-color .18s ease-in-out, box-shadow .18s ease-in-out; }
+.fnt-search:focus-within { border-color: var(--accent); box-shadow:var(--ring-accent); }
+.fnt-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; font-size:var(--text-base); font-family: inherit; color: var(--text); }
+.fnt-search input::placeholder { color: var(--t4); }
+.fnt-search-x { display: grid; place-items: center; width: 22px; height: 22px; border: none; background: none; border-radius:var(--r-sm); color: var(--t3); cursor: pointer; transition: background .12s var(--ease-out), color .12s var(--ease-out); }
+.fnt-search-x:hover { background: var(--line-2); color: var(--text); }
+
+/* logo tile — any single registry glyph reads as a polished mark */
+.fnt-logo { width: 40px; height: 40px; flex-shrink: 0; border-radius:var(--r-lg); border: 1px solid var(--line); background: var(--surface); display: grid; place-items: center; color: var(--accent); box-shadow: 0 1px 2px rgba(17,17,20,.04); }
+.fnt-logo.lg { width: 46px; height: 46px; border-radius:var(--r-lg); }
+
+/* "start from scratch" hero */
+.fnt-hero { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.05fr); gap:var(--sp-20); align-items: center; width: 100%; text-align: left; border: 1px solid var(--line-strong); border-radius:var(--r-lg); padding:var(--sp-20) var(--sp-24); margin-bottom:var(--sp-24); cursor: pointer; overflow: hidden; position: relative;
+  background:
+    radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 60%),
+    linear-gradient(180deg, var(--panel), var(--surface));
+  transition: border-color .16s var(--ease-out), transform .16s var(--ease-out), box-shadow .16s var(--ease-out); }
+.fnt-hero:hover { border-color: color-mix(in srgb, var(--accent) 34%, var(--line-strong)); box-shadow: 0 2px 8px rgba(17,17,20,.05); }
+.fnt-hero:active { transform: scale(.995); }
+.fnt-hero-l { display: flex; flex-direction: column; align-items: flex-start; min-width: 0; }
+.fnt-hero-top { display: flex; align-items: center; gap:var(--sp-10); margin-bottom:var(--sp-14); }
+.fnt-hero-t { font-size:var(--text-lg); font-weight:var(--fw-semibold); letter-spacing: -.01em; }
+.fnt-hero-d { font-size:var(--text-base); color: var(--t2); line-height:var(--lh-normal); margin-top:var(--sp-4); max-width: 42ch; }
+.fnt-hero-cta { margin-top:var(--sp-16); }
+.fnt-hero-art { display: flex; justify-content: flex-end; }
+/* decorative shrinking-funnel preview */
+.fnt-hero-mock { width: 100%; max-width: 300px; display: flex; flex-direction: column; gap:var(--sp-8); }
+.fnt-hero-mock span { height: 26px; border-radius:var(--r-md); border: 1px solid var(--line); }
+
+/* category groups + grid */
+.fnt-group + .fnt-group { margin-top:var(--sp-24); }
+.fnt-group-h { font-size:var(--text-2xs); font-weight:var(--fw-semibold); letter-spacing: .07em; text-transform: uppercase; color: var(--t3); margin-bottom:var(--sp-10); }
+.fnt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 340px)); gap:var(--sp-12); }
+
+/* template card */
+.fnt-card { display: flex; align-items: center; gap:var(--sp-12); text-align: left; width: 100%; border: 1px solid var(--line); border-radius:var(--r-lg); background: var(--surface); padding:var(--sp-14); cursor: pointer; transition: border-color .14s var(--ease-out), transform .14s var(--ease-out), box-shadow .14s var(--ease-out); }
+.fnt-card:hover { border-color: var(--line-strong); box-shadow: 0 1px 2px rgba(17,17,20,.05); transform: translateY(-1px); }
+.fnt-card:active { transform: translateY(0); }
+.fnt-card-b { flex: 1; min-width: 0; }
+.fnt-card-t { display: flex; align-items: center; gap:var(--sp-8); font-size:var(--text-base); font-weight:var(--fw-semibold); letter-spacing: -.005em; }
+.fnt-card-d { font-size:var(--text-xs); color: var(--t3); line-height:var(--lh-cozy); margin-top:var(--sp-4); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.fnt-card-go { color: var(--t4); flex-shrink: 0; opacity: 0; transform: translateX(-3px); transition: opacity .14s var(--ease-out), transform .16s var(--ease-out), color .14s var(--ease-out); }
+.fnt-card:hover .fnt-card-go { opacity: 1; transform: none; color: var(--accent); }
+
+.fnt-empty { display: flex; align-items: center; gap:var(--sp-8); padding:var(--sp-28) var(--sp-4); font-size:var(--text-sm); color: var(--t3); }
+.fnt-empty svg { color: var(--t4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .fnt-hero, .fnt-card, .fnt-card-go { transition: none; }
+  .fnt-hero:active, .fnt-card:hover { transform: none; }
+  .fnt-card-go { transform: none; }
+}
+@media (max-width: 760px) {
+  .fnt-hero { grid-template-columns: minmax(0,1fr); }
+  .fnt-hero-art { display: none; }
+  .fnt-grid { grid-template-columns: minmax(0,1fr); }
+}

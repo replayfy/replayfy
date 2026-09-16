@@ -1,0 +1,194 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-recordings">
+  <title id="title-recordings">Session recordings — replay how users experienced your product</title>
+  <!-- Replayfy Illustration System · 01 Recordings · hand-crafted SVG -->
+
+  <defs>
+    <radialGradient id="rec-glow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#E9EEFA" stop-opacity="0.7"/>
+      <stop offset="0.7" stop-color="#EDF1FA" stop-opacity="0.32"/>
+      <stop offset="1" stop-color="#EDF1FA" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="rec-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.16"/>
+      <stop offset="0.65" stop-color="#3D4A6B" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rec-panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F4F6FB"/>
+    </linearGradient>
+    <linearGradient id="rec-screen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FBFCFF"/>
+      <stop offset="1" stop-color="#F1F4FB"/>
+    </linearGradient>
+    <linearGradient id="rec-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <linearGradient id="rec-trail" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4B6FF2" stop-opacity="0.75"/>
+      <stop offset="1" stop-color="#6D9BFF" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rec-cat-indigo" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7E8BFA"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <path id="rec-ear" d="M -16 14 Q -20 17 -17.5 10 L -4.5 -14 Q 0 -21 4.5 -14 L 17.5 10 Q 20 17 16 14 Q 0 7 -16 14 Z"/>
+    <radialGradient id="rec-soft-indigo" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#EDEFFF" stop-opacity="0.95"/>
+      <stop offset="0.7" stop-color="#EDEFFF" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#EDEFFF" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <g id="background">
+    <ellipse cx="400" cy="320" rx="380" ry="265" fill="url(#rec-glow)"/>
+    <g id="ambient-marks" stroke-linecap="round">
+      <circle cx="95" cy="152" r="5" stroke="#C8D2ED" stroke-width="2.5"/>
+      <path d="M712 112v14M705 119h14" stroke="#D5CBF7" stroke-width="2.5"/>
+      <circle cx="680" cy="472" r="4" fill="#CBE8DC"/>
+      <circle cx="132" cy="330" r="3.5" fill="#D9E2F5"/>
+      <circle cx="726" cy="304" r="4.5" stroke="#D7DEF0" stroke-width="2.5"/>
+    </g>
+  </g>
+
+  <g id="previous-sessions">
+    <g id="session-card-left" transform="rotate(-6 184 206)" opacity="0.9">
+      <rect x="100" y="148" width="156" height="112" rx="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <rect x="116" y="166" width="70" height="9" rx="4.5" fill="#D6DEED"/>
+      <rect x="116" y="186" width="124" height="58" rx="8" fill="#EFF3FA"/>
+    </g>
+    <g id="session-card-right" transform="rotate(5 664 192)" opacity="0.9">
+      <rect x="592" y="140" width="146" height="104" rx="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <rect x="608" y="157" width="62" height="9" rx="4.5" fill="#D6DEED"/>
+      <rect x="608" y="176" width="114" height="52" rx="8" fill="#EFF3FA"/>
+      <circle cx="665" cy="202" r="11" fill="#FFFFFF"/>
+      <path d="M662 197l8.5 5-8.5 5z" fill="#B9C6E4"/>
+    </g>
+  </g>
+
+  <g id="player">
+    <ellipse id="player-shadow" cx="400" cy="438" rx="216" ry="17" fill="url(#rec-shadow)"/>
+    <rect id="player-frame" x="170" y="92" width="460" height="330" rx="22" fill="url(#rec-panel)" stroke="#E3E8F3" stroke-width="1.5"/>
+
+    <g id="player-chrome">
+      <circle cx="196" cy="118" r="4.5" fill="#D9E0EE"/>
+      <circle cx="212" cy="118" r="4.5" fill="#D9E0EE"/>
+      <circle cx="228" cy="118" r="4.5" fill="#D9E0EE"/>
+      <rect x="248" y="108" width="216" height="20" rx="10" fill="#EFF2F9"/>
+      <rect x="262" y="115" width="92" height="6" rx="3" fill="#D9E0EE"/>
+    </g>
+
+    <g id="viewport">
+      <rect x="186" y="144" width="428" height="212" rx="12" fill="url(#rec-screen)" stroke="#E9EDF6"/>
+      <g id="skeleton-ui">
+        <rect x="202" y="160" width="92" height="180" rx="8" fill="#EFF3FA"/>
+        <rect x="214" y="174" width="66" height="8" rx="4" fill="#DCE3F0"/>
+        <rect x="214" y="192" width="52" height="8" rx="4" fill="#E3E9F4"/>
+        <rect x="214" y="210" width="60" height="8" rx="4" fill="#E3E9F4"/>
+        <rect x="310" y="164" width="150" height="12" rx="6" fill="#CBD5E8"/>
+        <rect x="310" y="188" width="212" height="8" rx="4" fill="#E0E6F2"/>
+        <rect x="310" y="204" width="178" height="8" rx="4" fill="#E0E6F2"/>
+        <rect id="skeleton-button" x="310" y="228" width="96" height="30" rx="9" fill="url(#rec-accent)"/>
+        <rect x="334" y="239" width="48" height="8" rx="4" fill="#FFFFFF" opacity="0.9"/>
+        <g id="mini-chart">
+          <rect x="472" y="228" width="122" height="88" rx="10" fill="#F1F4FB"/>
+          <rect x="486" y="272" width="12" height="30" rx="4" fill="#C7D4F2"/>
+          <rect x="508" y="258" width="12" height="44" rx="4" fill="#C7D4F2"/>
+          <rect x="530" y="266" width="12" height="36" rx="4" fill="#C7D4F2"/>
+          <rect x="552" y="244" width="12" height="58" rx="4" fill="#9FB6F0"/>
+        </g>
+      </g>
+
+      <g id="cursor-story">
+        <path id="cursor-trail" d="M556 196 C 520 168 470 168 444 196 C 424 218 408 228 390 242" stroke="url(#rec-trail)" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="0.5 11"/>
+        <g id="click-ripple" opacity="0.75">
+          <circle cx="495" cy="175" r="8" stroke="#6D9BFF" stroke-width="2" opacity="0.55"/>
+          <circle cx="495" cy="175" r="14" stroke="#6D9BFF" stroke-width="2" opacity="0.25"/>
+        </g>
+        <g id="cursor">
+          <ellipse cx="394" cy="262" rx="10" ry="3.5" fill="#3D4A6B" opacity="0.12"/>
+          <path d="M388 238.5 L402.2 252.7 L395.4 253.9 L399.3 262.5 L395.1 264.4 L391.2 255.8 L386 260.3 Z" fill="#2E3450" stroke="#FFFFFF" stroke-width="2.2" stroke-linejoin="round"/>
+        </g>
+      </g>
+    </g>
+
+    <g id="timeline">
+      <circle cx="248" cy="390" r="13" fill="url(#rec-accent)"/>
+      <path d="M244.5 384.5l10 5.5-10 5.5z" fill="#FFFFFF"/>
+      <rect x="272" y="386" width="334" height="8" rx="4" fill="#E7EBF4"/>
+      <rect x="272" y="386" width="150" height="8" rx="4" fill="url(#rec-accent)"/>
+      <rect x="312" y="384" width="3" height="12" rx="1.5" fill="#FFFFFF" opacity="0.7"/>
+      <rect x="364" y="384" width="3" height="12" rx="1.5" fill="#FFFFFF" opacity="0.7"/>
+      <rect x="500" y="384" width="3" height="12" rx="1.5" fill="#D5DCEA"/>
+      <rect x="556" y="384" width="3" height="12" rx="1.5" fill="#D5DCEA"/>
+      <circle cx="422" cy="390" r="10" fill="#FFFFFF" stroke="#4066F0" stroke-width="3"/>
+    </g>
+
+    <g id="rec-chip">
+      <rect x="562" y="72" width="86" height="34" rx="17" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <circle cx="582" cy="89" r="5.5" fill="#F0708A"/>
+      <circle cx="582" cy="89" r="9.5" stroke="#F0708A" stroke-width="1.5" opacity="0.35"/>
+      <rect x="598" y="85" width="34" height="8" rx="4" fill="#DCE3F0"/>
+    </g>
+
+    <g id="duration-chip" transform="rotate(3 682 474)">
+      <rect x="644" y="460" width="76" height="28" rx="14" fill="#FFFFFF" stroke="#E6EAF4" stroke-width="1.5"/>
+      <circle cx="662" cy="474" r="6.5" stroke="#A9B6D4" stroke-width="2"/>
+      <path d="M662 470.5v3.8l2.6 1.8" stroke="#A9B6D4" stroke-width="1.8" stroke-linecap="round"/>
+      <rect x="676" y="470" width="30" height="8" rx="4" fill="#DCE3F0"/>
+    </g>
+  </g>
+
+  <g id="cat-hero" aria-label="Cat watching the replay">
+    <ellipse id="cat-shadow" cx="142" cy="588" rx="82" ry="12" fill="url(#rec-shadow)"/>
+    <g transform="translate(138 450) rotate(2)">
+      <g id="cat-tail">
+        <path d="M32 106 C 66 116 88 106 92 82 C 94.5 68 82 64 79 76 C 76 90 62 98 36 94 Z" fill="#5F6CEC"/>
+        <circle cx="86.5" cy="72" r="7" fill="#EDEFFF"/>
+      </g>
+      <g id="cat-ears">
+        <g id="ear-left" transform="translate(-33 -45) rotate(-26)">
+          <use href="#rec-ear" fill="#6874F0"/>
+          <use href="#rec-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+        <g id="ear-right" transform="translate(33 -45) rotate(26)">
+          <use href="#rec-ear" fill="#6874F0"/>
+          <use href="#rec-ear" fill="#D9CFFF" transform="translate(0 -1.5) scale(0.52)"/>
+        </g>
+      </g>
+      <g id="cat-body">
+        <path d="M-40 110 C -40 58 -22 34 0 34 C 22 34 40 58 40 110 C 40 124 28 130 0 130 C -28 130 -40 124 -40 110 Z" fill="url(#rec-cat-indigo)"/>
+        <ellipse cx="0" cy="43" rx="23" ry="8" fill="#4A55CF" opacity="0.1"/>
+        <ellipse cx="0" cy="94" rx="15" ry="21" fill="url(#rec-soft-indigo)"/>
+        <g id="cat-paws">
+          <rect x="-25" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+          <rect x="7" y="108" width="18" height="24" rx="9" fill="#EDEFFF"/>
+          <path d="M-19 125v5M-13 125v5M13 125v5M19 125v5" stroke="#C9CDF4" stroke-width="1.6" stroke-linecap="round"/>
+        </g>
+      </g>
+      <g id="cat-head">
+        <path d="M-52 4 C -52 -28 -30 -46 0 -46 C 30 -46 52 -28 52 4 C 52 32 28 48 0 48 C -28 48 -52 32 -52 4 Z" fill="url(#rec-cat-indigo)"/>
+        <g id="cat-face" transform="translate(7 -6)">
+          <ellipse cx="1" cy="16" rx="19" ry="11.5" fill="url(#rec-soft-indigo)"/>
+          <ellipse cx="-18" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <ellipse cx="20" cy="-6" rx="8" ry="10.5" fill="#262B45"/>
+          <circle cx="-15" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="23" cy="-10" r="3" fill="#FFFFFF"/>
+          <circle cx="-21" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <circle cx="17" cy="-2" r="1.2" fill="#FFFFFF" opacity="0.6"/>
+          <path d="M-3 10 L 5 10 Q 7.4 10.5 6 13 L 3 16.2 Q 1 17.8 -1 16.2 L -4 13 Q -5.4 10.5 -3 10 Z" fill="#3A3F5F"/>
+          <path d="M1 17.5 Q 1 21 -2.6 21.8 M1 17.5 Q 1 21 4.6 21.8" stroke="#3A3F5F" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+          <ellipse cx="-30" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <ellipse cx="32" cy="10" rx="6" ry="3.6" fill="#F19BB4" opacity="0.3"/>
+          <g id="whiskers" stroke="#4A55CF" stroke-width="1.5" stroke-linecap="round" opacity="0.4">
+            <path d="M-33 6 L -50 2"/>
+            <path d="M-33 12 L -49 12"/>
+            <path d="M37 6 L 53 2"/>
+            <path d="M37 12 L 52 12"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>

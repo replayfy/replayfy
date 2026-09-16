@@ -1,0 +1,121 @@
+/* ============================================================================
+   funnels-v2.css — compact density for the funnel FILTER palette only.
+   `.fn-compact` is set on the palette root by FnFilterButton; the ⌘K command
+   palette shares the .fn-fp2-* classes (under .pov) and must stay full-size,
+   which is why every rule here requires the .fn-compact root. pages.css is
+   frozen — these are additive overrides (~72% density).
+   ========================================================================== */
+.fn-fp2.fn-compact { width: 460px; border-radius:var(--r-lg); }
+.fn-fp2.fn-compact .fn-fp2-crumb { padding:var(--sp-8) var(--sp-12) 0; }
+.fn-fp2.fn-compact .fn-fp2-search { padding:var(--sp-8) var(--sp-12); gap:var(--sp-8); }
+.fn-fp2.fn-compact .fn-fp2-search > svg { width: 13px; height: 13px; }
+.fn-fp2.fn-compact .fn-fp2-search input { font-size:var(--text-sm); }
+.fn-fp2.fn-compact .fn-fp2-kbd { font-size:var(--text-2xs); padding:var(--sp-2) var(--sp-6); border-radius:var(--r-xs); }
+.fn-fp2.fn-compact .fn-fp2-suggest { padding:var(--sp-8) var(--sp-12); gap:var(--sp-6); }
+.fn-fp2.fn-compact .fn-fp2-chip { font-size:var(--text-xs); padding:var(--sp-4) var(--sp-8); border-radius:var(--r-sm); }
+.fn-fp2.fn-compact .fn-fp2-body { padding:var(--sp-6); }
+.fn-fp2.fn-compact .fn-fp2-cols { gap:var(--sp-4) var(--sp-10); }
+.fn-fp2.fn-compact .fn-fp2-cell { padding:var(--sp-2) 0 var(--sp-6); }
+.fn-fp2.fn-compact .fn-fp2-gh { font-size:var(--text-2xs); padding:var(--sp-6) var(--sp-8) var(--sp-4); }
+.fn-fp2.fn-compact .fn-fp2-item { gap:var(--sp-8); padding:var(--sp-6) var(--sp-8); border-radius:var(--r-md); font-size:var(--text-sm); }
+.fn-fp2.fn-compact .fn-fp2-ico { width: 24px; height: 24px; border-radius:var(--r-sm); }
+.fn-fp2.fn-compact .fn-fp2-ico svg { width: 12px; height: 12px; }
+.fn-fp2.fn-compact .fn-fp2-flag { width: 24px; font-size:var(--text-md); }
+.fn-fp2.fn-compact .fn-fp2-grp { font-size:var(--text-2xs); }
+.fn-fp2.fn-compact .fn-fp2-enter { font-size:var(--text-xs); }
+.fn-fp2.fn-compact .fn-fp2-empty { padding:var(--sp-20); font-size:var(--text-sm); }
+.fn-fp2.fn-compact .fn-fp2-foot { padding:var(--sp-8) var(--sp-12); gap:var(--sp-12); }
+.fn-fp2.fn-compact .fn-fp2-nav { font-size:var(--text-2xs); }
+.fn-fp2.fn-compact .fn-fp2-nav kbd { font-size:var(--text-2xs); padding:var(--sp-2) var(--sp-4); }
+.fn-fp2.fn-compact .fn-fp2-foot-note { font-size:var(--text-2xs); }
+.fn-fp2.fn-compact .fn-fp2-sugg-item { gap:var(--sp-8); padding:var(--sp-6) var(--sp-8); font-size:var(--text-sm); }
+.fn-fp2.fn-compact .fn-fp2-sugg-val { font-size:var(--text-xs); }
+.fn-fp2.fn-compact .fn-fp2-sugg-cnt { font-size:var(--text-2xs); }
+.fn-fp2.fn-compact .fn-fp2-textrow { padding:var(--sp-8); gap:var(--sp-6); }
+.fn-fp2.fn-compact .fn-fp2-in { padding:var(--sp-8) var(--sp-10); font-size:var(--text-sm); border-radius:var(--r-md); }
+.fn-fp2.fn-compact .fn-fp2-apply { font-size:var(--text-sm); padding:0 var(--sp-12); border-radius:var(--r-md); }
+
+/* ============================================================================
+   Funnel step drag — drop-zone placeholder (additive; pages.css is frozen).
+
+   HTML5-native reorder previously showed only the browser's translucent drag
+   ghost — cards overlapping, no sense of WHERE the step would land. Now:
+   - the dragged step's own slot becomes a dashed, accent-tinted placeholder
+     (`.fn2-dragging`) — the "hole" the card lifted out of, sized identically so
+     the row never reflows. Its contents are hidden, not removed, to hold that
+     size. The floating card is still the native drag image.
+   - the slot under the pointer (`.fn2-drop`) gets a quiet accent cue so the
+     drop target reads clearly.
+   On-brand indigo (--accent), not a borrowed blue. Both selectors are 0,2,0 and
+   load after pages.css, so they win over `.fn2-step:hover` / `.fn2-step.sel`.
+   ========================================================================== */
+.fn2-step.fn2-dragging {
+  border: 1.5px dashed var(--accent);
+  background: var(--accent-tint);
+  box-shadow: none;
+  cursor: grabbing;
+}
+/* Empty the placeholder INSTANTLY. The "1" badge flashed on the backdrop because
+   `.fn2-badge` ships `transition: all .16s`, so hiding it via `visibility` got
+   ANIMATED — it lingered ~160ms before disappearing. Fix: blank the content with
+   opacity on the (transition-less) direct children — opacity:0 on an ancestor
+   also hides the badge regardless of the badge's own transition — and kill every
+   transition inside the dragged card so nothing fades. Opacity (not display)
+   keeps the layout, so the placeholder stays exactly one card in size. */
+.fn2-step.fn2-dragging > * { opacity: 0; }
+.fn2-step.fn2-dragging,
+.fn2-step.fn2-dragging * { transition: none; }
+
+.fn2-step.fn2-drop {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 4%, var(--surface));
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fn2-step.fn2-dragging, .fn2-step.fn2-drop { transition: none; }
+}
+
+/* ===== "What's influencing conversion" — drivers/blockers correlation ===== */
+/* Clear the "What's influencing conversion" header + its "Ask AI why" button so
+   the Drivers/Blockers toggle doesn't sit directly under them. */
+.fn-infl { margin-top: var(--sp-16); }
+
+/* Sessions/Users metric toggle: ghost by default (no resting background), fills
+   in on hover — the open state keeps its active background via .pop-tw.open. */
+.fn-metric-sel { display: inline-flex; }
+.fn-metric-sel .sel-trigger { background: transparent; }
+.fn-metric-sel .sel-trigger:hover { background: var(--line-2); }
+.fn-infl-bar { display: flex; align-items: center; gap: var(--sp-12); margin-bottom: var(--sp-8); flex-wrap: wrap; }
+.fn-infl-note { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--text-xs); color: var(--t3); max-width: 520px; }
+.fn-infl-note svg { color: var(--accent); flex-shrink: 0; }
+.fn-infl-n { font-size: var(--text-2xs); color: var(--t3); font-variant-numeric: tabular-nums; margin-left: 3px; }
+
+.fn-infl-list { display: flex; flex-direction: column; }
+.fn-infl-row { display: grid; grid-template-columns: 30px minmax(0, 1fr) 180px 58px; gap: var(--sp-14); align-items: center; padding: var(--sp-12) 0; border-top: 1px solid var(--line-2); }
+.fn-infl-row:first-child { border-top: none; }
+.fn-infl-ic { width: 30px; height: 30px; display: grid; place-items: center; border-radius: var(--r-md); background: var(--bg); border: 1px solid var(--line-2); color: var(--t2); flex-shrink: 0; }
+.fn-infl-ic.event { color: var(--blue); background: var(--blue-weak); border-color: transparent; }
+.fn-infl-ic.property { color: var(--accent); background: var(--accent-weak); border-color: transparent; }
+.fn-infl-ic.issue { color: var(--red); background: var(--red-weak); border-color: transparent; }
+.fn-infl-main { min-width: 0; }
+.fn-infl-lbl { font-size: var(--text-base); color: var(--text); font-weight: var(--fw-medium); display: flex; align-items: center; gap: var(--sp-8); }
+.fn-infl-tag { font-size: var(--text-3xs); font-weight: var(--fw-semibold); letter-spacing: .3px; text-transform: uppercase; color: var(--t3); background: var(--line); border-radius: var(--r-xs); padding: 1px var(--sp-6); }
+.fn-infl-cmp { font-size: var(--text-xs); color: var(--t3); margin-top: 2px; display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.fn-infl-cmp b { color: var(--text); font-weight: var(--fw-semibold); }
+.fn-infl-base { color: var(--t4); }
+.fn-infl-lift { display: inline-flex; align-items: center; gap: 2px; font-weight: var(--fw-medium); }
+.fn-infl-lift.up { color: var(--green); }
+.fn-infl-lift.down { color: var(--red); }
+.fn-infl-strength { display: flex; align-items: center; gap: var(--sp-10); }
+.fn-infl-track { flex: 1; height: 6px; background: var(--line-2); border-radius: var(--r-pill); overflow: hidden; }
+.fn-infl-fill { display: block; height: 100%; border-radius: var(--r-pill); }
+.fn-infl-fill.up { background: var(--green); }
+.fn-infl-fill.down { background: var(--red); }
+.fn-infl-score { font-size: var(--text-xs); color: var(--t2); width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+.fn-infl-conf { font-size: var(--text-2xs); font-weight: var(--fw-semibold); text-transform: uppercase; letter-spacing: .3px; text-align: right; }
+.fn-infl-conf.high { color: var(--green); }
+.fn-infl-conf.medium { color: var(--amber); }
+.fn-infl-conf.low { color: var(--t4); }
+.fn-infl-foot { font-size: var(--text-xs); color: var(--t3); margin-top: var(--sp-14); padding-top: var(--sp-12); border-top: 1px solid var(--line); }
+.fn-infl-foot b { color: var(--t2); font-weight: var(--fw-semibold); }

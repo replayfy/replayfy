@@ -1,0 +1,2132 @@
+/* ============================================================================
+   analytics-v2.css — the Analytics hub (Trends first). Namespaced under
+   `.anl-*`. Light-mode only, square corners (buttons excepted), thin hairlines,
+   indigo accent — matches the Linear-style app chrome. All values via tokens.
+   ========================================================================== */
+
+/* ---- Sub-tabs -------------------------------------------------------- */
+.anl-tabs {
+  display: flex;
+  gap: var(--sp-2);
+  border-bottom: 1px solid var(--line);
+  /* top gap gives the section header room (matches other pages' first block) */
+  margin: var(--sp-20) 0 var(--sp-24);
+}
+.anl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-8) var(--sp-12) var(--sp-10);
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--t2);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color .15s var(--ease);
+}
+.anl-tab:hover { color: var(--text); }
+.anl-tab.on { color: var(--text); border-bottom-color: var(--accent); }
+.anl-tab .anl-soon-dot {
+  width: 5px; height: 5px; border-radius: var(--r-pill);
+  background: var(--amber); opacity: .8;
+}
+
+/* ---- Layout: config rail + canvas (FLAT — no boxes, divider only) ---- */
+.anl-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 0;
+  align-items: start;
+}
+@media (max-width: 900px) { .anl-layout { grid-template-columns: 1fr; } }
+
+/* ---- Config rail (flat: right hairline divider, no card) ------------- */
+.anl-rail {
+  border: none;
+  background: none;
+  border-radius: 0;
+  border-right: 1px solid var(--line);
+  padding: var(--sp-2) var(--sp-24) var(--sp-20) 0;
+  position: sticky;
+  top: var(--sp-12);
+}
+@media (max-width: 900px) { .anl-rail { border-right: none; border-bottom: 1px solid var(--line); padding: 0 0 var(--sp-16); } }
+.anl-rail-sec { padding: var(--sp-16) 0; border-bottom: 1px solid var(--line-2); }
+.anl-rail-sec:last-child { border-bottom: none; padding-bottom: var(--sp-4); }
+.anl-rail-h {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--t3);
+  margin-bottom: var(--sp-10);
+}
+.anl-series-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-8);
+  margin-bottom: var(--sp-10);
+}
+.anl-series-row.dim { opacity: .45; }
+.anl-series-fields { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-6); }
+/* Column so the measure (and the property picker, when a numeric measure needs
+   one) stretch to the full rail width — same width as the event select above,
+   for consistent select sizing down the series row. */
+.anl-series-sub { display: flex; flex-direction: column; align-items: stretch; gap: var(--sp-6); }
+/* Every select in the series row fills the rail column, so the event, measure and
+   (numeric) property selects are all the same width. The Popover trigger wrapper
+   otherwise collapses to its label width. */
+.anl-series-fields .pop-tw { flex: 1; min-width: 0; }
+.anl-series-fields .sel-trigger { width: 100%; }
+.anl-series-sub > * { min-width: 0; }
+.anl-dot { width: 9px; height: 9px; border-radius: var(--r-pill); flex-shrink: 0; }
+.anl-series-row > .anl-dot { margin-top: 8px; }
+.anl-remove {
+  flex-shrink: 0; margin-top: 5px;
+  width: 22px; height: 22px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--t3); background: none; border: none; border-radius: var(--r-sm);
+  cursor: pointer;
+}
+.anl-remove:hover { color: var(--red); background: var(--red-weak); }
+.anl-add {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  width: 100%;
+  padding: var(--sp-8) var(--sp-10);
+  font-size: var(--text-sm); font-weight: var(--fw-medium);
+  color: var(--t2);
+  background: none;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: border-color .15s var(--ease), color .15s var(--ease);
+}
+.anl-add:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); }
+.anl-add:disabled { opacity: .5; cursor: not-allowed; }
+.anl-hint { margin-top: var(--sp-8); font-size: var(--text-xs); color: var(--t3); }
+
+/* option row inside the event Select */
+.anl-opt { display: inline-flex; align-items: center; gap: var(--sp-8); width: 100%; justify-content: space-between; }
+.anl-opt-n { font-size: var(--text-2xs); color: var(--t3); font-variant-numeric: tabular-nums; }
+
+/* ---- Canvas (flat: sits on the page, no card) ----------------------- */
+.anl-canvas {
+  border: none;
+  background: none;
+  border-radius: 0;
+  padding: 0 0 0 var(--sp-24);
+  min-width: 0;
+}
+@media (max-width: 900px) { .anl-canvas { padding: var(--sp-16) 0 0; } }
+.anl-canvas-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-16);
+}
+.anl-canvas-bar .sp { flex: 1; }
+.anl-cmp {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--text-sm); color: var(--t2); cursor: pointer; user-select: none;
+}
+
+/* ---- Chart ----------------------------------------------------------- */
+.anl-chart-wrap { position: relative; width: 100%; }
+.anl-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.anl-grid-line { stroke: var(--line-2); stroke-width: 1; }
+.anl-grid-lbl, .anl-x-lbl {
+  fill: var(--t3);
+  font-size: 10px;
+  font-family: var(--font);
+  font-variant-numeric: tabular-nums;
+}
+.anl-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  animation: anlDraw .62s var(--ease-out) both;
+}
+@keyframes anlDraw { from { stroke-dashoffset: 1; stroke-dasharray: 1; } to { stroke-dashoffset: 0; stroke-dasharray: 1; } }
+.anl-area { animation: anlFade .5s var(--ease-out) both; }
+@keyframes anlFade { from { opacity: 0; } to { opacity: 1; } }
+.anl-prev { fill: none; stroke: var(--t4); stroke-width: 1.5; stroke-dasharray: 3 3; }
+.anl-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: anlBar .4s var(--ease-out) both;
+}
+@keyframes anlBar { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.anl-dot-pt { fill: var(--surface); stroke-width: 2; }
+.anl-cross { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+
+.anl-tip {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  pointer-events: none;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-2);
+  padding: var(--sp-8) var(--sp-10);
+  min-width: 132px;
+  z-index: 3;
+}
+.anl-tip-h { font-size: var(--text-2xs); color: var(--t3); font-weight: var(--fw-semibold); margin-bottom: var(--sp-6); }
+.anl-tip-row { display: flex; align-items: center; gap: var(--sp-6); margin-top: 3px; }
+.anl-tip-dot { width: 7px; height: 7px; border-radius: var(--r-pill); flex-shrink: 0; }
+.anl-tip-lbl { flex: 1; font-size: var(--text-xs); color: var(--t2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anl-tip-val { font-size: var(--text-xs); font-weight: var(--fw-semibold); color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* ---- Number tiles ---------------------------------------------------- */
+.anl-numgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--sp-12);
+  padding: var(--sp-12) 0 var(--sp-8);
+}
+.anl-numtile {
+  border: none;
+  background: none;
+  padding: var(--sp-8) var(--sp-24) var(--sp-8) 0;
+}
+.anl-num-lbl { display: flex; align-items: flex-start; gap: var(--sp-6); font-size: var(--text-sm); line-height: var(--lh-normal); color: var(--t2); }
+/* Keep the colour dot on the FIRST line when the label wraps (never centred
+   into the gap): top-align the row and drop the dot to the first line's centre
+   ((18px line box − 9px dot) / 2 ≈ 4.5px). */
+.anl-num-lbl .anl-dot { margin-top: 4.5px; }
+.anl-num-lbl .anl-res-name, .anl-num-lbl { min-width: 0; }
+.anl-num-v { font-size: var(--text-3xl); font-weight: var(--fw-semibold); color: var(--text); margin: var(--sp-6) 0 var(--sp-4); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+
+/* ---- Results / legend table ----------------------------------------- */
+.anl-results { margin-top: var(--sp-16); border-top: 1px solid var(--line); }
+.anl-res-head, .anl-res-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px 96px 90px 72px;
+  gap: var(--sp-12);
+  align-items: center;
+}
+.anl-res-head {
+  padding: var(--sp-10) var(--sp-8);
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+/* Header cells reuse .anl-res-num (rows) for right-align + tabular nums, but that
+   sets a larger --text-sm / darker --t2. Force every header label to match the
+   "Series" cell: same 2xs size + inherited --t3 colour. Emphasis = the row's
+   semibold weight, never a bigger size. */
+.anl-res-head .anl-res-num { font-size: var(--text-2xs); color: inherit; }
+.anl-res-row {
+  width: 100%;
+  padding: var(--sp-8);
+  background: none;
+  border: none;
+  border-top: 1px solid var(--line-2);
+  cursor: pointer;
+  text-align: left;
+  transition: background .12s var(--ease);
+}
+.anl-res-row:hover { background: var(--panel); }
+.anl-res-row.off { opacity: .42; }
+.anl-res-lbl { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; }
+.anl-res-name { font-size: var(--text-base); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anl-res-num { text-align: right; font-size: var(--text-sm); color: var(--t2); font-variant-numeric: tabular-nums; }
+.anl-res-spark { display: flex; justify-content: flex-end; }
+
+.anl-delta { display: inline-flex; align-items: center; gap: 2px; font-size: var(--text-xs); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.anl-delta.up { color: var(--green); }
+.anl-delta.down { color: var(--red); }
+.anl-delta.flat { color: var(--t4); }
+
+/* ---- "Coming soon" placeholder -------------------------------------- */
+.anl-soon {
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  padding: var(--sp-48) var(--sp-24);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.anl-soon-ic {
+  width: 52px; height: 52px;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-md);
+  background: var(--accent-weak);
+  color: var(--accent);
+  margin-bottom: var(--sp-4);
+}
+.anl-soon-t { font-size: var(--text-lg); font-weight: var(--fw-semibold); color: var(--text); }
+.anl-soon-b { font-size: var(--text-base); color: var(--t2); max-width: 440px; line-height: var(--lh-body); }
+.anl-soon-tag {
+  margin-top: var(--sp-8);
+  font-size: var(--text-2xs); font-weight: var(--fw-semibold);
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--amber);
+  background: var(--amber-weak);
+  padding: var(--sp-4) var(--sp-8);
+  border-radius: var(--r-pill);
+}
+
+
+
+
+/* ===== retention (flat, appended) ===== */
+/* ============================================================================
+   retention.css — Retention (#3) cohort-triangle. Namespaced .anl-ret-*.
+
+   FLAT, enterprise chrome: NO bordered/elevated cards, NO panel box. Hierarchy
+   = typography + hairline dividers + spacing. The KPI row reuses the shared
+   flat `.stats/.stat/.stat-l/.stat-v` primitives (styles.css); the triangle is
+   the base full-width `<table>`. Light-mode only, square corners (buttons/pills
+   excepted), thin hairlines, indigo accent, every value via a design token.
+
+   The heat-cell / legend rgba() is the one sanctioned literal — the --accent
+   colour (#5b5ceb → 91,92,235) expressed with a live alpha, which no token can
+   carry — matching the analytics chrome exactly.
+   ========================================================================== */
+
+.anl-ret { min-width: 0; }
+/* Push the Daily/Weekly/Monthly granularity Seg to the far right of the toolbar
+   (it's the only .seg in the retention .fbar row). */
+.anl-ret .fbar .seg { margin-left: auto; }
+
+/* ---- KPI strip: extras on top of the shared .stat primitive --------------- */
+/* The "%" trails the mono .stat-v value, smaller and muted. */
+.anl-ret-pct {
+  font-size: var(--text-md);
+  font-weight: var(--fw-medium);
+  color: var(--t3);
+  margin-left: 1px;
+}
+/* Sparkline + delta sit on one quiet line under the value. */
+.anl-ret-statfoot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  margin-top: var(--sp-10);
+}
+.anl-ret-statfoot .tm-spark { flex-shrink: 0; }
+
+.anl-ret-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.anl-ret-delta.up { color: var(--green); }
+.anl-ret-delta.down { color: var(--red); }
+.anl-ret-delta.flat { color: var(--t4); }
+
+/* ---- Section eyebrow + heat legend --------------------------------------- */
+.anl-ret-shead {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-16);
+}
+.anl-ret-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.anl-ret-sub {
+  margin-top: var(--sp-4);
+  font-size: var(--text-sm);
+  color: var(--t3);
+}
+
+.anl-ret-legend {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-shrink: 0;
+}
+.anl-ret-legend-t {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-medium);
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.anl-ret-legend-bar {
+  width: 132px;
+  height: 8px;
+  border-radius: var(--r-2xs);
+  border: 1px solid var(--line);
+  background: linear-gradient(90deg, rgba(91, 92, 235, .05) 0%, rgba(91, 92, 235, .9) 100%);
+}
+
+/* ---- Triangle: flat, full-width table (no wrapper box) -------------------- */
+/* On narrow viewports the matrix scrolls inside its own lane rather than
+   forcing the page to scroll horizontally. */
+.anl-ret-scroll { min-width: 0; overflow-x: auto; }
+
+.anl-ret-tbl {
+  width: 100%;
+  min-width: 640px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Header — uppercase 10px caps on a single hairline rule (flat-table spec). */
+.anl-ret-tbl thead th {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--t3);
+  white-space: nowrap;
+  padding: 0 var(--sp-4) var(--sp-10);
+  border-bottom: 1px solid var(--line-strong);
+}
+.anl-ret-tbl thead th.anl-ret-th-co { text-align: left; padding-left: 0; }
+.anl-ret-tbl thead th.anl-ret-th-n { text-align: right; padding-right: var(--sp-10); }
+.anl-ret-tbl thead th.anl-ret-th-w { text-align: center; }
+
+/* Body cells — reset the base tbody td (padding + row rule) so the matrix reads
+   as tiles with even gutters, not a boxed data grid. */
+.anl-ret-tbl tbody td {
+  padding: 0;
+  border-bottom: none;
+  vertical-align: middle;
+}
+.anl-ret-tbl tbody tr:first-child td { padding-top: var(--sp-6); }
+
+.anl-ret-tbl td.anl-ret-co {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: var(--sp-6) var(--sp-12) var(--sp-6) 0;
+  transition: color .12s var(--ease);
+}
+.anl-ret-tbl td.anl-ret-n {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+  padding: var(--sp-6) var(--sp-10) var(--sp-6) var(--sp-4);
+}
+/* Heat cell wrapper — 2px inset gives every tile a hairline gutter without a
+   border-collapse:separate spacing that would also gap the label columns. */
+.anl-ret-tbl td.anl-ret-hc { padding: 2px; }
+
+.anl-ret-heat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 38px;
+  border-radius: var(--r-2xs);
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.2px;
+  color: var(--text);
+}
+/* Not-yet-observed offsets — left empty so the top-right void reads as the
+   triangle edge. */
+.anl-ret-heat.blank { background: transparent; }
+
+/* Row hover — nudge the cohort label to accent + a barely-there wash that only
+   shows in the tile gutters; the heat itself stays untouched. */
+.anl-ret-tbl tbody tr:hover { background: rgba(17, 17, 20, .014); }
+.anl-ret-tbl tbody tr:hover td.anl-ret-co { color: var(--accent); }
+
+
+/* ===== webvitals (flat, appended) ===== */
+/* ============================================================================
+   Web Vitals (#6) — flat enterprise restyle. Everything is scoped to `.anl-wv`
+   so it out-scopes the shared flat primitives (styles.css) without touching any
+   other screen. NO bordered/elevated cards: the five metrics live in the shared
+   `.stats`/`.stat` KPI row (divided by border-left, closed by a bottom hairline)
+   and the pages table is the base flat `<table>`. Hierarchy = type + hairlines +
+   spacing. Tokens only. Light mode only. Square corners except pills.
+   ========================================================================== */
+
+.anl-wv { min-width: 0; }
+
+/* ---- toolbar: the subtle "Web only" scope note ------------------------- */
+.anl-wv-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  white-space: nowrap;
+}
+.anl-wv-note svg { color: var(--t4); }
+
+/* ============================================================================
+   Core Web Vitals — one flat KPI row (reuses .stats/.stat/.stat-l/.stat-v).
+   Each of the five columns fills an equal share and stacks: eyebrow → value +
+   rating pill → field-distribution bar → %-legend. The base `.stat:first-child`
+   rule (0,2,0) still zeroes the first column's left padding + hairline.
+   ========================================================================== */
+.anl-wv-stats { align-items: stretch; }
+.anl-wv-stat {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 var(--sp-20);
+  justify-content: flex-start;   /* override .stat's center — we stack top-down */
+  gap: var(--sp-12);
+}
+
+/* Eyebrow — "LCP · Largest Contentful Paint". The short code inherits the
+   `.stat-l` caps; the full name is a quieter, sentence-case continuation that
+   ellipses rather than wrapping, so every column's value sits on one baseline. */
+.anl-wv-eyebrow {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  white-space: nowrap;
+}
+.anl-wv-code { flex-shrink: 0; }
+.anl-wv-full {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: var(--fw-medium);
+  color: var(--t4);
+}
+
+/* p75 value + rating pill on one line. Kill `.stat-v`'s default top margin —
+   the column's own gap owns the vertical rhythm now. */
+.anl-wv-vrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.anl-wv-vrow .stat-v { margin-top: 0; }
+
+/* Rating pill — weak-tint fill keyed to the metric's p75 rating. */
+.anl-wv-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .2px;
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.anl-wv-pill.good  { background: var(--green-weak); color: var(--green); }
+.anl-wv-pill.needs { background: var(--amber-weak); color: var(--amber); }
+.anl-wv-pill.poor  { background: var(--red-weak);   color: var(--red);   }
+
+/* Field-distribution bar — three good/needs/poor segments (grows by share),
+   thin, with hairline gaps so it reads as data, not a progress bar. */
+.anl-wv-dist {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+  min-width: 0;
+}
+.anl-wv-dist span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--r-2xs);
+}
+.anl-wv-dist .g { background: var(--green); }
+.anl-wv-dist .n { background: var(--amber); }
+.anl-wv-dist .p { background: var(--red); }
+
+/* Tiny legend — good% left, poor% right (needs% is the middle, implied). */
+.anl-wv-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  font-feature-settings: "tnum";
+  color: var(--t3);
+}
+.anl-wv-legend .g { color: var(--green); }
+.anl-wv-legend .p { color: var(--red); }
+
+/* ============================================================================
+   Pages table — flat, full-width, no wrapping card. Base `table`/`thead th`/
+   `tbody td` already supply the flat treatment; we only tune density, the
+   near-invisible hover, per-rating cell colour, and the URL cell.
+   ========================================================================== */
+.anl-wv-tbl-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-10);
+  margin: var(--sp-24) 0 var(--sp-10);
+}
+.anl-wv-eyebrow-lbl {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.anl-wv-tbl-hint {
+  font-size: var(--text-xs);
+  color: var(--t3);
+}
+
+/* Let a narrow viewport scroll the table instead of the page. */
+.anl-wv-scroll { overflow-x: auto; }
+.anl-wv-table { width: 100%; min-width: 760px; }
+
+/* Calmer density than the base 12/14, near-invisible hover for scanning. */
+.anl-wv-table tbody td {
+  padding: var(--sp-10) var(--sp-14);
+  border-bottom: 1px solid var(--line-2);
+}
+.anl-wv-table tbody tr:last-child td { border-bottom: none; }
+.anl-wv-table tbody tr:hover { background: rgba(17, 17, 20, .022); }
+
+/* Even, right-aligned numeric columns (pageviews + the five metrics). */
+.anl-wv-table th.num,
+.anl-wv-table td.num { width: 104px; white-space: nowrap; }
+
+/* Metric cell colour keyed to that cell's own rating (base td.num keeps it
+   mono + tabular). Slightly heavier so the colour reads as a signal. */
+.anl-wv-table td.anl-wv-cell {
+  font-weight: var(--fw-medium);
+  color: var(--t2);
+}
+.anl-wv-table td.anl-wv-cell.good  { color: var(--green); }
+.anl-wv-table td.anl-wv-cell.needs { color: var(--amber); }
+.anl-wv-table td.anl-wv-cell.poor  { color: var(--red); }
+
+/* Pageviews — quiet mono, it's context not a signal. */
+.anl-wv-table td.anl-wv-pv { color: var(--t2); }
+
+/* URL cell — a small LCP-rating dot ahead of the path (mono, truncating). */
+.anl-wv-path {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+  max-width: 100%;
+}
+.anl-wv-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.anl-wv-dot.good  { background: var(--green); }
+.anl-wv-dot.needs { background: var(--amber); }
+.anl-wv-dot.poor  { background: var(--red); }
+.anl-wv-path-t {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- narrower viewports: ease the KPI-column padding so 5 columns still
+   fit before the (rare) horizontal scroll kicks in ---------------------- */
+@media (max-width: 1080px) {
+  .anl-wv-stat { padding: 0 var(--sp-14); gap: var(--sp-10); }
+}
+
+
+/* ===== breakdowns (flat, appended) ===== */
+/* ============================================================================
+   Breakdowns (#8) — FLAT enterprise restyle. No card panels, no boxes, no
+   gutters: a full-width ranked table is the primary object, with a de-boxed
+   distribution strip above it. Hierarchy is typography + hairlines + spacing.
+   Everything is scoped under `.anl-bd`; the ranked table inherits the frozen
+   base `<table>` treatment and only overrides column geometry + in-row bars.
+   Light mode only. Square corners except the segmented control (a pill).
+   ========================================================================== */
+
+.anl-bd { width: 100%; }
+
+/* Shared section eyebrow — uppercase micro-label. */
+.anl-bd-eyebrow {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--t3);
+  white-space: nowrap;
+}
+
+/* ---- distribution strip — flat, full width, no wrapping box --------------- */
+.anl-bd-dist {
+  padding-bottom: var(--sp-20);
+  margin-bottom: var(--sp-4);
+  border-bottom: 1px solid var(--line);
+}
+.anl-bd-dist-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-12);
+  margin-bottom: var(--sp-14);
+}
+.anl-bd-dist-head .sp { flex: 1; }
+
+/* Full-width stacked meter — one flush bar, segments per bucket. */
+.anl-bd-stack {
+  display: flex;
+  width: 100%;
+  height: 16px;
+  overflow: hidden;
+  background: var(--line-2);
+}
+.anl-bd-seg {
+  height: 100%;
+  border: none;
+  padding: 0;
+  min-width: 2px;
+  box-shadow: inset -1px 0 0 var(--surface);
+  transform-origin: left center;
+  animation: anl-bd-grow .45s var(--ease-out) both;
+  transition: opacity .14s var(--ease);
+}
+.anl-bd-seg:last-child { box-shadow: none; }
+.anl-bd-seg:hover { filter: brightness(1.06); }
+.anl-bd-stack.has-sel .anl-bd-seg:not(.sel) { opacity: .28; }
+.anl-bd-stack.has-sel .anl-bd-seg.sel { box-shadow: inset 0 0 0 1.5px rgba(17,17,20,.14); }
+@keyframes anl-bd-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* Donut variant — small flat donut on the left, legend fills the rest. */
+.anl-bd-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-32);
+}
+.anl-bd-donut {
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.anl-bd-donut-c {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+.anl-bd-donut-v {
+  font-family: var(--mono);
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -.4px;
+  color: var(--text);
+  font-feature-settings: "tnum";
+}
+.anl-bd-donut-l {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+/* Legend — flows full width; a flat clickable swatch per bucket. */
+.anl-bd-legend {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-6) var(--sp-20);
+}
+.anl-bd-legend.row { margin-top: var(--sp-14); }
+.anl-bd-leg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: 0;
+  border: none;
+  background: none;
+  transition: opacity .14s var(--ease);
+}
+.anl-bd-leg-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-2xs);
+  flex-shrink: 0;
+}
+.anl-bd-leg-lbl {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--t2);
+}
+.anl-bd-leg-pct {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  font-feature-settings: "tnum";
+}
+.anl-bd-leg:hover .anl-bd-leg-lbl { color: var(--text); }
+.anl-bd-leg.sel .anl-bd-leg-lbl { color: var(--text); font-weight: var(--fw-semibold); }
+.anl-bd-leg.dim { opacity: .4; }
+
+/* ---- ranked-table header row — eyebrow + total ---------------------------- */
+.anl-bd-thead-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-12);
+  margin: var(--sp-24) 0 var(--sp-6);
+}
+.anl-bd-thead-row .sp { flex: 1; }
+.anl-bd-total {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-6);
+  white-space: nowrap;
+}
+.anl-bd-total-v {
+  font-family: var(--mono);
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  font-feature-settings: "tnum";
+}
+.anl-bd-total-l {
+  font-size: var(--text-xs);
+  color: var(--t3);
+}
+
+/* ---- PRIMARY: full-width flat ranked table -------------------------------- */
+/* Inherits the frozen base `<table>` / `thead th` / `tbody td` treatment; here
+   we only set column geometry, the row-focus highlight, and the in-row bar. */
+.anl-bd-tbl { width: 100%; table-layout: fixed; }
+
+.anl-bd-tbl th.c-rank,
+.anl-bd-tbl td.c-rank { width: 44px; }
+.anl-bd-tbl th.c-count { width: 116px; }
+.anl-bd-tbl th.c-share { width: 92px; }
+.anl-bd-tbl th.c-dist  { width: 32%; }
+.anl-bd-tbl th.c-delta { width: 92px; }
+
+.anl-bd-tbl tbody tr.clickable { cursor: pointer; }
+.anl-bd-tbl tbody tr.clickable:hover { background: rgba(17, 17, 20, .022); }
+
+/* Focused row — subtle accent wash + a left accent marker (no border box). */
+.anl-bd-tbl tbody tr.sel { background: var(--accent-tint); }
+.anl-bd-tbl tbody tr.sel:hover { background: var(--accent-tint); }
+.anl-bd-tbl tbody tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+/* When a bucket is focused, quiet every other row so the pick reads. */
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-fill { opacity: .3; }
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-dot { opacity: .4; }
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-name { color: var(--t2); }
+
+/* rank */
+.anl-bd-rank {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  font-feature-settings: "tnum";
+}
+.anl-bd-tbl tbody tr.sel .anl-bd-rank { color: var(--accent); font-weight: var(--fw-semibold); }
+
+/* bucket label + colour dot */
+.anl-bd-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+}
+.anl-bd-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-2xs);
+  flex-shrink: 0;
+  transition: opacity .14s var(--ease);
+}
+/* Real brand mark (browser/OS logo) in place of the colour dot. */
+.anl-bd-ico {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  transition: opacity .14s var(--ease);
+}
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-ico { opacity: .4; }
+/* Country flag emoji in place of the colour dot (same 16px slot as the logo). */
+.anl-bd-flag {
+  width: 16px;
+  font-size: var(--text-base);
+  line-height: 1;
+  text-align: center;
+  flex-shrink: 0;
+  transition: opacity .14s var(--ease);
+}
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-flag { opacity: .4; }
+.anl-bd-name {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.anl-bd-tbl tbody tr.clickable:hover .anl-bd-name {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+
+/* count + share — mono figures */
+.anl-bd-count {
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.anl-bd-pct {
+  font-size: var(--text-sm);
+  color: var(--t2);
+}
+
+/* in-row magnitude bar — de-boxed track, coloured fill scaled to #1 */
+.anl-bd-track {
+  display: block;
+  width: 100%;
+  height: 6px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.anl-bd-fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  transform-origin: left center;
+  animation: anl-bd-grow .5s var(--ease-out) both;
+  transition: opacity .14s var(--ease);
+}
+
+/* vs-prev delta — flat mono chip, no fill */
+.anl-bd-delta {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  justify-content: flex-end;
+  font-feature-settings: "tnum";
+}
+.anl-bd-delta.up { color: var(--green); }
+.anl-bd-delta.down { color: var(--red); }
+.anl-bd-delta.flat { color: var(--t4); }
+
+/* empty (no search match) */
+.anl-bd-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  padding: var(--sp-40) var(--sp-16);
+  color: var(--t3);
+  font-size: var(--text-sm);
+}
+
+
+/* ===== correlation (base, appended) ===== */
+/* ============================================================================
+   correlation.css — Funnel-correlation panel (#15, "What's influencing
+   conversion"). Namespaced `.anl-corr-*`. Light-mode only, square corners
+   (buttons excepted), thin hairlines, indigo accent. All values via design
+   tokens; green conveys a driver, red a blocker — those are the only literal
+   colours, and they come from --green / --red.
+   ========================================================================== */
+
+/* ---- Card ------------------------------------------------------------- */
+.anl-corr-card {
+  border: 1px solid var(--line);
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: var(--sp-16) var(--sp-20) var(--sp-16);
+  min-width: 0;
+}
+
+/* ---- Header ----------------------------------------------------------- */
+.anl-corr-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-16);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-14);
+}
+.anl-corr-title {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  letter-spacing: -.01em;
+}
+.anl-corr-sub {
+  margin-top: var(--sp-4);
+  font-size: var(--text-base);
+  color: var(--t2);
+  line-height: var(--lh-tight);
+  max-width: 56ch;
+}
+.anl-corr-sub b { font-weight: var(--fw-semibold); color: var(--text); }
+.anl-corr-seg-n { opacity: .55; margin-left: 2px; font-variant-numeric: tabular-nums; }
+
+/* ---- Correlation note ------------------------------------------------- */
+.anl-corr-note {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  padding: var(--sp-8) var(--sp-12);
+  margin-bottom: var(--sp-16);
+  font-size: var(--text-sm);
+  color: var(--t2);
+  line-height: var(--lh-snug);
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-sm);
+}
+.anl-corr-note svg { color: var(--accent); flex-shrink: 0; }
+.anl-corr-note b { font-weight: var(--fw-semibold); color: var(--text); }
+
+/* ---- Column header ---------------------------------------------------- */
+.anl-corr-cols {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 168px 118px;
+  gap: var(--sp-12);
+  align-items: center;
+  padding: var(--sp-8) var(--sp-8) var(--sp-10);
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--t3);
+  border-bottom: 1px solid var(--line);
+}
+
+/* ---- Rows ------------------------------------------------------------- */
+.anl-corr-list { min-width: 0; }
+.anl-corr-row {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) 168px 118px;
+  gap: var(--sp-12);
+  align-items: center;
+  padding: var(--sp-12) var(--sp-8);
+  border-top: 1px solid var(--line-2);
+}
+.anl-corr-row:first-child { border-top: none; }
+
+/* icon tile */
+.anl-corr-ic {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+}
+.anl-corr-ic.driver { background: var(--green-weak); color: var(--green); }
+.anl-corr-ic.blocker { background: var(--red-weak); color: var(--red); }
+
+/* main: label + conversion pair */
+.anl-corr-main { min-width: 0; }
+.anl-corr-lbl {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.anl-corr-name {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.anl-corr-kind {
+  flex-shrink: 0;
+  font-size: var(--text-3xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--t3);
+  background: var(--stage);
+  border-radius: var(--r-2xs);
+  padding: 2px var(--sp-6);
+}
+.anl-corr-conv {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-6);
+  flex-wrap: wrap;
+  margin-top: var(--sp-4);
+  font-size: var(--text-sm);
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.anl-corr-conv .with { font-weight: var(--fw-semibold); }
+.anl-corr-conv.driver .with { color: var(--green); }
+.anl-corr-conv.blocker .with { color: var(--red); }
+.anl-corr-conv .vs { color: var(--t4); }
+.anl-corr-conv .without { font-weight: var(--fw-medium); color: var(--t2); }
+.anl-corr-lift {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: var(--sp-2);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+}
+.anl-corr-lift.driver { color: var(--green); }
+.anl-corr-lift.blocker { color: var(--red); }
+
+/* strength bar + score */
+.anl-corr-strength {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+}
+.anl-corr-track {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--line-2);
+  overflow: hidden;
+}
+.anl-corr-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--r-pill);
+  transform-origin: left center;
+  animation: anlCorrGrow .55s var(--ease-out) both;
+}
+.anl-corr-fill.driver { background: var(--green); }
+.anl-corr-fill.blocker { background: var(--red); }
+@keyframes anlCorrGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+.anl-corr-score {
+  width: 20px;
+  text-align: right;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* confidence chip */
+.anl-corr-conf {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  padding: var(--sp-4) var(--sp-8);
+  border-radius: var(--r-pill);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-medium);
+  white-space: nowrap;
+  justify-self: start;
+}
+.anl-corr-conf .dot { width: 6px; height: 6px; border-radius: var(--r-pill); flex-shrink: 0; }
+.anl-corr-conf.high { background: var(--green-weak); color: var(--green); }
+.anl-corr-conf.high .dot { background: var(--green); }
+.anl-corr-conf.medium { background: var(--amber-weak); color: var(--amber); }
+.anl-corr-conf.medium .dot { background: var(--amber); }
+.anl-corr-conf.low { background: var(--stage); color: var(--t3); }
+.anl-corr-conf.low .dot { background: var(--t4); }
+
+/* ---- Footer ----------------------------------------------------------- */
+.anl-corr-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  flex-wrap: wrap;
+  margin-top: var(--sp-14);
+  padding-top: var(--sp-12);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.anl-corr-foot b { color: var(--t2); font-weight: var(--fw-semibold); }
+.anl-corr-foot .sep { width: 3px; height: 3px; border-radius: var(--r-pill); background: var(--t4); }
+
+/* ---- Narrow: stack strength + confidence under the signal ------------- */
+@media (max-width: 680px) {
+  .anl-corr-cols { display: none; }
+  .anl-corr-row {
+    grid-template-columns: 30px minmax(0, 1fr);
+    row-gap: var(--sp-10);
+    align-items: start;
+  }
+  .anl-corr-strength { grid-column: 2; }
+  .anl-corr-conf { grid-column: 2; }
+}
+
+/* ===== events (flat Data Management table + drawer) ===== */
+.anl-ev-count { font-size: var(--text-sm); color: var(--t3); font-variant-numeric: tabular-nums; }
+.anl-ev-tbl { width: 100%; border-collapse: collapse; margin-top: var(--sp-4); }
+.anl-ev-tbl thead th {
+  font-size: var(--text-sm); font-weight: var(--fw-medium); letter-spacing: 0; text-transform: none;
+  color: var(--t3); text-align: left; padding: var(--sp-8) var(--sp-14);
+  border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.anl-ev-tbl thead th.num { text-align: right; }
+.anl-ev-tbl tbody td { padding: var(--sp-8) var(--sp-14); border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.anl-ev-tbl tbody td.num { text-align: right; }
+.anl-ev-tbl tbody td.anl-ev-trend { vertical-align: middle; }
+.anl-ev-tbl tr.clickable { cursor: pointer; }
+.anl-ev-tbl tr.clickable:hover { background: rgba(17, 17, 20, .022); }
+.anl-ev-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.anl-ev-key { font-family: var(--mono); font-size: var(--text-sm); color: var(--text); font-weight: var(--fw-medium); }
+.anl-ev-key.lg { font-size: var(--text-md); }
+.anl-ev-fn { font-size: var(--text-xs); color: var(--t3); }
+.anl-ev-vol { font-family: var(--mono); font-weight: var(--fw-semibold); color: var(--text); }
+.anl-ev-sub { font-size: var(--text-xs); color: var(--t3); }
+.anl-ev-tbl tr.clickable:hover .anl-ev-key { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
+
+.anl-ev-grp td { padding: var(--sp-16) var(--sp-14) var(--sp-6) !important; border-bottom: none !important; }
+.anl-ev-grp-l { font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .5px; text-transform: uppercase; color: var(--t3); }
+.anl-ev-grp-h { font-size: var(--text-xs); color: var(--t4); margin-left: var(--sp-10); }
+
+.anl-ev-kind, .anl-ev-type {
+  display: inline-flex; font-size: var(--text-2xs); font-weight: var(--fw-semibold);
+  letter-spacing: .3px; text-transform: uppercase; padding: var(--sp-2) var(--sp-8); border-radius: var(--r-xs);
+}
+.anl-ev-type { background: var(--line); color: var(--t2); }
+.anl-ev-kind.k-system { background: var(--accent-weak); color: var(--accent); }
+.anl-ev-kind.k-interaction { background: var(--blue-weak); color: var(--blue); }
+.anl-ev-kind.k-conversion { background: var(--green-weak); color: var(--green); }
+.anl-ev-kind.k-error { background: var(--red-weak); color: var(--red); }
+
+/* detail drawer */
+.anl-ev-drawer { padding: var(--sp-16) var(--sp-20) var(--sp-24); }
+.anl-ev-dh { display: inline-flex; align-items: center; gap: var(--sp-10); }
+.anl-ev-dname { font-size: var(--text-md); font-weight: var(--fw-semibold); color: var(--text); }
+.anl-ev-ddesc { font-size: var(--text-base); color: var(--t2); line-height: var(--lh-body); margin-top: var(--sp-6); }
+.anl-ev-dgrow { font-size: var(--text-2xs); color: var(--t3); margin-top: var(--sp-4); }
+.anl-ev-dspark { margin-bottom: var(--sp-8); }
+.anl-ev-dsec { font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .4px; text-transform: uppercase; color: var(--t3); margin: var(--sp-16) 0 var(--sp-10); }
+.anl-ev-prop { display: flex; align-items: baseline; gap: var(--sp-10); margin-bottom: var(--sp-10); }
+.anl-ev-pk { font-size: var(--text-sm); color: var(--t2); min-width: 104px; flex-shrink: 0; }
+.anl-ev-pvals { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.anl-ev-chip { font-size: var(--text-xs); color: var(--t2); background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-8); }
+.anl-ev-val { display: flex; align-items: center; gap: var(--sp-10); margin-bottom: var(--sp-8); }
+.anl-ev-vl { font-size: var(--text-sm); color: var(--text); width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.anl-ev-vbar { flex: 1; height: 6px; background: var(--line-2); border-radius: var(--r-pill); overflow: hidden; }
+.anl-ev-vfill { display: block; height: 100%; background: var(--accent); border-radius: var(--r-pill); }
+.anl-ev-vp { font-size: var(--text-xs); color: var(--t3); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ===== correlation — flatten the embedded funnel card (no box) ===== */
+.anl-corr-card { border: none !important; background: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+
+
+/* ============================================================================
+   Composition layer — hierarchy over components. The thing being analysed (the
+   metric / dimension / cohort) is the subject; controls recede.
+   ========================================================================== */
+
+/* ---- Trends: metric-as-subject headline ---- */
+.anl-metric-row { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-20); margin-bottom: var(--sp-16); flex-wrap: wrap; }
+.anl-metric { min-width: 0; }
+.anl-metric-t { font-size: var(--text-2xl); font-weight: var(--fw-semibold); letter-spacing: -.02em; color: var(--text); line-height: 1.15; }
+.anl-metric-sub { font-size: var(--text-md); color: var(--t2); margin-top: var(--sp-6); font-variant-numeric: tabular-nums; display: flex; align-items: center; gap: var(--sp-8); flex-wrap: wrap; }
+.anl-metric-big { font-weight: var(--fw-semibold); color: var(--text); }
+.anl-metric-dot { color: var(--t4); }
+.anl-metric-sub .anl-delta { font-size: var(--text-md); }
+.anl-controls { display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap; flex-shrink: 0; }
+
+/* ---- Retention: thin summary strip (matrix is the hero) ---- */
+.anl-ret-summary { margin-top: var(--sp-20); padding-bottom: var(--sp-20); border-bottom: 1px solid var(--line); }
+.anl-ret-summary-h { font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .5px; text-transform: uppercase; color: var(--t3); margin-bottom: var(--sp-12); }
+.anl-ret-summary-row { display: flex; gap: var(--sp-64); }
+.anl-ret-ms-l { font-size: var(--text-sm); color: var(--t2); }
+.anl-ret-ms-v { font-size: var(--text-2xl); font-weight: var(--fw-semibold); color: var(--text); letter-spacing: -.02em; margin: var(--sp-4) 0 var(--sp-4); font-variant-numeric: tabular-nums; }
+
+/* ---- Breakdowns: dimension headline (the subject) ---- */
+.anl-bd-headline { margin-bottom: var(--sp-16); }
+.anl-bd-h-t { font-size: var(--text-2xl); font-weight: var(--fw-semibold); letter-spacing: -.02em; color: var(--text); line-height: 1.15; }
+.anl-bd-h-sub { font-size: var(--text-md); color: var(--t2); margin-top: var(--sp-4); }
+
+/* Active tab is the border-bottom underline alone (line 31) — no background
+   fill (owner req 2026-08-13): the underline is enough for workspace nav. */
+
+/* emphasized "now" endpoint on the trend line */
+.anl-endpt { stroke: var(--surface); stroke-width: 2; animation: anlFade .6s var(--ease-out) both; }
+
+
+/* ===== breakdowns (composition v2, appended) ===== */
+/* ============================================================================
+   breakdowns.css — Breakdowns (#8), recomposed as ONE analytical object.
+   Namespaced `.anl-bd-*`.
+
+   The screen reads context → SUBJECT → visualization → detail as a single
+   deliberate thing: a recessive toolbar (shared `.fbar`), then the dimension as
+   a large headline, then a full-width ranked table whose in-row magnitude bar IS
+   the visualization — ranking and distribution in one object. No stacked strip
+   competing above it, no bordered cards, no boxes. Hierarchy is typography +
+   hairlines + spacing.
+
+   FLAT, light-mode only. Square corners (the segmented control is the sanctioned
+   pill). Every value routes through a design token; the only literals are the
+   per-bucket palette hues, which arrive as inline `background` from the seeded
+   model (the approved ANL_COLORS scale). Semantic colour: green = growth,
+   red = decline.
+   ========================================================================== */
+
+.anl-bd { width: 100%; min-width: 0; }
+
+/* ============================================================================
+   SUBJECT — the dimension headline. Dominant: a large, tight title with the
+   period total and a one-line read of the leader. A subtle lens toggle is the
+   only control here, pushed to the far right so it recedes against the subject.
+   ========================================================================== */
+.anl-bd-headline {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-20);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-20);
+}
+.anl-bd-subject { min-width: 0; }
+
+.anl-bd-h-t {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  color: var(--text);
+}
+/* Flows as inline text (not a flex row) so numbers keep their "34%" together —
+   spacing between phrases is owned by the separator dot's margins. */
+.anl-bd-h-sub {
+  margin-top: var(--sp-6);
+  font-size: var(--text-md);
+  line-height: var(--lh-snug);
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
+/* the period total — the subject's headline number */
+.anl-bd-h-big { font-weight: var(--fw-semibold); color: var(--text); }
+.anl-bd-h-dot { margin: 0 var(--sp-6); color: var(--t4); }
+/* leader read (interpretation) — a colour dot ties it to the #1 ranked row */
+.anl-bd-h-lead {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  vertical-align: baseline;
+}
+.anl-bd-h-lead-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--r-2xs);
+  flex-shrink: 0;
+}
+
+/* Lens toggle recedes to the top-right; on wrap it drops below the subject and
+   aligns left. It is the sanctioned segmented pill (styled globally by `.seg`). */
+.anl-bd-headline > .seg { flex-shrink: 0; margin-top: var(--sp-2); }
+
+/* ============================================================================
+   THE OBJECT — full-width flat ranked table. Inherits the frozen base
+   `<table>` / `thead th` / `tbody td` treatment; here we only set column
+   geometry, the row-focus highlight, and the in-row magnitude bar (the widest
+   column, because the bar is the visualization).
+   ========================================================================== */
+.anl-bd-tbl { width: 100%; table-layout: fixed; }
+
+.anl-bd-tbl th.c-rank,
+.anl-bd-tbl td.c-rank { width: 40px; }
+.anl-bd-tbl th.c-count { width: 116px; }
+.anl-bd-tbl th.c-share { width: 84px; }
+.anl-bd-tbl th.c-dist  { width: 40%; }          /* the visualization — dominant */
+.anl-bd-tbl th.c-delta { width: 92px; }
+
+.anl-bd-tbl tbody tr.clickable { cursor: pointer; }
+.anl-bd-tbl tbody tr.clickable:hover { background: rgba(17, 17, 20, .022); }
+
+/* Focused row — a quiet accent wash + a left accent marker (no border box). */
+.anl-bd-tbl tbody tr.sel { background: var(--accent-tint); }
+.anl-bd-tbl tbody tr.sel:hover { background: var(--accent-tint); }
+.anl-bd-tbl tbody tr.sel td:first-child { box-shadow: inset 2px 0 0 var(--accent); }
+/* With a bucket focused, quiet every other row so the comparison reads. */
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-fill { opacity: .32; }
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-dot { opacity: .4; }
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-name { color: var(--t2); }
+
+/* rank — quiet mono figure */
+.anl-bd-rank {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  font-feature-settings: "tnum";
+}
+.anl-bd-tbl tbody tr.sel .anl-bd-rank { color: var(--accent); font-weight: var(--fw-semibold); }
+
+/* bucket label + colour dot */
+.anl-bd-lbl {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+  max-width: 100%;
+}
+.anl-bd-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-2xs);
+  flex-shrink: 0;
+  transition: opacity .14s var(--ease);
+}
+/* Real brand mark (browser/OS logo) in place of the colour dot. */
+.anl-bd-ico {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  transition: opacity .14s var(--ease);
+}
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-ico { opacity: .4; }
+/* Country flag emoji in place of the colour dot (same 16px slot as the logo). */
+.anl-bd-flag {
+  width: 16px;
+  font-size: var(--text-base);
+  line-height: 1;
+  text-align: center;
+  flex-shrink: 0;
+  transition: opacity .14s var(--ease);
+}
+.anl-bd-tbl tbody.has-sel tr:not(.sel) .anl-bd-flag { opacity: .4; }
+.anl-bd-name {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.anl-bd-tbl tbody tr.clickable:hover .anl-bd-name {
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 2px;
+}
+
+/* count + share — mono figures (base `td.num` already sets mono + right + tnum) */
+.anl-bd-count {
+  font-size: var(--text-base);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+.anl-bd-pct {
+  font-size: var(--text-sm);
+  color: var(--t2);
+}
+
+/* in-row magnitude bar — the visualization. A de-boxed hairline track with a
+   coloured fill scaled so #1 fills the lane; this is what makes each row read as
+   both a rank and a distribution. */
+.anl-bd-track {
+  display: block;
+  width: 100%;
+  height: 8px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.anl-bd-fill {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  transform-origin: left center;
+  animation: anl-bd-grow .5s var(--ease-out) both;
+  transition: opacity .14s var(--ease);
+}
+@keyframes anl-bd-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* vs-prev delta — flat mono, token-coloured, no fill */
+.anl-bd-delta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  font-weight: var(--fw-semibold);
+  font-feature-settings: "tnum";
+}
+.anl-bd-delta.up { color: var(--green); }
+.anl-bd-delta.down { color: var(--red); }
+.anl-bd-delta.flat { color: var(--t4); }
+
+/* empty (no search match) */
+.anl-bd-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-8);
+  padding: var(--sp-40) var(--sp-16);
+  color: var(--t3);
+  font-size: var(--text-sm);
+}
+
+/* ============================================================================
+   DONUT LENS — the same distribution as a compact overview: a flat donut on the
+   left, a ranked legend filling the rest. No box. Same click-to-focus as the
+   table, so switching lenses never changes the object, only the view.
+   ========================================================================== */
+.anl-bd-donut-wrap {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-40);
+  flex-wrap: wrap;
+}
+.anl-bd-donut {
+  position: relative;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+}
+.anl-bd-donut-c {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  pointer-events: none;
+}
+.anl-bd-donut-v {
+  font-family: var(--mono);
+  font-size: var(--text-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -.4px;
+  color: var(--text);
+  font-feature-settings: "tnum";
+}
+.anl-bd-donut-l {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+/* legend — a flat ranked list; each bucket is a clickable row (rank · dot ·
+   label … share · count). Hairline dividers, no card. */
+.anl-bd-legend {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+}
+.anl-bd-leg {
+  display: grid;
+  grid-template-columns: 22px 12px minmax(0, 1fr) 64px 72px;
+  align-items: center;
+  gap: var(--sp-10);
+  width: 100%;
+  padding: var(--sp-8) var(--sp-2);
+  border: none;
+  background: none;
+  border-top: 1px solid var(--line-2);
+  text-align: left;
+  cursor: pointer;
+  transition: background .12s var(--ease), opacity .14s var(--ease);
+}
+.anl-bd-leg:first-child { border-top: none; }
+.anl-bd-leg:hover { background: rgba(17, 17, 20, .022); }
+.anl-bd-leg-rank {
+  font-family: var(--mono);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  font-feature-settings: "tnum";
+}
+.anl-bd-leg-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: var(--r-2xs);
+  flex-shrink: 0;
+}
+.anl-bd-leg-lbl {
+  font-size: var(--text-base);
+  font-weight: var(--fw-medium);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.anl-bd-leg-share {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+  font-feature-settings: "tnum";
+}
+.anl-bd-leg-count {
+  text-align: right;
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--t2);
+  font-feature-settings: "tnum";
+}
+/* focus — the picked bucket stays lit, the rest recede (mirrors the table). */
+.anl-bd-legend.has-sel .anl-bd-leg:not(.sel) { opacity: .4; }
+.anl-bd-leg.sel .anl-bd-leg-rank { color: var(--accent); font-weight: var(--fw-semibold); }
+.anl-bd-leg.sel .anl-bd-leg-lbl { font-weight: var(--fw-semibold); }
+
+/* ---- narrow: donut stacks above its legend ---- */
+@media (max-width: 640px) {
+  .anl-bd-donut-wrap { gap: var(--sp-24); }
+  .anl-bd-legend { min-width: 0; }
+  .anl-bd-leg { grid-template-columns: 20px 10px minmax(0, 1fr) 56px 60px; gap: var(--sp-8); }
+}
+
+
+/* ===== webvitals (composition v2, appended) ===== */
+/* ============================================================================
+   Web Vitals (#6) — flat, SUBJECT-FIRST restyle. Everything is scoped to
+   `.anl-wv` so it out-scopes the shared flat primitives (styles.css) without
+   touching any other screen. Composition order top-to-bottom:
+
+     context toolbar  →  VERDICT headline  →  distribution row  →  pages table
+
+   The headline is the subject; the KPI row is evidence; the table is detail.
+   Type + hairlines + spacing carry the hierarchy — NO bordered/elevated cards.
+   The five metrics live in the shared `.stats`/`.stat` KPI row; the pages table
+   is the base flat `<table>`. Tokens only, no raw hex. Light mode only. Square
+   corners except pills. (Supersedes the appended `webvitals` block in
+   analytics-v2.css; the `.anl-metric-t` / `.anl-metric-dot` composition tokens
+   are reused from that file, not redefined here.)
+   ========================================================================== */
+
+.anl-wv { min-width: 0; }
+
+/* ---- context toolbar: the subtle "Web only" scope note ----------------- */
+.anl-wv-note {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-6);
+  font-size: var(--text-xs);
+  color: var(--t3);
+  white-space: nowrap;
+}
+.anl-wv-note svg { color: var(--t4); }
+
+/* ============================================================================
+   SUBJECT — the verdict headline. Reuses the metric-as-subject title
+   (`.anl-metric-t`) with a close variant of `.anl-metric-sub` for the verdict
+   line, so the *problem* tokens (weakest metric, slowest page) can carry
+   semantic colour while everything else stays flat. The pass rate is a strong
+   neutral figure; only the problems draw the eye.
+   ========================================================================== */
+.anl-wv-headline { margin-bottom: var(--sp-20); }
+
+/* Verdict line — flat, wraps gracefully; each phrase is a flex item separated
+   by an even gap (mirrors Trends' `.anl-metric-sub`). */
+.anl-wv-verdict {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-8);
+  margin-top: var(--sp-6);
+  font-size: var(--text-md);
+  color: var(--t2);
+  line-height: var(--lh-snug);
+  font-variant-numeric: tabular-nums;
+}
+/* The pass rate — emphasised but neutral (positive framing needs no colour). */
+.anl-wv-v-strong {
+  font-weight: var(--fw-semibold);
+  color: var(--text);
+}
+/* Weakest metric code — colour keyed to its rating (amber = needs, red = poor,
+   green never appears here since a good metric takes the "every metric" branch). */
+.anl-wv-vk { font-weight: var(--fw-semibold); }
+.anl-wv-vk.good  { color: var(--green); }
+.anl-wv-vk.needs { color: var(--amber); }
+.anl-wv-vk.poor  { color: var(--red); }
+/* Slowest page path — mono, colour keyed to its own LCP rating. */
+.anl-wv-vp {
+  font-family: var(--mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--text-base);
+  max-width: 32ch;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.anl-wv-vp.good  { color: var(--green); }
+.anl-wv-vp.needs { color: var(--amber); }
+.anl-wv-vp.poor  { color: var(--red); }
+
+/* ============================================================================
+   DISTRIBUTION — the five Core Web Vitals as one flat KPI band (reuses
+   .stats/.stat/.stat-l/.stat-v). Each column fills an equal share and stacks:
+   eyebrow → value + rating pill → field-distribution bar → %-legend. The band
+   closes with a bottom hairline; the base `.stat:first-child` rule zeroes the
+   first column's left padding + hairline.
+   ========================================================================== */
+.anl-wv-stats {
+  align-items: stretch;
+  padding-bottom: var(--sp-20);
+  border-bottom: 1px solid var(--line);
+}
+.anl-wv-stat {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 var(--sp-20);
+  justify-content: flex-start;   /* override .stat's center — we stack top-down */
+  gap: var(--sp-12);
+}
+
+/* Eyebrow — "LCP · Largest Contentful Paint". The short code inherits the
+   `.stat-l` caps; the full name is a quieter, sentence-case continuation that
+   ellipses rather than wrapping, so every column's value sits on one baseline. */
+.anl-wv-eyebrow {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  white-space: nowrap;
+}
+.anl-wv-code { flex-shrink: 0; }
+.anl-wv-full {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: var(--fw-medium);
+  color: var(--t4);
+}
+
+/* p75 value + rating pill on one line. Kill `.stat-v`'s default top margin —
+   the column's own gap owns the vertical rhythm now. */
+.anl-wv-vrow {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-8);
+  min-width: 0;
+}
+.anl-wv-vrow .stat-v { margin-top: 0; }
+
+/* Rating pill — weak-tint fill keyed to the metric's p75 rating. */
+.anl-wv-pill {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .2px;
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+}
+.anl-wv-pill.good  { background: var(--green-weak); color: var(--green); }
+.anl-wv-pill.needs { background: var(--amber-weak); color: var(--amber); }
+.anl-wv-pill.poor  { background: var(--red-weak);   color: var(--red);   }
+
+/* Field-distribution bar — three good/needs/poor segments (grows by share),
+   thin, with hairline gaps so it reads as data, not a progress bar. */
+.anl-wv-dist {
+  display: flex;
+  gap: 2px;
+  height: 5px;
+  min-width: 0;
+}
+.anl-wv-dist span {
+  display: block;
+  height: 100%;
+  min-width: 2px;
+  border-radius: var(--r-2xs);
+}
+.anl-wv-dist .g { background: var(--green); }
+.anl-wv-dist .n { background: var(--amber); }
+.anl-wv-dist .p { background: var(--red); }
+
+/* Tiny legend — good% left, poor% right (needs% is the middle, implied). */
+.anl-wv-legend {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--text-2xs);
+  font-feature-settings: "tnum";
+  color: var(--t3);
+}
+.anl-wv-legend .g { color: var(--green); }
+.anl-wv-legend .p { color: var(--red); }
+
+/* ============================================================================
+   DETAIL — pages table: flat, full-width, no wrapping card. Base `table`/
+   `thead th`/`tbody td` supply the flat treatment; we tune density, the
+   near-invisible hover, per-rating cell colour, and the URL cell.
+   ========================================================================== */
+.anl-wv-tbl-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-10);
+  margin: var(--sp-24) 0 var(--sp-10);
+}
+.anl-wv-eyebrow-lbl {
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .4px;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+.anl-wv-tbl-hint {
+  font-size: var(--text-xs);
+  color: var(--t3);
+}
+
+/* Let a narrow viewport scroll the table instead of the page. */
+.anl-wv-scroll { overflow-x: auto; }
+.anl-wv-table { width: 100%; min-width: 760px; }
+
+/* Calmer density than the base 12/14, near-invisible hover for scanning. */
+.anl-wv-table tbody td {
+  padding: var(--sp-10) var(--sp-14);
+  border-bottom: 1px solid var(--line-2);
+}
+.anl-wv-table tbody tr:last-child td { border-bottom: none; }
+.anl-wv-table tbody tr:hover { background: var(--accent-tint); }
+
+/* Even, right-aligned numeric columns (pageviews + the five metrics). */
+.anl-wv-table th.num,
+.anl-wv-table td.num { width: 104px; white-space: nowrap; }
+
+/* Metric cell colour keyed to that cell's own rating (base td.num keeps it
+   mono + tabular). Slightly heavier so the colour reads as a signal. */
+.anl-wv-table td.anl-wv-cell {
+  font-weight: var(--fw-medium);
+  color: var(--t2);
+}
+.anl-wv-table td.anl-wv-cell.good  { color: var(--green); }
+.anl-wv-table td.anl-wv-cell.needs { color: var(--amber); }
+.anl-wv-table td.anl-wv-cell.poor  { color: var(--red); }
+
+/* Pageviews — quiet mono, it's context not a signal. */
+.anl-wv-table td.anl-wv-pv { color: var(--t2); }
+
+/* URL cell — a small LCP-rating dot ahead of the path (mono, truncating). */
+.anl-wv-path {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-10);
+  min-width: 0;
+  max-width: 100%;
+}
+.anl-wv-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.anl-wv-dot.good  { background: var(--green); }
+.anl-wv-dot.needs { background: var(--amber); }
+.anl-wv-dot.poor  { background: var(--red); }
+.anl-wv-path-t {
+  font-family: var(--mono);
+  font-size: var(--text-sm);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- narrower viewports: ease the KPI-column padding so 5 columns still fit
+   before the (rare) horizontal scroll kicks in --------------------------- */
+@media (max-width: 1080px) {
+  .anl-wv-stat { padding: 0 var(--sp-14); gap: var(--sp-10); }
+}
+
+
+/* ===== events (composition v2, appended) ===== */
+/* ============================================================================
+   events.css — Events (#7), the event & property LEXICON, composed VOLUME-FIRST.
+   Namespaced `.anl-ev-*`.
+
+   Hierarchy over components: a subject header names the catalogue and frames it
+   by its total captured volume (the "what"); the Events/Properties + Search
+   controls recede to the right (the "how"); the flat full-width grouped table is
+   the detailed data, with its 30-day VOLUME column set as the emphasis (heavy
+   mono + a quiet share beneath) and the sparkline as temporal behaviour. NO
+   cards, NO group boxes — type, hairlines and spacing do the work.
+
+   Light-mode only, square corners (pills/segments excepted), thin hairlines,
+   indigo accent. Every value routes through a design token; the only literal is
+   the shared flat-table hover wash `rgba(17,17,20,.022)`, matching the other
+   Analytics tables exactly (no token can carry a live alpha).
+   ========================================================================== */
+
+.anl-ev { min-width: 0; }
+
+/* ---- Subject header: SUBJECT (left, dominant) vs controls (right, recessive) */
+.anl-ev-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--sp-20);
+  flex-wrap: wrap;
+  margin: var(--sp-20) 0 var(--sp-16);
+}
+.anl-ev-subject { min-width: 0; }
+
+/* The catalogue name — the big display line (mirrors .anl-metric-t). */
+.anl-ev-h-t {
+  font-size: var(--text-2xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -.02em;
+  line-height: 1.15;
+  color: var(--text);
+}
+
+/* The one-line context, computed from the data. Tabular so figures sit still. */
+.anl-ev-h-sub {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: var(--sp-6);
+  font-size: var(--text-md);
+  color: var(--t2);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-snug);
+}
+.anl-ev-h-dot { color: var(--t4); margin: 0 var(--sp-4); }
+.anl-ev-h-n { font-weight: var(--fw-semibold); color: var(--text); }
+/* The total captured volume — the emphasized subject figure (like .anl-metric-big) */
+.anl-ev-h-vol { font-weight: var(--fw-semibold); color: var(--text); }
+/* Busiest item — a subtle inline accent link straight into its detail drawer. */
+.anl-ev-h-hi {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: var(--fw-semibold);
+  color: var(--accent);
+  cursor: pointer;
+}
+.anl-ev-h-hi:hover { text-decoration: underline; text-underline-offset: 2px; }
+.anl-ev-h-hin { color: var(--t3); font-variant-numeric: tabular-nums; }
+
+/* Controls recede: quiet segment + search, right-aligned, wrap under on narrow. */
+.anl-ev-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-10);
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .anl-ev-head { align-items: flex-start; }
+  .anl-ev-controls { width: 100%; }
+}
+
+/* Search-active hint — replaces the always-on count so the header stays calm. */
+.anl-ev-filternote {
+  margin: 0 0 var(--sp-6);
+  font-size: var(--text-sm);
+  color: var(--t3);
+  font-variant-numeric: tabular-nums;
+}
+.anl-ev-filternote b { font-weight: var(--fw-semibold); color: var(--t2); }
+
+/* ---- Detailed data: flat full-width grouped table (no card) ---------------- */
+.anl-ev-tbl { width: 100%; border-collapse: collapse; margin-top: var(--sp-4); }
+.anl-ev-tbl thead th {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--t3);
+  text-align: left;
+  padding: var(--sp-8) var(--sp-14);
+  border-bottom: 1px solid var(--line-strong);
+  white-space: nowrap;
+}
+.anl-ev-tbl thead th.num { text-align: right; }
+.anl-ev-th { display: inline-flex; align-items: center; gap: var(--sp-8); }
+.anl-ev-th svg { color: var(--t4); flex-shrink: 0; }
+
+.anl-ev-tbl tbody td { padding: var(--sp-8) var(--sp-14); border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.anl-ev-tbl tbody td.num { text-align: right; }
+.anl-ev-tbl tbody td.anl-ev-trend { vertical-align: middle; }
+.anl-ev-tbl tr.clickable { cursor: pointer; }
+.anl-ev-tbl tr.clickable:hover { background: rgba(17, 17, 20, .022); }
+
+/* Identifier cell — mono key over its friendly name; the key underlines on hover. */
+.anl-ev-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.anl-ev-key { font-family: var(--mono); font-size: var(--text-sm); color: var(--text); font-weight: var(--fw-medium); }
+.anl-ev-key.lg { font-size: var(--text-md); }
+.anl-ev-fn { font-size: var(--text-xs); color: var(--t3); }
+.anl-ev-tbl tr.clickable:hover .anl-ev-key { text-decoration: underline; text-decoration-color: var(--line-strong); text-underline-offset: 2px; }
+
+/* THE EMPHASIS — 30-day volume: heavy mono figure, darkest text, a hair larger
+   than the identifier, with its share of captured volume trailing quietly. */
+.anl-ev-vol { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+.anl-ev-vol-n {
+  font-family: var(--mono);
+  font-size: var(--text-md);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -.2px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.anl-ev-vol-share { font-family: var(--mono); font-size: var(--text-2xs); color: var(--t3); font-variant-numeric: tabular-nums; }
+
+/* Recessive metadata columns. */
+.anl-ev-sub { font-size: var(--text-xs); color: var(--t3); }
+
+/* Group divider rows — a quiet eyebrow, no box, no rule. */
+.anl-ev-grp td { padding: var(--sp-16) var(--sp-14) var(--sp-6) !important; border-bottom: none !important; }
+.anl-ev-grp-l { font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .5px; text-transform: uppercase; color: var(--t3); }
+.anl-ev-grp-h { font-size: var(--text-xs); color: var(--t4); margin-left: var(--sp-10); }
+
+/* Kind / type chips — weak-tint semantic pills (system=accent, interaction=blue,
+   conversion=green, error=red; property types a neutral chip). */
+.anl-ev-kind, .anl-ev-type {
+  display: inline-flex;
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  padding: var(--sp-2) var(--sp-8);
+  border-radius: var(--r-xs);
+}
+.anl-ev-type { background: var(--line); color: var(--t2); }
+.anl-ev-kind.k-system { background: var(--accent-weak); color: var(--accent); }
+.anl-ev-kind.k-interaction { background: var(--blue-weak); color: var(--blue); }
+.anl-ev-kind.k-conversion { background: var(--green-weak); color: var(--green); }
+.anl-ev-kind.k-error { background: var(--red-weak); color: var(--red); }
+
+/* Empty state (search miss) — flat, centred, no card. */
+.anl-ev-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-10); padding: var(--sp-56) 0; color: var(--t3); }
+.anl-ev-empty svg { color: var(--t4); }
+.anl-ev-empty p { font-size: var(--text-base); }
+/* Web Vitals empty state — a touch more presence than the shared Events empty:
+   the globe reads as the hero (its size is bumped in the JSX) with a slightly
+   stronger tint, and the headline line carries a medium weight + darker ink so
+   it anchors the empty canvas. Scoped so the Events explorer empty stays quiet. */
+.anl-wv-empty svg { color: var(--t3); }
+.anl-wv-empty p { font-weight: var(--fw-medium); color: var(--t2); }
+
+/* ---- Detail drawer: the property depth ------------------------------------ */
+.anl-ev-drawer { padding: var(--sp-16) var(--sp-20) var(--sp-24); }
+.anl-ev-dh { display: inline-flex; align-items: center; gap: var(--sp-10); }
+.anl-ev-dname { font-size: var(--text-md); font-weight: var(--fw-semibold); color: var(--text); }
+.anl-ev-ddesc { font-size: var(--text-base); color: var(--t2); line-height: var(--lh-body); margin-top: var(--sp-6); }
+.anl-ev-dstats { margin: var(--sp-16) 0; padding-bottom: var(--sp-16); border-bottom: 1px solid var(--line); }
+/* Volume delta — semantic (green rise / red drop), the interpretation line. */
+.anl-ev-ddelta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: var(--sp-6);
+  font-family: var(--mono);
+  font-size: var(--text-2xs);
+  font-weight: var(--fw-semibold);
+  font-variant-numeric: tabular-nums;
+}
+.anl-ev-ddelta.up { color: var(--green); }
+.anl-ev-ddelta.down { color: var(--red); }
+.anl-ev-dgrow { font-size: var(--text-2xs); color: var(--t3); margin-top: var(--sp-6); }
+.anl-ev-dspark { margin-bottom: var(--sp-8); }
+.anl-ev-dsec { font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .4px; text-transform: uppercase; color: var(--t3); margin: var(--sp-16) 0 var(--sp-10); }
+.anl-ev-prop { display: flex; align-items: baseline; gap: var(--sp-10); margin-bottom: var(--sp-10); }
+.anl-ev-pk { font-size: var(--text-sm); color: var(--t2); min-width: 104px; flex-shrink: 0; }
+.anl-ev-pvals { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.anl-ev-chip { font-size: var(--text-xs); color: var(--t2); background: var(--bg); border: 1px solid var(--line-2); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-8); }
+.anl-ev-val { display: flex; align-items: center; gap: var(--sp-10); margin-bottom: var(--sp-8); }
+.anl-ev-vl { font-size: var(--text-sm); color: var(--text); width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 0; }
+.anl-ev-vbar { flex: 1; height: 6px; background: var(--line-2); border-radius: var(--r-pill); overflow: hidden; }
+.anl-ev-vfill { display: block; height: 100%; background: var(--accent); border-radius: var(--r-pill); }
+.anl-ev-vp { font-size: var(--text-xs); color: var(--t3); width: 34px; text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ============================================================================
+   Polish pass — smaller subject titles + consistent control heights.
+   ========================================================================== */
+
+/* Subject titles: dialled back from 26px → 17px (restrained, still the subject
+   vs the ~12px controls). Applies to Trends/Web Vitals (.anl-metric-t),
+   Breakdowns (.anl-bd-h-t) and Events (.anl-ev-h-t). */
+.anl-metric-t, .anl-bd-h-t, .anl-ev-h-t {
+  font-size: var(--text-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -.01em;
+  line-height: var(--lh-tight, 1.25);
+}
+
+/* Consistent toolbar control heights (Seg / Select / Search / DatePicker all
+   34px, vertically centred) — kills the image5/6 height mismatch. */
+.anl-page .fbar, .anl-controls { align-items: center; }
+.anl-page .seg, .anl-controls .seg,
+.anl-page .sel-trigger, .anl-controls .sel-trigger,
+.anl-page .search,
+.anl-page .dp-trigger, .anl-controls .dp-trigger { height: 34px; box-sizing: border-box; }
+.anl-page .seg, .anl-controls .seg { padding: 3px; align-items: stretch; }
+.anl-page .seg button, .anl-controls .seg button { padding-top: 0; padding-bottom: 0; display: inline-flex; align-items: center; }
+.anl-page .sel-trigger, .anl-controls .sel-trigger,
+.anl-page .dp-trigger, .anl-controls .dp-trigger,
+.anl-page .search { padding-top: 0; padding-bottom: 0; align-items: center; }
+
+/* Events detail — the app's .crd investigation slide-over, right-sized for a
+   light event/property (the wide 880px crd is for crash forensics). */
+.anl-ev-crd { width: min(560px, 94vw); }
+
+/* The config rail is position:sticky (a stacking context) and precedes the
+   canvas in the DOM, so the inline filter popover was trapped *below* the chart
+   (which painted on top). Lift the rail's context above the canvas so the
+   popover — and only where it overflows — sits over the chart. */
+.anl-rail { z-index: 20; }
+
+/* ── Breakdowns: image-2 filled-bar rows + universal DimMark ──────────────── */
+.dim-mark { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; }
+.dim-mark.ico { border-radius: var(--r-2xs); object-fit: contain; }
+.dim-mark.flag { font-size: 15px; line-height: 1; }
+.dim-mark.glyph { color: var(--t3); }
+
+.anl-bd-rows { display: flex; flex-direction: column; gap: 2px; }
+.anl-bd-row {
+  position: relative; display: flex; align-items: center; gap: var(--sp-10);
+  height: 40px; padding: 0 var(--sp-12); border-radius: var(--r-sm);
+  background: none; border: none; width: 100%; text-align: left; cursor: pointer;
+  overflow: hidden; transition: background .12s ease;
+}
+.anl-bd-row .fill {
+  position: absolute; left: 0; top: 0; bottom: 0; z-index: 0; border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  transition: background .12s ease, width .3s cubic-bezier(0.23,1,0.32,1);
+}
+.anl-bd-row:hover .fill { background: color-mix(in srgb, var(--accent) 18%, transparent); }
+.anl-bd-row.sel .fill { background: color-mix(in srgb, var(--accent) 26%, transparent); }
+.anl-bd-rows.has-sel .anl-bd-row:not(.sel) { opacity: .6; }
+.anl-bd-row > *:not(.fill) { position: relative; z-index: 1; }
+.anl-bd-row .rk { width: 16px; font-size: var(--text-xs); color: var(--t4); text-align: right; font-feature-settings: "tnum"; }
+.anl-bd-row .nm { flex: 1 1 auto; min-width: 0; font-size: var(--text-sm); font-weight: var(--fw-medium); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.anl-bd-row .ct { font-size: var(--text-sm); font-weight: var(--fw-semibold); color: var(--text); font-feature-settings: "tnum"; }
+.anl-bd-row .dl { min-width: 48px; text-align: right; }

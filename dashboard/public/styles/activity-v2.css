@@ -1,0 +1,155 @@
+/* ============================================================================
+   activity-v2.css — the Overview Activity component only (av- namespace):
+   the trend-first area/line chart, the single Filter button and its analytics
+   popover. Everything else on the page keeps overview-v4.css untouched.
+   ========================================================================== */
+:root { --av-ease: cubic-bezier(0.23, 1, 0.32, 1); }
+
+/* ── tonal ramp (single hue — flat, enterprise) ─────────────────────────── */
+.av-t0 { background: color-mix(in srgb, var(--accent) 86%, #fff); }
+.av-t1 { background: color-mix(in srgb, var(--accent) 60%, #fff); }
+.av-t2 { background: color-mix(in srgb, var(--accent) 40%, #fff); }
+.av-t3 { background: color-mix(in srgb, var(--accent) 25%, #fff); }
+.av-t4 { background: color-mix(in srgb, var(--t3) 38%, #fff); }
+
+/* ── chart ──────────────────────────────────────────────────────────────── */
+.av-wrap { margin-top:var(--sp-2); }
+.av-toolbar { display: flex; align-items: center; gap:var(--sp-8); margin:var(--sp-2) 0 var(--sp-10); min-height: 36px; }
+.av-toolbar .sp { flex: 1; }
+.av-legend { display: flex; align-items: center; flex-wrap: wrap; gap:var(--sp-2); margin-left:-8px; }
+.av-leg { display: inline-flex; align-items: center; gap:var(--sp-6); font-size:var(--text-xs); font-weight:var(--fw-semibold); color: var(--t2); padding:var(--sp-4) var(--sp-8); border-radius:var(--r-sm); transition: background .12s var(--av-ease), color .12s var(--av-ease), opacity .12s var(--av-ease); }
+.av-leg:hover { background: var(--line-2); color: var(--text); }
+.av-leg .pc { color: var(--t4); font-weight:var(--fw-medium); font-size:var(--text-2xs); }
+/* .on = this platform is promoted to its own overlay line on the trend. */
+.av-leg.on { background: var(--line-2); color: var(--text); }
+.av-leg.on .av-dot { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 9%, transparent); }
+.av-dot { width: 7px; height: 7px; border-radius:var(--r-2xs); flex: none; }
+
+.av-plot { position: relative; margin-bottom:var(--sp-20); }
+.av-grid { position: absolute; left: 0; height: 1px; background: var(--line-2); pointer-events: none; }
+.av-grid.base { background: var(--line); }
+.av-gval { position: absolute; right: 0; width: 40px; text-align: left; font-size:var(--text-2xs); color: var(--t4); font-weight:var(--fw-medium); pointer-events: none; }
+/* ── the SVG trend plot ─────────────────────────────────────────────────────
+   The total is a monotone line over a restrained area fill; promoted bands are
+   thin overlay lines in the same tonal ramp; the compare window is a quiet
+   dashed line. The peak is ringed, the latest bucket ("now") is anchored, and
+   the crosshair rides above everything. pointer-events stay off so the .av-plot
+   wrapper owns the hover math. */
+.av-svg { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+.av-area { stroke: none; }
+.av-ln { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.av-ln.total { stroke: var(--accent); stroke-width: 1.85; }
+.av-ln.band { stroke-width: 1.5; }
+.av-ln.prev { stroke: var(--t3); stroke-width: 1.25; stroke-dasharray: 3 4; opacity: .62; }
+/* Band + crosshair-dot tones mirror the fill ramp (av-t0..4) so the legend dot,
+   tooltip swatch and overlay line all read as one identity. */
+.av-ln.s0, .av-hd.s0 { stroke: color-mix(in srgb, var(--accent) 86%, #fff); }
+.av-ln.s1, .av-hd.s1 { stroke: color-mix(in srgb, var(--accent) 60%, #fff); }
+.av-ln.s2, .av-hd.s2 { stroke: color-mix(in srgb, var(--accent) 40%, #fff); }
+.av-ln.s3, .av-hd.s3 { stroke: color-mix(in srgb, var(--accent) 25%, #fff); }
+.av-ln.s4, .av-hd.s4 { stroke: color-mix(in srgb, var(--t3) 46%, #fff); }
+.av-peak { fill: none; stroke: var(--accent); stroke-width: 1.5; opacity: .5; }
+.av-now { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+.av-cx { stroke: var(--line-strong); stroke-width: 1; stroke-dasharray: 2 3; }
+.av-hd { fill: var(--surface); stroke-width: 2; }
+.av-hd.total { stroke: var(--accent); }
+.av-empty { position: absolute; inset: 0 46px 0 0; display: grid; place-items: center; font-size:var(--text-sm); font-weight:var(--fw-medium); color: var(--t4); pointer-events: none; }
+.av-xlab { position: absolute; bottom: -19px; font-size:var(--text-2xs); color: var(--t4); font-weight:var(--fw-medium); white-space: nowrap; pointer-events: none; }
+
+.av-tip { position: absolute; transform: translate(-50%, -100%); min-width: 172px; max-width: 236px; background: var(--surface); border: 1px solid var(--line-strong); border-radius:var(--r-md); padding:var(--sp-8) var(--sp-10); box-shadow:var(--shadow-menu); z-index: 40; pointer-events: none; font-size:var(--text-xs); }
+.av-tip .d { font-weight:var(--fw-semibold); color: var(--text); margin-bottom:var(--sp-6); }
+.av-tip .r { display: flex; align-items: center; gap:var(--sp-8); padding:var(--sp-2) 0; color: var(--t2); }
+.av-tip .r.sum { border-top: 1px solid var(--line-2); margin-top:var(--sp-4); padding-top:var(--sp-6); }
+.av-tip .sw { width: 8px; height: 8px; border-radius:var(--r-2xs); flex: none; }
+.av-tip .sw.none { background: transparent; }
+.av-tip .k { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-tip .v { font-weight:var(--fw-semibold); color: var(--text); white-space: nowrap; }
+.av-tip .v.prev { color: var(--t2); font-weight:var(--fw-semibold); }
+.av-tip .v i { font-style: normal; font-size:var(--text-2xs); font-weight:var(--fw-semibold); color: var(--t4); margin-left:var(--sp-6); }
+.av-tip .v i.up { color: var(--green); }
+.av-tip .v i.down { color: var(--red); }
+/* Default sits ABOVE the point (translate -100%); .below flips it under a
+   point that's too high to clear the top edge. */
+.av-tip.below { transform: translate(-50%, 0); }
+
+.av-meta { display: flex; align-items: center; gap:var(--sp-8); font-size:var(--text-xs); color: var(--t3); margin-top:var(--sp-10); }
+.av-meta .sp { flex: 1; }
+.av-meta b { font-weight:var(--fw-semibold); color: var(--t2); }
+.av-delta { font-weight:var(--fw-semibold); }
+.av-delta.up { color: var(--green); }
+.av-delta.down { color: var(--red); }
+.av-who-sub { color: var(--t3); font-weight:var(--fw-medium); }
+
+/* ── 34px search fields (paired with the filter button) ─────────────────── */
+.search.av-tall { height: 34px; padding:0 var(--sp-12); border-radius:var(--r-md); }
+.fnx-search.av-tall-search { height: 34px; padding:0 var(--sp-12); border-radius:var(--r-md); }
+
+/* ── the Filter button ──────────────────────────────────────────────────── */
+.av-fwrap { position: relative; }
+.av-fbtn { display: inline-flex; align-items: center; gap:var(--sp-8); height: 34px; padding:0 var(--sp-14); font-size:var(--text-sm); font-weight:var(--fw-semibold); color: var(--t2); background: var(--surface); border: 1px solid var(--line); border-radius:var(--r-md); transition: color .12s var(--av-ease), background .12s var(--av-ease), border-color .12s var(--av-ease), box-shadow .12s var(--av-ease); }
+.av-fbtn:active { box-shadow: inset 0 1px 2px rgba(17,17,20,.05); }
+.av-fbtn:hover { color: var(--text); background: var(--line-2); border-color: var(--line-strong); }
+.av-fbtn.on { color: var(--text); border-color: color-mix(in srgb, var(--accent) 42%, var(--line)); }
+.av-fbtn .ct { min-width: 18px; height: 18px; padding:0 var(--sp-6); border-radius:var(--r-md); background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); font-size:var(--text-2xs); font-weight:var(--fw-semibold); display: inline-flex; align-items: center; justify-content: center; }
+
+/* ── the analytics popover ──────────────────────────────────────────────── */
+.av-pop { position: absolute; top: calc(100% + 7px); right: 0; z-index: 60; width: 320px; background: var(--surface); border: 1px solid var(--line-strong); border-radius:var(--r-lg); padding:var(--sp-6); box-shadow:var(--shadow-menu); transform-origin: top right; animation: avPop .14s var(--av-ease); overflow: hidden; }
+@keyframes avPop { from { opacity: 0; transform: scale(.97) translateY(-3px); } }
+.av-hl { position: absolute; left: 6px; right: 6px; top: 0; border-radius:var(--r-sm); background: var(--line-2); opacity: 0; pointer-events: none; transition: transform .16s var(--av-ease), height .16s var(--av-ease), opacity .12s var(--av-ease); }
+.av-hl.on { opacity: 1; }
+.av-pop-cap { font-size:var(--text-2xs); font-weight:var(--fw-semibold); letter-spacing: .08em; text-transform: uppercase; color: var(--t4); padding:var(--sp-8) var(--sp-10) var(--sp-6); }
+.av-pop-list { display: flex; flex-direction: column; max-height: 316px; overflow-y: auto; }
+
+.av-row { position: relative; z-index: 1; display: flex; align-items: center; gap:var(--sp-8); width: 100%; padding:var(--sp-8) var(--sp-10); border-radius:var(--r-sm); font-size:var(--text-sm); color: var(--text); text-align: left; }
+.av-row:focus-visible, .av-opt:focus-visible, .av-rule .body:focus-visible { outline: none; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent); }
+.av-row .l { font-weight:var(--fw-semibold); }
+.av-row .v { margin-left:auto; color: var(--t3); font-weight:var(--fw-medium); max-width: 148px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.av-pop-h { display: flex; align-items: center; gap:var(--sp-10); padding:var(--sp-4) var(--sp-4) var(--sp-8); border-bottom: 1px solid var(--line-2); margin-bottom:var(--sp-6); }
+.av-pop-h .t { font-size:var(--text-sm); font-weight:var(--fw-semibold); color: var(--text); }
+.av-back { width: 30px; height: 30px; margin-left:-2px; border-radius:var(--r-md); display: grid; place-items: center; color: var(--text); background: var(--line-2); transition: background .1s var(--av-ease), color .1s var(--av-ease), transform .1s var(--av-ease); }
+.av-back:hover { background: var(--line); color: var(--text); }
+.av-back:active { transform: scale(.96); }
+.av-clear { margin-left:auto; font-size:var(--text-xs); font-weight:var(--fw-semibold); color: var(--t3); padding:var(--sp-4) var(--sp-8); border-radius:var(--r-sm); transition: background .1s var(--av-ease), color .1s var(--av-ease); }
+.av-clear:hover { background: var(--line-2); color: var(--red); }
+
+.av-opt { position: relative; z-index: 1; display: flex; align-items: center; gap:var(--sp-8); width: 100%; padding:var(--sp-8) var(--sp-10); border-radius:var(--r-sm); font-size:var(--text-sm); color: var(--t2); text-align: left; transition: color .1s var(--av-ease); }
+.av-opt:hover { color: var(--text); }
+.av-opt.on { color: var(--text); font-weight:var(--fw-semibold); }
+.av-opt.on svg { color: var(--accent); }
+.av-opt.off { opacity: .38; cursor: default; }
+.av-opt.off:hover { color: var(--t2); }
+.av-opt .l { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-flag { width: 18px; text-align: center; font-size:var(--text-md); line-height:var(--lh-none); flex: none; }
+.av-opt .h { font-size:var(--text-2xs); color: var(--t4); font-weight:var(--fw-medium); white-space: nowrap; }
+.av-opt.add { color: var(--t2); font-weight:var(--fw-semibold); }
+
+.av-rule { display: flex; align-items: center; gap:var(--sp-2); }
+.av-rule { position: relative; z-index: 1; }
+.av-rule .body { flex: 1; min-width: 0; display: flex; align-items: center; gap:var(--sp-6); padding:var(--sp-8) var(--sp-8); border-radius:var(--r-sm); font-size:var(--text-sm); text-align: left; }
+.av-rule .d { font-weight:var(--fw-semibold); color: var(--text); }
+.av-rule .eq { font-size:var(--text-xs); color: var(--t4); }
+.av-rule .v { color: var(--accent); font-weight:var(--fw-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.av-rule .rm { width: 22px; height: 22px; border-radius:var(--r-sm); display: grid; place-items: center; color: var(--t4); flex: none; transition: background .1s var(--av-ease), color .1s var(--av-ease); }
+.av-rule .rm:hover { background: var(--line-2); color: var(--red); }
+.av-and { font-size:var(--text-2xs); color: var(--t4); padding:var(--sp-2) var(--sp-8) var(--sp-6); }
+
+.av-pop-f { display: flex; align-items: center; gap:var(--sp-8); padding:var(--sp-8) var(--sp-4) var(--sp-4); margin-top:var(--sp-4); border-top: 1px solid var(--line-2); }
+.av-pop-f .sp { flex: 1; }
+
+/* ── active metric tile: almost-invisible elevation ─────────────────────── */
+.ox-mults .ox-mult { transition: background .1s var(--av-ease), box-shadow .2s var(--av-ease); }
+.ox-mults .ox-mult.on { background: var(--surface); border-left-color: transparent; box-shadow: inset 0 0 0 1px var(--line), 0 1px 2px rgba(17, 17, 20, .025), 0 2px 6px rgba(17, 17, 20, .03); }
+/* The first tile's frozen padding-left is 2px (flush with the section's text
+   column). As an elevated card that reads broken — so the CARD bleeds 14px
+   into the gutter while the content column stays exactly where it was. */
+.ox-mults .ox-mult.on:first-child { margin-left:-14px; padding-left:var(--sp-16); }
+.ox-mults .ox-mult.on .v { margin-top:var(--sp-8); }
+.ox-mults .ox-mult.on .spark { margin-top:var(--sp-2); }
+.ox-mults .ox-mult.on + .ox-mult { border-left-color: transparent; }
+.ox-tr.flat { color: var(--t4); }
+
+@media (prefers-reduced-motion: reduce) {
+  .av-pop { animation: none; }
+  .av-leg, .av-fbtn, .av-row, .av-opt, .av-hl, .ox-mults .ox-mult { transition: none; }
+}

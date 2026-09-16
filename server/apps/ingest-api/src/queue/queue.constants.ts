@@ -1,0 +1,11 @@
+export const REPLAY_QUEUE = "replay-batch";
+export const REPLAY_JOB_PROCESS_BATCH = "process-batch";
+export const WORKSPACE_DELETE_QUEUE = "workspace-delete";
+export const WORKSPACE_DELETE_JOB = "process-workspace-delete";
+export const RETENTION_QUEUE = "retention";
+export const RETENTION_JOB_PURGE = "retention-purge"; // per workspace
+export const RETENTION_JOB_REFRESH_PLAYLISTS = "retention-refresh-playlists";
+export const RETENTION_JOB_REFRESH_COHORTS = "retention-refresh-cohorts";
+export const INTELLIGENCE_QUEUE = "intelligence";
+export const INTEL_JOB_DERIVE_SIGNALS = "derive-signals"; // per session batch
+export const INTEL_JOB_PRECOMPUTE_WORKSPACE = "precompute-workspace"; // per ws

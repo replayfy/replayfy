@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env / secrets
+.env
+.env.local
+.env.*.local
+
+# Local Claude / agent state — never push
+.claude/
+.cursor/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Prisma generated client (always re-generated from schema)
+packages/db-postgres/client/
+packages/db-mongo/client/
+
+# Temp
+*.tmp
+tmp/

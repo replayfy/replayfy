@@ -1,0 +1,21 @@
+-- Issue "sort by last seen" index.
+--
+-- WHAT
+--   · Issue_workspaceId_lastSeenAt_idx (btree, lastSeenAt DESC) — backs the
+--     Crashlytics list's freshest-first default (`WHERE workspaceId=? ORDER BY
+--     lastSeenAt DESC, id DESC`) across ALL statuses. The existing
+--     (workspaceId, rank) index can only serve the rank-ordered ALL-status scan;
+--     this mirrors it for the lastSeenAt ordering so the new sort is index-served
+--     rather than a per-workspace sort.
+--
+-- PROD DEPLOY NOTE (READ BEFORE `prisma migrate deploy`)
+--   Plain (transactional) CREATE INDEX — CONCURRENTLY cannot run inside Prisma's
+--   per-migration transaction. On a large prod Issue table, prefer to build it
+--   CONCURRENTLY out of band first, then mark this migration applied without
+--   re-running it:
+--     CREATE INDEX CONCURRENTLY IF NOT EXISTS "Issue_workspaceId_lastSeenAt_idx" ON "Issue" ("workspaceId", "lastSeenAt" DESC);
+--     yarn prisma migrate resolve --applied 20260813170000_add_issue_lastseen_index
+--   The IF NOT EXISTS below makes the migration a no-op if you already built it.
+--   (Issue is a small per-workspace aggregate, so the plain build is cheap here.)
+
+CREATE INDEX IF NOT EXISTS "Issue_workspaceId_lastSeenAt_idx" ON "Issue" ("workspaceId", "lastSeenAt" DESC);

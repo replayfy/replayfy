@@ -1,0 +1,56 @@
+/* ============================================================================
+   Type-system COMPARISON layer.
+   Activated only when .app carries data-type="rf" (dev "Typography" toggle).
+   Nothing here applies in the default "Current" state — it's an A/B overlay so
+   the typography lessons can be judged against the shipping design.
+
+   Translated from a modern type system (reference screenshots are dark theme;
+   here we apply the *principles* to our light theme):
+     1. Hierarchy is carried by a 3-tier text-color ramp, not by size/weight.
+     2. Medium (~510) is the default UI weight, not 400 — crisp, not bold.
+     3. Headings get tight negative tracking + tighter leading.
+     4. Primary text is a softened near-black, never pure #000/#111.
+     5. Inter character variants + tabular figures for the engineered look.
+   ========================================================================== */
+
+/* 1 · softened 3-tier text ramp (light-theme feel) ----------------- */
+.app[data-type="rf"] {
+  --text: #1c1d22;   /* primary — softened near-black, not #111114 */
+  --t2:   #6b6f76;   /* secondary — cool gray */
+  --t3:   #8a8f98;   /* tertiary — a muted gray */
+  --t4:   #b6bac1;   /* dim — labels, hints */
+}
+
+/* 2 · global feel: slight negative tracking + Inter character variants ----- */
+.app[data-type="rf"] {
+  letter-spacing: -0.006em;
+  font-feature-settings: "cv01" 1, "cv03" 1, "cv04" 1, "calt" 1;
+}
+
+/* 3 · medium is the default UI weight (nav, body chrome) ------------------- */
+.app[data-type="rf"] .nav a { font-weight:var(--fw-medium); }
+.app[data-type="rf"] .nav a.on { font-weight:var(--fw-semibold); }
+.app[data-type="rf"] .ws-name { font-weight:var(--fw-medium); }
+
+/* 4 · headings: tighter negative tracking + tighter leading, semibold ------ */
+.app[data-type="rf"] h1,
+.app[data-type="rf"] .head h1,
+.app[data-type="rf"] .head-l h1 {
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.022em;
+  line-height:var(--lh-flush);
+}
+.app[data-type="rf"] h2,
+.app[data-type="rf"] h3 {
+  font-weight:var(--fw-semibold);
+  letter-spacing: -0.016em;
+}
+
+/* 5 · eyebrow / section labels sit on the dimmest tier -------------------- */
+.app[data-type="rf"] .sub { color: var(--t2); }
+
+/* 6 · numbers: tabular lining figures for the precise, engineered rhythm --- */
+.app[data-type="rf"] .mono { font-feature-settings: "tnum" 1, "cv01" 1; }
+
+/* subtle transition so flipping the toggle animates rather than snaps ------ */
+.app { transition: color .2s var(--ease); }

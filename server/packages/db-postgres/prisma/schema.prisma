@@ -1,0 +1,2209 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../client"
+  // Local-dev uses native (host architecture). The Docker runtime
+  // image is debian:bookworm-slim — linux-arm64 on Apple Silicon
+  // hosts, linux-x64 on CI / cloud deploys. Both ship the
+  // OpenSSL-3 engine variants. Without these, the runtime image
+  // throws "Unable to require... could not locate Query Engine"
+  // at boot.
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+  // pg_trgm is declared below on the datasource; naming an extension requires
+  // this preview flag on 5.x. It changes no generated types — it only lets
+  // `db push` create the extension and emit the GIN trigram indexes.
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_POSTGRES")
+  // Trigram matching for the Recordings search's user autocomplete. A btree
+  // cannot answer an unanchored `email ILIKE '%mar%'` at all, so without this
+  // the suggest endpoint would sequential-scan EndUser on every keystroke.
+  // See the GIN indexes on EndUser.email / EndUser.name.
+  extensions = [pg_trgm]
+}
+
+// =========================================================================
+//  Users + workspaces
+// =========================================================================
+
+model User {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  name            String?
+  initials        String?
+  avatarUrl       String?
+  passwordHash    String?
+  emailVerifiedAt DateTime?
+  lastSeenAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  memberships    WorkspaceMember[]
+  apiKeysIssued  ApiKey[]            @relation("ApiKeyCreatedBy")
+  invitesSent    Invite[]            @relation("InviteSentBy")
+  playlists      Playlist[]
+  cohorts        Cohort[]
+  comments       Comment[]
+  notifications  Notification[]
+  verifications  EmailVerification[]
+  passwordResets PasswordReset[]
+  magicLinks     MagicLink[]
+  funnels        Funnel[]
+  askQueries     AskQuery[]
+}
+
+model EmailVerification {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  sentAt    DateTime  @default(now())
+  usedAt    DateTime?
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Password-reset token. Short-lived (10 min) — we don't want stale links
+/// floating around in inboxes. Same token-hash + usedAt pattern as
+/// EmailVerification.
+model PasswordReset {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  sentAt    DateTime  @default(now())
+  usedAt    DateTime?
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+/// Passwordless "email me a sign-in link" tokens. Same shape as PasswordReset:
+/// only the sha256 of the token is stored, it is single-use (usedAt) and
+/// short-lived (expiresAt), and consuming it mints a session directly.
+model MagicLink {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  tokenHash String    @unique
+  sentAt    DateTime  @default(now())
+  usedAt    DateTime?
+  expiresAt DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum WorkspaceRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum WorkspaceEnv {
+  PRODUCTION
+  STAGING
+  DEVELOPMENT
+}
+
+enum WorkspacePlan {
+  FREE
+  STARTER
+  GROWTH
+  SCALE
+  BUSINESS
+  ENTERPRISE
+  /// Legacy values kept so existing rows don't break; not offered on signup.
+  /// The one PRO demo workspace is migrated to STARTER below.
+  PRO
+  TEAM
+}
+
+/// Data-residency / deployment region for a workspace. Chosen once at onboarding
+/// and then PERMANENT (write-once, enforced in SettingsService.setRegion).
+enum DataRegion {
+  US
+  EU
+}
+
+model Workspace {
+  id              Int           @id @default(autoincrement())
+  slug            String        @unique
+  name            String
+  domain          String?
+  env             WorkspaceEnv  @default(PRODUCTION)
+  plan            WorkspacePlan @default(FREE)
+  /// Stripe linkage. Null until the workspace first subscribes. The webhook is
+  /// the source of truth for these — the app never sets a plan from a checkout
+  /// response, only from a verified Stripe event. Enterprise stays null (manual,
+  /// invoiced out of band, never touched by the Stripe paths).
+  stripeCustomerId     String?  @unique
+  stripeSubscriptionId String?
+  /// Mirrors the Stripe subscription status: active | trialing | past_due |
+  /// canceled | unpaid. Drives dunning (past_due → grace → downgrade to FREE).
+  stripeSubStatus      String?
+  /// The Stripe PRICE the subscription currently sits on.
+  ///
+  /// Stripe Prices are immutable, so changing a plan's price means creating a
+  /// NEW Price and repointing STRIPE_PRICE_<PLAN>. Without this column there is
+  /// no way to ask "who is still on the old one" short of reading every
+  /// subscription back from Stripe one at a time, so the price-migration sweep
+  /// would be an N-call scan. Stored from verified subscription events only.
+  stripePriceId        String?
+  /// What that Price actually charges, in cents. Kept alongside so a migration
+  /// can be logged as "$249 -> $199" and so the amount a customer is really on
+  /// is answerable without a Stripe round trip.
+  stripePriceAmountCents Int?
+  /// End of the paid period Stripe has invoiced through — for "renews on …".
+  currentPeriodEnd     DateTime?
+  /// Set when an auto-upgrade CHARGE failed: the workspace is past the ceiling
+  /// of the tier it paid for and the overage is unpaid. Capture is capped at
+  /// that paid ceiling — NOT dropped to Free, because the current tier is
+  /// already paid for and taking it away would be removing bought service.
+  /// Cleared on a successful upgrade/plan change; a new period clears itself,
+  /// since the cap only bites while usage is still over the ceiling.
+  overageBlockedAt     DateTime?
+  /// Period ("YYYY-MM") a usage alert was last sent for.
+  /// Dedupe: one alert per threshold per cycle, not one every time the scan runs.
+  usageWarnedPeriod    String?
+  /// Highest threshold (80 | 100) already alerted for usageWarnedPeriod. Lets
+  /// the 100% alert follow the 80% one in the SAME cycle without re-sending 80%.
+  /// Read as 0 whenever usageWarnedPeriod isn't the current period.
+  usageWarnedPct       Int?
+  /// Set when the customer has cancelled but the paid period hasn't run out.
+  /// Stripe keeps the subscription ACTIVE until currentPeriodEnd (so they keep
+  /// the plan they paid for, and recording is unaffected) and only fires
+  /// subscription.deleted at the end. Without this flag the UI can't tell the
+  /// difference and wrongly promises a renewal.
+  cancelAtPeriodEnd    Boolean  @default(false)
+  /// PURCHASED AI-credit balance — top-ups beyond the plan's monthly bundle.
+  /// Persistent across renewals (it's prepaid: renewal only refreshes the free
+  /// bundle, never this), decremented as consumption overflows the bundle,
+  /// incremented on a verified top-up webhook. Credits, not USD (100,000 = $1).
+  /// BigInt: a $500 top-up = 50M credits; int4 caps at 2.1e9.
+  aiPurchasedCredits   BigInt   @default(0)
+  swatch          String?
+  /// Data-residency / deployment region, chosen once during onboarding and then
+  /// PERMANENT (write-once). Single scalar keyed by the workspace PK (already
+  /// indexed) — always read/written by id, so no extra index is needed. NULL
+  /// until a region is chosen (set via PATCH /v1/settings/region or at create).
+  dataRegion      DataRegion?
+  retentionDays   Int           @default(30)
+  samplingRate    Float         @default(1)
+  samplingConfig  Json?
+  retentionConfig Json?
+  recordingConfig Json?
+  maskingConfig   Json?
+  /// AI intelligence layer on/off for the whole workspace (owner/admin). When
+  /// false, the Overview serves ONLY the deterministic/classic analytics — the
+  /// Experience-Health score, Storyline and Signals(insights) are withheld. The
+  /// deterministic score is still COMPUTED; it's just not served until AI is on.
+  aiEnabled       Boolean       @default(true)
+  /// Average order value in cents (workspace business setting). Powers the
+  /// Overview incident business-impact estimate (doc 09 §7). NULL → impact is
+  /// shown as affected-user reach instead of a fabricated dollar figure.
+  avgOrderValueCents Int?
+  allowedHosts    String[]      @default([])
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+
+  members       WorkspaceMember[]
+  apiKeys       ApiKey[]
+  invites       Invite[]
+  endUsers      EndUser[]
+  sessions      Session[]
+  playlists     Playlist[]
+  cohorts       Cohort[]
+  comments      Comment[]
+  notifications Notification[]
+  funnels       Funnel[]
+  stats         WorkspaceStats?
+  snapshot      WorkspaceSnapshot?
+  perfDaily     WorkspacePerfDaily[]
+  latencyDaily  WorkspaceLatencyDaily[]
+  conversionDaily WorkspaceConversionDaily[]
+  engagementDaily WorkspaceEngagementDaily[]
+  mobilePerfDaily WorkspaceMobilePerfDaily[]
+  insights        WorkspaceInsight[]
+  signals         Signal[]
+  incidents       Incident[]
+  signalDaily     WorkspaceSignalDaily[]
+  storylines      Storyline[]
+  journeyClusters JourneyCluster[]
+  issues           Issue[]
+  issueOccurrences IssueOccurrence[]
+  llmConfig       WorkspaceLlmConfig?
+  askQueries      AskQuery[]
+  aiUsage         AiUsageLedger[]
+  aiCreditPurchases AiCreditPurchase[]
+  billingLedger    SessionBillingLedger[]
+  billingUsage     WorkspaceBillingUsage[]
+  agentExecutions AgentExecution[]
+  agentConvos     AgentConversation[]
+  agentPending    AgentPendingAction[]
+  agentKnowledge  WorkspaceKnowledge[]
+  agentResultSets AgentResultSet[]
+  integrations    WorkspaceIntegration[]
+  alerts          Alert[]
+
+  /// Serves the price-migration sweep, whose filter is "has a live subscription
+  /// AND is not on the plan's current Price". The leading column eliminates
+  /// almost every row (most workspaces have no subscription at all), so the
+  /// sweep is an index range scan rather than a table scan.
+  @@index([stripeSubscriptionId, stripePriceId])
+}
+
+/// Outcome of an Ask Tempo question (doc 10 §4). REFUSED_* are the scope
+/// firewall doing its job; every refusal is recorded with why.
+enum AskOutcome {
+  ANSWERED
+  REFUSED_OFFTOPIC
+  REFUSED_INJECTION
+  RATE_LIMITED
+  BUDGET_EXCEEDED
+  UNAVAILABLE
+  ERROR
+}
+
+/// Audit + quality log for every Ask Tempo question — also the evidence the
+/// scope firewall works. One row per question, including refusals (with the
+/// classifier's category + confidence) and token spend.
+model AskQuery {
+  id             Int        @id @default(autoincrement())
+  workspaceId    Int
+  userId         Int
+  question       String
+  outcome        AskOutcome
+  /// Classifier confidence the question was in-scope, ×100 (null if not reached).
+  scopeScoreX100 Int?
+  category       String?
+  model          String?
+  tokensIn       Int        @default(0)
+  tokensOut      Int        @default(0)
+  createdAt      DateTime   @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Recent-questions list + abuse review per workspace.
+  @@index([workspaceId, createdAt(sort: Desc)])
+  /// Per-user rate-limit count over a short trailing window.
+  @@index([userId, createdAt(sort: Desc)])
+}
+
+/// LLM provider mode for a workspace (doc 10 §3). PLATFORM = our managed key
+/// (default; metered + budgeted). BYOK = the workspace's own key, encrypted at
+/// rest. DISABLED = template-only floor; causeText stays null, Ask Tempo hidden.
+enum LlmProviderMode {
+  DISABLED
+  PLATFORM
+  BYOK
+}
+
+/// Per-workspace LLM configuration (doc 10 §3). The BYOK key is encrypted at
+/// rest (AES-256-GCM) and never returned to the client — only apiKeyLast4 is.
+model WorkspaceLlmConfig {
+  workspaceId      Int             @id
+  mode             LlmProviderMode @default(PLATFORM)
+  provider         String          @default("anthropic")
+  /// AES-256-GCM ciphertext + iv + auth tag of the BYOK key. Decrypted only at
+  /// call time, in-process, never logged.
+  apiKeyCipher     Bytes?
+  apiKeyIv         Bytes?
+  apiKeyTag        Bytes?
+  apiKeyLast4      String?
+  /// Per-surface model overrides; null → the platform default constants.
+  guardModel       String?
+  causeModel       String?
+  askModel         String?
+  /// PLATFORM daily token ceiling; default 1,000,000. 0 = unlimited. Resets per UTC day.
+  dailyTokenBudget Int             @default(1000000)
+  tokensUsedToday  Int             @default(0)
+  budgetDay        DateTime?       @db.Date
+  updatedAt        DateTime        @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+}
+
+/// Daily web-vitals rollup per workspace.
+///
+/// Every time a Session's worstLcp/Cls/Fid is finalised (status flips to
+/// COMPLETED, or at ingest if the SDK sends a final batch), one row in
+/// this table for that workspace+day is incremented. The dashboard's
+/// Web Vitals KPI tile + Insights Slow Pages widget read from here
+/// instead of scanning Session.
+///
+/// Why this exists:
+///   - Even with our indexed `worstLcp` filter, computing median across
+///     30 days of 1M sessions/day = 30M rows scanned per dashboard load.
+///     At 10M sessions/day that's 300M rows — multiple seconds.
+///   - This table has at most 30 rows per workspace per 30-day window.
+///     Median across them is microseconds.
+///
+/// Stored: counts + sums + a sorted-array sample for true percentiles.
+/// The `lcpSamples` column is a length-capped Int[] (max 1000 entries
+/// per day per workspace). Sampled via reservoir sampling so the
+/// distribution stays representative even at high volume. Median /
+/// p75 / p90 are computed from this sample at read time (cheap; one
+/// sort over ≤1000 ints).
+///
+/// Maintained by the WorkspacePerfDailyService — bumped on every
+/// session-end via the ingest persistence path, with a nightly cron
+/// that recomputes any "drifted" rows from authoritative session data.
+model WorkspacePerfDaily {
+  workspaceId   Int
+  /// UTC day boundary. We key on this so timezone math stays consistent
+  /// regardless of where the dashboard query is hit from.
+  day           DateTime  @db.Date
+  sampleCount   Int       @default(0)
+  /// Sum of LCP values for the day. Lets us compute the daily mean
+  /// without storing every value. Median comes from `lcpSamples`.
+  lcpSum        BigInt    @default(0)
+  /// Worst LCP seen this day; useful as a "max paint" indicator.
+  lcpMax        Int       @default(0)
+  /// Sessions with LCP > 2500ms (web.dev "needs improvement").
+  slowCount     Int       @default(0)
+  /// Sessions with LCP > 4000ms (web.dev "poor").
+  poorCount     Int       @default(0)
+  /// Reservoir sample of LCP values (≤ 1000 per row). Median and p75
+  /// are computed by sorting this slice — O(1000 log 1000) per day.
+  lcpSamples    Int[]     @default([])
+  /// CLS aggregates — scaled ×1000 to fit in Int. p75 sample list.
+  clsP75X1000   Int       @default(0)
+  /// FID/INP aggregates.
+  fidP75        Int       @default(0)
+  longTaskSum   BigInt    @default(0)
+  updatedAt     DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, day])
+  @@index([workspaceId, day(sort: Desc)])
+}
+
+/// Per-workspace daily API-latency rollup (network events). Web-vitals live in
+/// WorkspacePerfDaily; this is the SERVER/API-latency half the Performance health
+/// subsystem needs — API p95 previously existed only as a live per-release scan
+/// (releaseLatency), which can't feed a daily health series. Materialized once a
+/// day from ClickHouse by WorkspaceLatencyDailyService (one grouped query/day over
+/// all workspaces), so the Overview never scans session_events at serve time.
+model WorkspaceLatencyDaily {
+  workspaceId Int
+  /// UTC day boundary (matches WorkspacePerfDaily/WorkspaceSignalDaily keying).
+  day         DateTime @db.Date
+  /// Network calls counted this day.
+  calls       Int      @default(0)
+  /// This day's p95 duration (ms). The window p95 is recombined from `samples`.
+  p95Ms       Int      @default(0)
+  avgMs       Int      @default(0)
+  maxMs       Int      @default(0)
+  /// Calls slower than the SLO threshold used at rollup time (default 1000ms).
+  slowCalls   Int      @default(0)
+  /// ≤1000-value reservoir of duration_ms so a 7d/30d window p95 can be computed
+  /// by unioning daily rows (mirrors WorkspacePerfDaily.lcpSamples).
+  samples     Int[]    @default([])
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, day])
+  /// Backs experienceHealth()'s API-latency subsystem: `WHERE workspaceId=? AND
+  /// day>=?` keyset-scans one workspace's recent daily rows — never a session scan.
+  @@index([workspaceId, day(sort: Desc)])
+}
+
+/// Daily semantic-signal rollup per workspace — the Overview Pulse + health
+/// cards read from here (doc 09 §5.3). Same shape + rationale as
+/// WorkspacePerfDaily: at most ~N rows per workspace per window, so the Pulse
+/// is two indexed point reads (today + yesterday) regardless of how many
+/// sessions/signals the workspace has.
+///
+/// Maintained two ways (like the perf rollup): an incremental bump on the
+/// finalize-derive path keeps *today* fresh, and a nightly reconcile recomputes
+/// recent days set-based from the authoritative Signal table (fixing any drift
+/// from missed bumps, retention-swept sessions, or re-derives). healthScore is
+/// the nightly-persisted snapshot; the read path recomputes it live from the
+/// counters so a freshly-bumped today is still correct.
+model WorkspaceSignalDaily {
+  workspaceId Int
+  day         DateTime @db.Date
+  /// Distinct sessions seen that day (the rate denominator).
+  sessions    Int      @default(0)
+  frustrated  Int      @default(0)
+  backendFail Int      @default(0)
+  slowApi     Int      @default(0)
+  formAbandon Int      @default(0)
+  navLoop     Int      @default(0)
+  crashes     Int      @default(0)
+  convSuccess Int      @default(0)
+  convFailure Int      @default(0)
+  /// 0–100 health (doc 09 §6.1), penalised by the weighted issue rates.
+  /// Nightly-persisted snapshot; the Pulse read recomputes from counters.
+  healthScore Int      @default(100)
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, day])
+  @@index([workspaceId, day(sort: Desc)])
+}
+
+/// Cached top-level counters per workspace.
+///
+/// The dashboard sidebar + topbar + /v1/dashboard/counts all need to
+/// answer "how many recordings / playlists / users / comments does this
+/// workspace have". The naive `db.session.count({ where: { workspaceId } })`
+/// is O(rows) and runs five times per dashboard poll — fine at 10k
+/// sessions, ruinous at 10M.
+///
+/// This row is the read-side cache. Maintained incrementally by the
+/// WorkspaceStatsService — every create/delete on the underlying
+/// tables bumps the relevant counter via `update({ data: { ...: { increment } } })`.
+/// Counters can drift if a write path forgets to call the service, so
+/// `/v1/dashboard/counts` keeps the live `.count()` as a fallback when
+/// `updatedAt` is older than 5 minutes (cron-style reconcile).
+model WorkspaceStats {
+  workspaceId      Int      @id
+  sessionsTotal    Int      @default(0)
+  playlistsTotal   Int      @default(0)
+  usersTotal       Int      @default(0)
+  cohortsTotal     Int      @default(0)
+  commentsTotal    Int      @default(0)
+  funnelsTotal     Int      @default(0)
+  /// Bumped when ingest writes the first batch (LIVE status), decremented
+  /// when the session finalises to COMPLETED. Cheap proxy for "live now"
+  /// when the live-presence gateway isn't reachable.
+  liveSessions     Int      @default(0)
+  /// Sum of Session.dataSizeBytes. Mirrors the storage telemetry on the
+  /// Retention page without scanning every session.
+  storageBytes     BigInt   @default(0)
+  updatedAt        DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Backs the hourly storage-threshold cron: it range-scans only workspaces
+  /// whose cached storageBytes is already near the smallest plan quota, so it
+  /// never fetches every workspace.
+  @@index([storageBytes])
+}
+
+/// Precompute cache + dirty watermark for a workspace's L1 payload (Overview +
+/// business-health metrics). The dirty-gated precompute writes `overview` /
+/// `metrics` here so the dashboard loads instantly. `lastActivityAt` is bumped
+/// at the signals finalize/backfill chokepoint (every re-derive); a workspace
+/// is DIRTY when `snapshotAt IS NULL OR lastActivityAt > snapshotAt`. This is
+/// race-safe: activity arriving mid-precompute bumps lastActivityAt past the
+/// snapshotAt we write, so it's simply recomputed next sweep. A workspace with
+/// no finalized sessions never gets a row, so it's never precomputed.
+model WorkspaceSnapshot {
+  workspaceId    Int       @id
+  /// Bumped at the finalize/backfill chokepoint for the workspace — the dirty
+  /// signal.
+  lastActivityAt DateTime  @default(now())
+  /// When `overview`/`metrics` were last computed. Null = never.
+  snapshotAt     DateTime?
+  /// Cached DashboardService.overview(default range) payload — served verbatim.
+  overview       Json?
+  /// Cached DashboardService.metrics(default range) payload.
+  metrics        Json?
+  /// AI-narrated storyline prose (cached). The numeric snapshot recomputes
+  /// every ~5 min (cheap, deterministic); the narrative is regenerated at most
+  /// hourly (LLM cost) — `narrativeAt` gates that.
+  narrative      String?
+  narrativeModel String?
+  narrativeAt    DateTime?
+  /// How often the LLM re-narrates the storyline, in hours (0 = off). Workspace-
+  /// configurable; default 12. The numbers still refresh ~5-min regardless.
+  /// LEGACY (kept one release for rollback) — superseded by intelIntervalHours.
+  storylineIntervalHours Int @default(12)
+
+  // ── AI intelligence layer (0c/2/3), number↔prose split ──────────────────────
+  /// NUMBER, sweep-owned: hash of the material facts; the intel trigger fires when
+  /// this diverges from aiVersion. Recomputed on the cheap 5-min sweep, NOT by the
+  /// LLM pass — so it always has a live producer.
+  factsFingerprint String?
+  /// PROSE, intel-owned (Phase 3): the AI workspace storyline + a DETERMINISTIC
+  /// confidence band + grounding citations. Regenerated only on a material change.
+  storylineText       String?
+  storylineConfidence Int?
+  storylineCitations  Json?
+  storylineModel      String?
+  storylineAt         DateTime?
+  /// PROSE, intel-owned: {stability,conversion,apiHealth,webVitals,engagement}
+  /// hover explanations for the health subscores.
+  healthExplanations  Json?
+  /// Intel-pass watermarks, deliberately distinct: aiPassAt = when the BACKGROUND
+  /// budget was last spent (only the SCHEDULED pass advances it, so a user-forced
+  /// "regenerate" cannot consume the next automatic pass); aiVersion = the
+  /// fingerprint the persisted prose consumed (== factsFingerprint when it is up
+  /// to date). A COMPLETE pass on either path advances aiVersion, so after a
+  /// manual regenerate the SCHEDULED sweep won't re-spend on the same facts.
+  aiPassAt   DateTime?
+  aiVersion  String?
+  /// How often the intel pass may run, hours (0 = off). Default 6. Renamed from
+  /// storylineIntervalHours (which is kept one release for rollback).
+  intelIntervalHours Int @default(6)
+  updatedAt      DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// The precompute sweep reads `WHERE snapshotAt IS NULL OR lastActivityAt >
+  /// snapshotAt` over this table, which holds ONE row per workspace-with-
+  /// sessions — bounded by workspace count, NOT session/event volume — so the
+  /// small scan is acceptable. snapshotAt is indexed for the staleness ordering
+  /// / hourly re-sweep.
+  @@index([snapshotAt])
+  /// The intel trigger's dedicated cron reads `WHERE factsFingerprint <> aiVersion
+  /// AND cadence...` — same one-row-per-workspace table, bounded by workspace count.
+  @@index([aiPassAt])
+}
+
+/// One AI-generated ranked insight (the dashboard's "All insights"/Signals list),
+/// one row per (workspace, source incident/issue). The number↔prose split lives
+/// here: PROSE (explanation/tags/action) is written by the intel pass (Phase 3);
+/// the NUMERIC columns (counts/rank/title) are COPIES refreshed by the cheap
+/// 5-min sweep from the live Incident/Issue row, so they stay ≤5-min fresh and
+/// agree with the lanes WITHOUT a serve-time join or N+1 (the R2 fix). A row is
+/// pruned when its source stops being material.
+model WorkspaceInsight {
+  id               Int      @id @default(autoincrement())
+  workspaceId      Int
+  /// Stable dedup/upsert key: "inc:<incidentId>" | "iss:<issueId>".
+  key              String
+  sourceKind       String
+  sourceIncidentId Int?
+  sourceIssueId    Int?
+  // ── intel-owned (Phase 3) ──
+  explanation      String
+  tags             String[] @default([])
+  actionKind       String
+  actionRef        String
+  actionHref       String
+  citations        Json
+  model            String
+  /// The factsFingerprint of the pass that produced this row (for atomic swap).
+  aiVersion        String
+  // ── sweep-refreshed NUMBERS (copied from the live source row) ──
+  title            String         @default("")
+  sessionCount     Int            @default(0)
+  userCount        Int            @default(0)
+  deltaPctX100     Int            @default(0)
+  impactCents      Int            @default(0)
+  /// Deterministic serving order (copied from the source's rank).
+  rank             Float          @default(0)
+  /// Deterministic confidence band (95/70/40), NOT AI-authored.
+  confidence       Int            @default(0)
+  polarity         SignalPolarity @default(NEGATIVE)
+  locusScreen      String?
+  locusElement     String?
+  generatedAt      DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key])
+  /// Flat "All insights" list serving order: WHERE workspaceId=? ORDER BY rank DESC.
+  @@index([workspaceId, rank(sort: Desc)])
+}
+
+/// Line-item ledger of every AI/LLM call — one row per completion, across ALL
+/// surfaces (ask, guard, cause, narrate, investigate, report, auto-actions) and
+/// ALL modes (platform + BYOK). Lets a workspace owner audit exactly what
+/// consumed tokens. Tokens are exact (from the provider's usage); `costMicroCents`
+/// is a best-effort estimate from env-configurable per-token rates. Written
+/// best-effort so an audit-log failure never breaks a completion.
+/// Append-only record of every money-affecting Stripe webhook — payments,
+/// refunds, chargebacks/disputes, subscription changes. The auditable financial
+/// history per workspace: an invoice dispute is settled from these rows rather
+/// than from memory, and Stripe's at-least-once delivery is de-duped by the
+/// unique stripeEventId, so a retried webhook records exactly once.
+model BillingEvent {
+  id             Int      @id @default(autoincrement())
+  /// null when the event could not be mapped to a workspace (still auditable
+  /// via stripeObjectId).
+  workspaceId    Int?
+  /// Our normalized kind: subscription_started | subscription_updated |
+  /// subscription_canceled | invoice_paid | payment_failed | refund |
+  /// chargeback_opened | chargeback_closed | other.
+  kind           String
+  /// Money moved, in the smallest currency unit (cents), SIGNED: a charge is
+  /// positive, a refund/chargeback negative. BigInt because money must never
+  /// silently overflow.
+  amount         BigInt   @default(0)
+  currency       String   @default("usd")
+  /// The raw Stripe event.type, verbatim, for audit.
+  stripeType     String
+  /// Idempotency key — Stripe delivers each event at least once.
+  stripeEventId  String   @unique
+  /// The Stripe object the event was about (invoice / charge / dispute / sub id).
+  stripeObjectId String?
+  /// Extra context (dispute reason, failure code, invoice number).
+  detail         Json?
+  createdAt      DateTime @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([kind, createdAt])
+  /// Serves refundDelta(): sums this charge's already-booked refund rows so a
+  /// re-fired charge.refunded books only its own delta, never the cumulative
+  /// total. Leading equality on kind, then the charge id.
+  @@index([kind, stripeObjectId])
+}
+
+model AiUsageLedger {
+  id             Int      @id @default(autoincrement())
+  workspaceId    Int
+  /// The user who triggered it, when attributable (Ask). Null for system/
+  /// background calls (narration, autonomous loop).
+  userId         Int?
+  /// What the tokens were spent on: ask | guard | cause | narrate | investigate
+  /// | report | auto_funnel | auto_cohort | …
+  surface        String
+  provider       String   @default("")
+  model          String
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  /// Best-effort cost in micro-cents (1e-6 cent), from env-configurable rates.
+  /// BigInt, not Int: int4 overflows at 2.147e9 µ¢ = $21.47, so a single
+  /// high-cost call (a long Opus turn) could not even be stored. Existing rows
+  /// widen cleanly.
+  costMicroCents BigInt   @default(0)
+  createdAt      DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Owner audit: `WHERE workspaceId=? AND createdAt >= ? ORDER BY createdAt
+  /// DESC` + per-surface/day aggregates — all served by this index.
+  @@index([workspaceId, createdAt])
+}
+
+/// Audit trail of AI-credit top-ups (money → credits). One row per successful
+/// Stripe payment; idempotent by stripeEventId so a redelivered webhook cannot
+/// double-credit. The running balance lives on Workspace.aiPurchasedCredits —
+/// this is the immutable history behind it. Access pattern: newest-first per
+/// workspace (the "Credit history" list), served by the index.
+model AiCreditPurchase {
+  id             Int      @id @default(autoincrement())
+  workspaceId    Int
+  /// Credits granted (100,000 = $1).
+  credits        BigInt
+  /// What we charged, in cents — for the audit.
+  amountCents    Int
+  currency       String   @default("usd")
+  /// Idempotency: the Stripe event that granted these credits.
+  stripeEventId  String   @unique
+  stripeObjectId String?
+  createdAt      DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt])
+}
+
+/// One row per BILLABLE session — the session survived the settle-time judge
+/// (long enough, or identified/errored/rage/crash) rather than being deleted as
+/// a short throwaway. Append-only and keyed by the session's PUBLIC id, not a FK
+/// to Session: the Session row is deleted by retention/purge, but the invoice
+/// must still be recomputable months later, so this row OUTLIVES it. Written
+/// once at settle; the unique on sessionPublicId makes a re-run a no-op.
+model SessionBillingLedger {
+  id              Int      @id @default(autoincrement())
+  workspaceId     Int
+  /// Session.publicId. Globally unique already, so this is the idempotency key —
+  /// a session is billed exactly once, ever.
+  sessionPublicId String   @unique
+  /// The billing period this session counts toward, "YYYY-MM" (UTC). Stamped at
+  /// settle so a late-settling session lands in the month it settled, and the
+  /// period can be summed without touching Session.
+  periodMonth     String
+  /// Audit only — why it was kept and what it was. Never re-read for the count.
+  platform        String?
+  durationMs      Int?
+  billedAt        DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// The invoice query: SUM/count WHERE workspaceId=? AND periodMonth=?.
+  @@index([workspaceId, periodMonth])
+}
+
+/// The cheap, rolled monthly session count — one row per workspace per month,
+/// incremented in the SAME write that inserts the ledger row. The ledger is the
+/// audit/recompute source (a growing table); this is the O(1) read the billing
+/// page and the free-tier cap check need on the hot path, so neither has to
+/// count(*) the ledger. Reconcilable from the ledger at any time.
+model WorkspaceBillingUsage {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  /// "YYYY-MM" (UTC).
+  periodMonth String
+  /// Billable sessions counted this period. Bumped +1 per new ledger row.
+  /// ONE number, whatever the session's source — SessionBillingLedger.platform
+  /// still records per-session platform, so the web/mobile cost mix stays
+  /// answerable internally without ever becoming a customer-facing meter.
+  sessions    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, periodMonth])
+  /// Serves the hourly usage-alert scan: `periodMonth = current AND id > cursor
+  /// ORDER BY id`. Leading equality on periodMonth then the primary key gives a
+  /// native ordered range scan, so keyset pagination needs no sort and each page
+  /// stops at its LIMIT. The unique key above CANNOT serve this — its leading
+  /// column is workspaceId, so a periodMonth predicate would fall back to a
+  /// sequential scan of every period ever recorded. (`sessions` is deliberately
+  /// NOT in the index: including it would order results by sessions and force a
+  /// sort to satisfy ORDER BY id, materialising every match before the LIMIT.)
+  @@index([periodMonth, id])
+}
+
+/// Durable audit trail for the agent's Execution Engine — ONE row per capability
+/// execution, written after enforcement (permission → workspace-scope → validate
+/// → executor). This is the "audit logging" step of the security pipeline: an
+/// owner can see exactly what the AI did in their workspace, whether each step
+/// was permitted, whether it wrote, and whether it succeeded. `input` is the AI's
+/// own action params (truncated) — never raw session data.
+model AgentExecution {
+  id             Int      @id @default(autoincrement())
+  workspaceId    Int
+  /// The user whose request drove this execution (WS + role injected server-side).
+  userId         Int
+  /// Conversation this step belonged to, for tracing a multi-turn investigation.
+  conversationId String?
+  /// Registered capability name (e.g. "funnel.create") + its skill grouping.
+  capability     String
+  skill          String
+  /// Passed the RBAC permission check (false → denied, executor never ran).
+  permitted      Boolean
+  /// Executor returned successfully (false → validation/executor error, see error).
+  ok             Boolean
+  /// Whether this capability mutates state (create-only writes).
+  writes         Boolean  @default(false)
+  durationMs     Int      @default(0)
+  error          String?
+  /// The AI's structured action params, truncated. NOT raw analytics/PII.
+  input          Json?
+  createdAt      DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Owner audit: `WHERE workspaceId=? ORDER BY createdAt DESC` — every AI action
+  /// in the workspace, newest first. Served entirely by this index.
+  @@index([workspaceId, createdAt(sort: Desc)])
+}
+
+/// How a saved result set is re-runnable.
+enum ResultSetKind {
+  QUERY // re-execute a stored SessionQueryFilter, paginated (preferred)
+  SNAPSHOT // a concrete list of session ids (when the set isn't a clean query)
+}
+
+/// A re-runnable reference to the session set behind an AI answer — powers
+/// "Show recordings (N)" WITHOUT re-running the AI or minting a playlist. For a
+/// QUERY we store just the filter and re-execute it paginated (fresh data, tiny
+/// row); for a SNAPSHOT we store the concrete ids. Workspace-scoped, short TTL
+/// (swept). One row per session.query result.
+model AgentResultSet {
+  id          String        @id @default(cuid())
+  workspaceId Int
+  kind        ResultSetKind
+  /// QUERY: the SessionQueryFilter to re-run. SNAPSHOT: null.
+  filter      Json?
+  /// SNAPSHOT: the concrete session ids. QUERY: null.
+  sessionIds  Json?
+  count       Int           @default(0)
+  createdAt   DateTime      @default(now())
+  expiresAt   DateTime
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// TTL sweep.
+  @@index([expiresAt])
+}
+
+/// Where a learned fact came from — drives how much the AI trusts it.
+enum KnowledgeSource {
+  USER_PROVIDED // the user told us (truth)
+  CONFIRMED // the AI inferred it and the user confirmed (truth)
+  INFERRED // the AI's unconfirmed guess (use only after confirming)
+}
+
+/// The AI's durable, per-workspace learned memory — the workspace's own
+/// "CLAUDE.md". Semantic mappings + preferences the AI accumulates so it never
+/// re-asks (e.g. payment_success_event = "purchase_completed", primary_metric =
+/// "D7 retention"). Injected into the planner/narrator context every turn.
+/// Workspace-scoped; stores mappings/preferences, NEVER secrets or PII. Distinct
+/// from the short-term AgentConversation memory (this outlives conversations).
+model WorkspaceKnowledge {
+  id          Int             @id @default(autoincrement())
+  workspaceId Int
+  /// Normalised fact key (lowercased slug), e.g. "payment_success_event".
+  key         String
+  value       String
+  source      KnowledgeSource @default(USER_PROVIDED)
+  /// 0–100. user-provided/confirmed = 100; inferred lower.
+  confidence  Int             @default(100)
+  /// Who taught it (null for system-inferred).
+  learnedById Int?
+  learnedAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// One canonical fact per key per workspace (upsert on write).
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
+}
+
+/// External services an agent capability can act on. Each is connected PER
+/// WORKSPACE via OAuth (never a shared API key), so different workspaces — even
+/// within one company — post to their OWN external account.
+enum IntegrationProvider {
+  LINEAR
+  GITHUB
+  SLACK
+  PAGERDUTY
+  WEBHOOK
+  JIRA
+  LARK
+  SENTRY
+}
+
+/// A workspace's OAuth connection to an external service (Linear today; Slack /
+/// GitHub / Jira later, same shape). Tokens are AES-256-GCM encrypted at rest
+/// (LLM_KMS_KEY, via llm-crypto) and decrypted only at call time. The access
+/// token is short-lived (Linear = 24h) so we keep the refresh token + expiry and
+/// refresh within a grace window before use. One connection per (workspace,
+/// provider); deleting the workspace cascades the connection away.
+model WorkspaceIntegration {
+  id              Int                 @id @default(autoincrement())
+  workspaceId     Int
+  provider        IntegrationProvider
+  /// AES-256-GCM blob (iv.tag.cipher hex). Never returned to a client.
+  accessTokenEnc  String
+  refreshTokenEnc String?
+  /// Access-token expiry; refreshed within a 30-min grace before use.
+  expiresAt       DateTime?
+  scope           String?
+  /// Default external target resolved on connect, per provider: Linear = team id,
+  /// GitHub = "owner/repo" full name, Slack = the chosen channel name (e.g.
+  /// "#alerts"). Where new issues/messages are created/posted by default.
+  externalTeamId  String?
+  /// The user who connected it (audit).
+  connectedById   Int
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// One connection per provider per workspace; also the connect/lookup key.
+  @@unique([workspaceId, provider])
+}
+
+/// Lifecycle of a confirmable agent action (update/delete/external).
+enum PendingActionStatus {
+  PENDING
+  EXECUTED
+  CANCELLED
+  EXPIRED
+}
+
+/// A confirmable agent action awaiting the user's approval. When the planner
+/// proposes an update/delete/external capability, the engine returns an
+/// execution PREVIEW instead of running it, and the agent parks the resolved
+/// call here. The user then confirms (or cancels) via POST /v1/agent/confirm,
+/// and only then does the executor run. This is what makes destructive/external
+/// actions safe: nothing mutates until an explicit, permission-checked confirm.
+/// The row is also the audit of INTENT (what the AI proposed), complementing
+/// AgentExecution (what actually ran).
+model AgentPendingAction {
+  id             String              @id @default(cuid())
+  workspaceId    Int
+  userId         Int
+  conversationId String?
+  capability     String
+  /// The resolved, validated input to run on confirmation (workspaceId stripped).
+  input          Json
+  /// The preview shown to the user (summary + resolved target + impact).
+  preview        Json
+  status         PendingActionStatus @default(PENDING)
+  createdAt      DateTime            @default(now())
+  expiresAt      DateTime
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Confirm lookup: `WHERE id=? AND workspaceId=? AND userId=?` — a user can
+  /// only confirm their OWN pending action in their OWN workspace.
+  @@index([workspaceId, userId, status])
+  /// Expiry sweep.
+  @@index([expiresAt])
+}
+
+/// Durable stateful-conversation memory for the agent — one row per
+/// (conversationId, workspace). Replaces the in-memory store so follow-up
+/// context ("...now create a cohort from those") survives an API restart and
+/// works across instances. Isolation is BY CONSTRUCTION: the composite id binds
+/// a conversation to ONE workspace, so a conversationId reused under a different
+/// workspace is a separate row and can never leak context across tenants.
+model AgentConversation {
+  conversationId String
+  workspaceId    Int
+  /// Recent turns [{question, answer, citations}], newest last; capped on write.
+  turns          Json
+  updatedAt      DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, workspaceId])
+  /// TTL cleanup sweep: `DELETE WHERE updatedAt < cutoff`.
+  @@index([updatedAt])
+}
+
+/// The daily-signal metric an Alert watches — each value maps 1:1 to a
+/// WorkspaceSignalDaily column, so an alert is grounded in the SAME
+/// deterministic counters the dashboard shows (never an invented metric).
+enum AlertMetric {
+  crashes
+  backendFail
+  slowApi
+  frustrated
+  formAbandon
+  navLoop
+  convFailure
+  convSuccess
+  healthScore
+}
+
+/// How the metric is compared to the threshold. ABOVE fires when value >
+/// threshold (e.g. crashes above 10); BELOW when value < threshold (e.g.
+/// healthScore below 70).
+enum AlertComparator {
+  ABOVE
+  BELOW
+  /// FUNNEL_CONVERSION only: fires when conversion DROPS by more than `threshold`
+  /// percentage points relative to the prior equal-length window
+  /// ((prior − current) / prior × 100 > threshold). ABOVE/BELOW compare the
+  /// current conversion % directly against the threshold.
+  DROP_PCT
+}
+
+/// A user-defined threshold alert on a workspace's daily signal metrics. The
+/// evaluator cron checks active alerts against TODAY's WorkspaceSignalDaily row
+/// and notifies workspace admins when the threshold is crossed. The AI can
+/// CREATE these (create-only); editing/deleting stays with the human via REST.
+/// What an alert watches.
+enum AlertKind {
+  METRIC // a daily-signal metric crossing a threshold
+  ISSUE_RECURRENCE // a specific Issue regressing (RESOLVED → seen again)
+  INCIDENT_RECURRENCE // a specific dashboard Incident/Signal active + freshly seen
+  FUNNEL_CONVERSION // a saved funnel's conversion crossing a threshold / dropping vs the prior window
+}
+
+model Alert {
+  id          Int             @id @default(autoincrement())
+  workspaceId Int
+  name        String
+  kind        AlertKind       @default(METRIC)
+  /// METRIC alerts: the metric/comparator/threshold. Null for ISSUE_RECURRENCE.
+  metric      AlertMetric?
+  comparator  AlertComparator?
+  threshold   Float?
+  /// ISSUE_RECURRENCE alerts: the watched Issue. Null for METRIC.
+  issueId     Int?
+  /// INCIDENT_RECURRENCE alerts: the watched Incident (a dashboard Signal is
+  /// backed by an Incident or an Issue). Bare Int, no FK — same pattern as
+  /// issueId; the evaluator JOINs and workspace-scopes it.
+  incidentId  Int?
+  /// FUNNEL_CONVERSION alerts: the watched saved Funnel. Bare Int, no FK — same
+  /// pattern as issueId/incidentId; the evaluator JOINs WorkspaceConversionDaily
+  /// and workspace-scopes it (if the funnel is deleted its rollup rows cascade
+  /// away, so the alert simply stops firing — like a deleted watched issue).
+  funnelId    Int?
+  /// null = overall funnel completion (v1). A set value is reserved for per-step
+  /// transitions (reached step k vs k-1) — needs a per-step daily rollup (v2).
+  stepIndex   Int?
+  /// Comparison window in days for the current-vs-prior conversion. Null falls
+  /// back to the funnel's own windowDays at eval time.
+  windowDays  Int?
+  /// Deliver by email in addition to the in-app bell (in-app is always on).
+  emailEnabled Boolean        @default(false)
+  /// Where to email — null falls back to the creator's account email. A custom
+  /// address is set by the human (REST); the AI only ever enables the account
+  /// email, never an address it guessed.
+  emailTo     String?
+  /// External channels to fan out to when this alert fires, beyond the in-app
+  /// bell + email. A JSON array naming WHICH connected providers to notify (+
+  /// optional per-alert overrides), e.g.
+  /// [{"provider":"PAGERDUTY","severity":"error"},{"provider":"WEBHOOK"},{"provider":"SLACK"}].
+  /// The connection secrets/URLs live in WorkspaceIntegration and are resolved at
+  /// dispatch time — this only stores the routing intent. Null/[] = bell+email.
+  destinations Json?
+  active      Boolean         @default(true)
+  /// Who created it (a user, or the AI acting on the user's behalf).
+  createdById Int
+  /// Last observed value + when it last fired — powers the cooldown so an alert
+  /// that stays breached doesn't re-notify every tick.
+  lastValue   Float?
+  lastFiredAt DateTime?
+  createdAt   DateTime        @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Evaluator scan: keyset-paginate active alerts (`WHERE active=true AND
+  /// id > cursor`) then INNER JOIN today's daily row — one set-based statement,
+  /// never a per-alert query.
+  @@index([active, id])
+  /// Per-workspace list read, newest first.
+  @@index([workspaceId, createdAt(sort: Desc)])
+}
+
+model WorkspaceMember {
+  id           Int           @id @default(autoincrement())
+  workspaceId  Int
+  userId       Int
+  role         WorkspaceRole @default(MEMBER)
+  createdAt    DateTime      @default(now())
+  lastActiveAt DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+model Invite {
+  id          Int           @id @default(autoincrement())
+  workspaceId Int
+  email       String
+  role        WorkspaceRole @default(MEMBER)
+  tokenHash   String        @unique
+  sentById    Int?
+  sentAt      DateTime      @default(now())
+  acceptedAt  DateTime?
+  expiredAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sentBy    User?     @relation("InviteSentBy", fields: [sentById], references: [id])
+
+  @@index([workspaceId])
+  @@index([email])
+}
+
+enum ApiKeyScope {
+  PUBLIC
+  SERVER
+  WEBHOOK
+}
+
+model ApiKey {
+  id          Int         @id @default(autoincrement())
+  workspaceId Int
+  name        String
+  scope       ApiKeyScope @default(PUBLIC)
+  prefix      String
+  keyHash     String      @unique
+  // Raw usable key, stored ONLY for scope=PUBLIC. A publishable (rpl_pk_) key
+  // ships in client app code anyway, so persisting it adds no marginal secrecy —
+  // it lets the dashboard Install page re-display the real, working key. SERVER
+  // and WEBHOOK keys leave this null and stay hash-only / shown-once at creation.
+  publicKey   String?
+  envs        String[]
+  createdById Int?
+  createdAt   DateTime    @default(now())
+  lastUsedAt  DateTime?
+  rotatedAt   DateTime?
+  revokedAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("ApiKeyCreatedBy", fields: [createdById], references: [id])
+
+  @@index([workspaceId])
+  @@index([prefix])
+}
+
+// =========================================================================
+//  End users (the people whose sessions are recorded)
+// =========================================================================
+
+model EndUser {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  distinctId  String
+  email       String?
+  name        String?
+  initials    String?
+  plan        String?
+  /// Avatar URL from identify() (`picture` / `avatar` trait, or nested in
+  /// customProps). A DISCRETE column, not a customProps key, because the
+  /// session→player endUser selects (SUMMARY_END_USER) deliberately exclude the
+  /// customProps blob for size + share-link safety — a narrow column lets the
+  /// recording-header avatar carry the picture without widening those hot reads.
+  /// Persistence URL-validates it (http/https only) before writing.
+  picture     String?
+  browser     String?
+  /// Browser major/full version (web UA parse). Powers the `browserVersion`
+  /// funnel filter + breakdown. Null for native sessions.
+  browserVersion String?
+  os          String?
+  /// OS version — web from UA, mobile from the SDK's userOSVersion at /start.
+  /// Powers the `osVersion` funnel filter + breakdown.
+  osVersion   String?
+  device      String?
+  city        String?
+  /// Geo region / state, derived from IP alongside city/country. Powers the
+  /// `userState` funnel + session filter.
+  state       String?
+  country     String?
+  flag        String?
+  viewport    String?
+  timezone    String?
+  ip          String?
+  customProps Json?
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+  isOnline    Boolean  @default(false)
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sessions      Session[]
+  cohortMembers CohortMember[]
+
+  @@unique([workspaceId, distinctId])
+  @@index([workspaceId, lastSeenAt])
+  @@index([workspaceId, isOnline])
+  // Back the Users-page server-side filters (EndUsersService.list): an equality
+  // predicate on country / os within a single workspace. Without these a
+  // country/platform filter would seq-scan the workspace's EndUsers; the
+  // low-cardinality value means Postgres bitmap-scans a small slice then sorts
+  // by lastSeenAt. plan already rides no dedicated index (small enum, rare
+  // filter); userType is an email IS [NOT] NULL check served within the scan.
+  @@index([workspaceId, country])
+  @@index([workspaceId, os])
+  // Backs the global presence-staleness sweep (RetentionService
+  // .sweepStalePresence): WHERE isOnline = true AND lastSeenAt < cutoff. The
+  // leading isOnline column keeps the scan on the small currently-online
+  // subset across all workspaces, then range-scans lastSeenAt within it.
+  @@index([isOnline, lastSeenAt])
+  // Backs the Recordings search's user autocomplete (SessionsService.suggest →
+  // suggestUsers): `WHERE workspaceId = ? AND (email ILIKE '%q%' OR name ILIKE
+  // '%q%') ORDER BY lastSeenAt DESC LIMIT n`, fired per keystroke.
+  //
+  // An unanchored ILIKE is unindexable by btree — trigrams are the only
+  // structure that answers it — so without these the query degrades to a seq
+  // scan of every EndUser in the workspace. Two single-column GIN indexes (not
+  // one composite) because the predicate is an OR: the planner bitmap-ORs them
+  // and can drop either side independently.
+  //
+  // Deliberately on EndUser and NOT on Session: EndUser is one row per person
+  // and is written on identify + presence, whereas Session is the hottest table
+  // in the system (every ingest batch) — a GIN index there would tax the write
+  // path this product is built around. Session-side text (start_url, browser,
+  // …) is autocompleted from ClickHouse instead, which needs no btree at all.
+  //
+  // pg_trgm cannot extract a trigram from 1–2 characters, so it cannot serve
+  // those queries; suggestUsers therefore does not filter below 3 chars and
+  // falls back to @@index([workspaceId, lastSeenAt]) above for the
+  // recently-active list. Both paths are index-backed.
+  //
+  // The Users LIST search (EndUsersService.buildWhere) ORs FOUR columns —
+  // email, name, city, distinctId. An OR whose branches aren't all indexable
+  // makes Postgres fall back to a single seq-scan of the workspace partition
+  // for the WHOLE predicate (it can only bitmap-OR index scans), so email+name
+  // trgm alone did NOT save the query once city/distinctId joined the OR. These
+  // two trgm GINs close that: every branch of the search OR is now an index
+  // scan, so a rare / no-match term is an index probe, not a per-workspace walk.
+  // EndUser is one row per person (written on identify + presence), so — unlike
+  // the hot Session table — it can carry these GINs without taxing ingest.
+  @@index([email(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([name(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([distinctId(ops: raw("gin_trgm_ops"))], type: Gin)
+  @@index([city(ops: raw("gin_trgm_ops"))], type: Gin)
+}
+
+// =========================================================================
+//  Sessions, segments, paths
+// =========================================================================
+
+enum SessionStatus {
+  LIVE
+  COMPLETED
+}
+
+model Session {
+  id               Int           @id @default(autoincrement())
+  publicId         String        @unique
+  workspaceId      Int
+  endUserId        Int?
+  /// Persistent install/device id (the SDK's anonymous id, sent at /start).
+  /// Stamped on every session — even anonymous ones — so a user's pre-identify
+  /// sessions can be linked to them when they later call identify().
+  anonymousId      String?
+  status           SessionStatus @default(LIVE)
+  startedAt        DateTime
+  endedAt          DateTime
+  durationMs       Int           @default(0)
+  pageCount        Int           @default(0)
+  clickCount       Int           @default(0)
+  rageCount        Int           @default(0)
+  deadCount        Int           @default(0)
+  errorCount       Int           @default(0)
+  /// Per-session experience score 0–100 (doc 09 §6.3), computed at finalize
+  /// from the session's own counters + its derived signals (crash, backend
+  /// failure, slow API). Powers the Overview "worst sessions" list + a future
+  /// low-score session filter. Defaults to 100 (perfect) until derived.
+  sessionScore     Int           @default(100)
+  /// Precomputed totals so the side-tab badges in the player + the
+  /// Recordings list cells can render correct numbers without firing
+  /// the corresponding panel fetch. Incremented per batch in the
+  /// ingest persistence path; never set by anything else.
+  consoleCount     Int           @default(0)
+  consoleErrorCount Int          @default(0)
+  networkCount     Int           @default(0)
+  /// Web-replay availability, set at ingest. `hasFullSnapshot` is true once ANY
+  /// batch carried a rrweb FULL snapshot (type 2) — the base the player needs to
+  /// render; without it a session has a duration but shows "no replay frames".
+  /// `frameCount` is the running count of rrweb DOM events (full + incremental).
+  /// Together they let the dashboard show an accurate "no replay" badge +
+  /// empty-state WITHOUT downloading the whole batch set.
+  hasFullSnapshot  Boolean       @default(false)
+  frameCount       Int           @default(0)
+  /// Cumulative JSON byte size of every batch we've persisted for this
+  /// session. Drives the workspace's storage-used calculation and the
+  /// "biggest recordings" insights tile.
+  dataSizeBytes    BigInt        @default(0)
+  startUrl         String?
+  entryReferrer    String?
+  /// Entry-URL UTM campaign params, parsed from the landing page's query
+  /// string at session start. Power the utmSource/utmMedium/utmCampaign
+  /// funnel + session filters. Null for sessions with no UTM tags.
+  utmSource        String?
+  utmMedium        String?
+  utmCampaign      String?
+  /// Web build/revision id the SDK was initialised with (ReplayConfig.revId).
+  /// Lets you scope a funnel to a specific deployed build. Mobile uses
+  /// appVersion/appBuild instead.
+  revId            String?
+  platform         String?
+  sdkName          String?
+  sdkVersion       String?
+  /// Host-app marketing version (Android versionName / iOS
+  /// CFBundleShortVersionString) shipped by the SDK from 0.0.2+.
+  /// Used by the dashboard symbolication endpoint to key
+  /// mapping.txt / .so debug lookups for crash + ANR stacks.
+  /// Nullable for backwards compatibility with older sessions.
+  appVersion       String?
+  /// Host-app build (Android versionCode / iOS CFBundleVersion).
+  /// Paired with appVersion to disambiguate hotfix builds with
+  /// the same marketing version.
+  appBuild         String?
+  userAgent        String?
+  viewport         String?
+  /// ---- Per-session device facts ----
+  /// The device THIS session actually ran on. EndUser carries the same fields,
+  /// but they're last-write-wins across every device the person uses: one human
+  /// on web + mobile leaves EndUser.device set to whichever app posted last, so
+  /// the user-level copy can answer neither "what did this session run on" nor
+  /// "every device this user has used". These are written once, from the
+  /// session's FIRST batch — a session never changes device — which makes the
+  /// distinct set of a user's devices a plain range-scan over their sessions.
+  /// Null on sessions ingested before this landed (backfillable from userAgent
+  /// for web / customProps.$device for mobile).
+  browser          String?
+  browserVersion   String?
+  os               String?
+  osVersion        String?
+  device           String?
+  /// Marketing model name when the platform reports one (mobile $device.model,
+  /// e.g. "iPhone 15"). Web UAs don't expose a model, so it stays null there.
+  deviceModel      String?
+  /// ---- Per-session geo ----
+  /// Where THIS session came from, resolved from its own IP at ingest. Carries
+  /// the same flaw the device fields did: EndUser's copies are overwritten by
+  /// whichever session posted last, so someone who travels — or flips to
+  /// cellular, or a VPN — had every past session silently re-labelled with
+  /// their newest location. Set once, from the first batch.
+  /// Unlike the device fields these are NOT backfillable for web history: we
+  /// never stored the session's own IP, so old web rows stay null and fall back
+  /// to the user row. Mobile history IS recoverable (customProps.$device).
+  /// Keeping `ip` here also shortens its life — it now expires with the session
+  /// under the workspace's retention, instead of living on EndUser forever.
+  city             String?
+  state            String?
+  country          String?
+  flag             String?
+  timezone         String?
+  ip               String?
+  /// SDK custom properties snapshotted onto THIS session (setSessionProperty /
+  /// identify traits beyond the promoted plan/email/name columns). Stored
+  /// per-session — not just on EndUser.customProps — because the EndUser blob
+  /// is last-write-wins across every session a returning user has, so two
+  /// sessions from the same user would otherwise show identical props. Merged
+  /// in via a set-based jsonb concat per batch (see common/session-props.ts).
+  customProps      Json?
+  bookmarked       Boolean       @default(false)
+  viewed           Boolean       @default(false)
+  commentCount     Int           @default(0)
+  /// Denormalised list of distinct custom-event names fired during the
+  /// session. Populated from `replay.track()` calls in the SDK. Drives
+  /// funnel "event" step matching without a Mongo round-trip per walk.
+  /// Stays empty for older sessions / SDK versions without track().
+  eventNames       String[]      @default([])
+  /// Web vitals + long-task aggregates denormalised from the SDK's
+  /// `type: "performance"` events. Updated on every batch so list
+  /// queries can filter / sort / aggregate without scanning Mongo.
+  /// All stored as ints — fractional CLS is scaled ×1000 (so 0.12 → 120).
+  /// Null = the SDK never emitted that metric for this session
+  /// (e.g. Firefox lacks LCP, server-rendered sessions never paint).
+  worstLcp           Int? // ms — largest value seen
+  worstClsX1000      Int? // CLS × 1000, integer for indexing (session-window aggregation)
+  worstFid           Int? // ms — DEPRECATED, kept for legacy sessions only. INP replaces it.
+  /// Interaction to Next Paint (ms). Replaced FID as a Core Web Vital
+  /// in March 2024 — measures the slowest interaction's
+  /// input-delay + processing + presentation. Lower is better.
+  worstInp           Int?
+  /// First Contentful Paint (ms). When the browser painted any
+  /// non-blank pixel for the first time. Comes from web-vitals.
+  worstFcp           Int?
+  /// Time to First Byte (ms). Navigation-side latency — server
+  /// response time + connection setup. Useful for diagnosing slow
+  /// LCP that's actually network-bound, not render-bound.
+  worstTtfb          Int?
+  longTaskCount      Int  @default(0)
+  longTaskTotalMs    Int  @default(0)
+  longTaskSlowestMs  Int  @default(0)
+  peakHeapBytes      BigInt @default(0)
+
+  /// ---- Native (iOS / Android / Flutter / RN) metrics ----
+  /// Mirrors the web vitals above. Each column is null for web
+  /// sessions and populated for native ones — the SDK platform
+  /// dictates which set fires. Naming convention: `worst*` for
+  /// max-of-session metrics, raw value for once-per-session.
+  /// Full per-metric definition + thresholds: replay-web-sdk
+  /// docs/mobile-vitals-matrix.md.
+  coldStartMs               Int?
+  firstMeaningfulRenderMs   Int?
+  worstTapResponseMs        Int?
+  firstNetworkTtfbMs        Int?
+  /// frame_drop_pct × 100 — integer for indexing (0.05 → 5)
+  worstFrameDropPct         Int?
+  frozenFrameCount          Int  @default(0)
+  /// Android-only — iOS has no ANR concept.
+  anrCount                  Int  @default(0)
+  worstMemoryRssMb          Int?
+  /// 0=nominal, 1=fair, 2=serious, 3=critical (iOS); Android 0-5
+  /// mapped into the same range by the SDK before sending.
+  worstThermalState         Int?
+  /// battery_drain_pct_per_min × 100 — integer for indexing
+  batteryDrainPctPerMin     Int?
+
+  /// Counters for the new native event types — lets Recordings list
+  /// + Dashboard tiles render "23 taps · 5 snapshots" without
+  /// scanning Mongo. Bumped during ingest persistence.
+  tapCount                  Int  @default(0)
+  nativeSnapshotCount       Int  @default(0)
+
+  /// Set by the per-minute retention sweep when a COMPLETED session is
+  /// shorter than the workspace's `minDurationSeconds` recording setting AND
+  /// anonymous (no endUserId — identified sessions always record, matching the
+  /// web SDK's alwaysRecordIdentified). Hidden from the Recordings list +
+  /// dashboard counts but never deleted; the sweep clears it again if the
+  /// session later gets identified, grows past the threshold, or the setting
+  /// is lowered to 0.
+  excludedShort             Boolean  @default(false)
+
+  /// Set by the retention sweep when a session's WATCHABLE replay (Mongo rrweb
+  /// blobs + R2 frames) has been pruned because it aged past the workspace's
+  /// (plan-clamped) replay-retention window. The Session row and ALL of its
+  /// ClickHouse analytics (funnels, retention, DAU/MAU, session counts) are
+  /// KEPT — only the replay is gone, so aggregate analytics stay accurate
+  /// indefinitely. `hasReplay` becomes false once this is set (it is
+  /// `hasFullSnapshot AND replayPrunedAt IS NULL`). NULL = replay still
+  /// available, or the session never had one.
+  replayPrunedAt   DateTime?
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  /// When the session processor last derived signals/issues/cards for this
+  /// session. NULL = never. The mobile-quiet sweep processes a session once
+  /// `processedAt < endedAt` (never processed, or re-finalized after a resume).
+  processedAt      DateTime?
+
+  workspace           Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  endUser             EndUser?          @relation(fields: [endUserId], references: [id])
+  segments            SessionSegment[]
+  paths               SessionPath[]
+  tags                SessionTag[]
+  comments            Comment[]
+  playlistMemberships PlaylistSession[]
+  shares              SessionShare[]
+  signals             Signal[]
+  issueOccurrences    IssueOccurrence[]
+
+  @@index([workspaceId, startedAt(sort: Desc)])
+  /// Backs the retention sweep's "find sessions whose replay has not been
+  /// pruned yet and started before the cutoff": WHERE workspaceId=? AND
+  /// replayPrunedAt IS NULL AND startedAt < cutoff. The nullable middle column
+  /// lets the btree serve the IS NULL equality before the startedAt range, so
+  /// the sweep visits only not-yet-pruned rows — not every aged session on
+  /// every hourly run — keeping it O(to-prune), not O(all-history).
+  @@index([workspaceId, replayPrunedAt, startedAt])
+  /// Backs the Recordings list's default (recent) ordering + keyset pagination:
+  /// `WHERE workspaceId=? AND id < cursor ORDER BY id DESC`. Without it the
+  /// planner can't serve the workspace-scoped id-desc walk and falls back to
+  /// scanning all non-excluded rows across every workspace + sorting — O(table)
+  /// per page. With it, each page is an index range-scan bounded to one
+  /// workspace; residual filters (excludedShort, the playable web/mobile
+  /// predicate) apply during the scan and it stops after one page.
+  @@index([workspaceId, id(sort: Desc)])
+  /// Backs the Recordings list "longest first" sort (sort=duration):
+  /// `WHERE workspaceId=? ORDER BY durationMs DESC` (keyset-paged). Without it
+  /// that sort is a parallel seq-scan + top-N heapsort over the whole workspace
+  /// (~280ms at 500k sessions); with it, an index range-scan bounded to one
+  /// workspace that stops after one page (~7ms). Verified under load-test seed.
+  @@index([workspaceId, durationMs(sort: Desc)])
+  /// NOTE: the hasErrors/hasRage/hasDead list filters (`errorCount > 0` etc.)
+  /// need PARTIAL indexes Prisma cannot express — a bound-param `> $n` can't use
+  /// a normal composite (the generic plan mis-estimates selectivity and abort-
+  /// early-scans the id index; ~200ms at 500k when few rows match). Apply as raw
+  /// SQL and preserve across `db push` (db push drops non-schema indexes):
+  ///   CREATE INDEX "Session_ws_id_hasErrors_idx" ON "Session"("workspaceId","id" DESC) WHERE "errorCount">0;
+  ///   CREATE INDEX "Session_ws_id_hasRage_idx"   ON "Session"("workspaceId","id" DESC) WHERE "rageCount">0;
+  ///   CREATE INDEX "Session_ws_id_hasDead_idx"   ON "Session"("workspaceId","id" DESC) WHERE "deadCount">0;
+  @@index([workspaceId, status])
+  /// Backs every per-user device read: the user's last-seen device and the
+  /// distinct set of devices they've used, both of which range-scan ONE user's
+  /// sessions newest-first (`WHERE endUserId=? ORDER BY startedAt DESC`).
+  /// Leading endUserId pins each scan to that user and the trailing startedAt
+  /// serves the ordering, so neither sorts nor scans the table. Also serves the
+  /// existing endUserId-equality lookups via its leftmost prefix, which is why
+  /// it replaces the plain @@index([endUserId]) rather than sitting beside it —
+  /// a redundant index only costs writes.
+  @@index([endUserId, startedAt(sort: Desc)])
+  /// Backs the cohort behavioral resolve (CohortsService.compileWhere): the
+  /// set-based `WHERE workspaceId=? GROUP BY endUserId HAVING count(*) <op> N`
+  /// that materializes `sessions_count ≥ N`-style cohorts. Ordered on
+  /// (workspaceId, endUserId) so Postgres streams a grouped index scan instead
+  /// of hash-aggregating a full workspace-session scan.
+  @@index([workspaceId, endUserId])
+  // Backs linkEndUser's retroactive claim of a user's earlier anonymous
+  // sessions on identify: WHERE workspaceId = ? AND anonymousId = ? AND
+  // endUserId IS NULL — one set-based UPDATE over an indexed range.
+  @@index([workspaceId, anonymousId])
+  /// Backs the /v1/dashboard/counts "last event" read:
+  /// `WHERE workspaceId=? ORDER BY endedAt DESC LIMIT 1`. This runs on EVERY
+  /// dashboard poll (~15-30s per open tab) and is NOT served by the cached
+  /// counter row, so it was the one uncacheable query on that path — and with
+  /// no endedAt index Postgres had to sort the workspace's whole session set to
+  /// return a single row, which is what made /counts the measured scaling wall
+  /// (29 req/s, p95 9.6s at 1k concurrent). Descending so the LIMIT 1 is the
+  /// index's first entry: a single-row index scan, flat as sessions grow.
+  @@index([workspaceId, endedAt(sort: Desc)])
+  @@index([workspaceId, bookmarked])
+  /// Backs the Overview "worst sessions" list + future low-score filter:
+  /// `WHERE workspaceId=? ORDER BY sessionScore ASC` (keyset-paged), served
+  /// entirely by this index — no scan.
+  @@index([workspaceId, sessionScore])
+  /// Composite index that supports "slow LCP sessions for this workspace
+  /// in this time range" without a full scan. The worstLcp filter is the
+  /// most expensive perf query (Insights → Slow pages + Recordings → has
+  /// slow LCP filter), so we pay the index cost once here.
+  @@index([workspaceId, worstLcp])
+  /// Backs the per-minute min-duration sweep: it range-scans recently-ended,
+  /// not-yet-hidden sessions (`excludedShort=false` + `endedAt > now()-10min`)
+  /// so the set-based flag UPDATE never touches the whole table.
+  @@index([excludedShort, endedAt])
+  /// Backs the mobile-quiet processing sweep: it range-scans COMPLETED sessions
+  /// whose `endedAt` fell into the [now-24h, now-30min] quiet window, so the
+  /// scan rides this index instead of the whole table.
+  @@index([status, endedAt])
+  /// Backs behavioral-event cohorts ("users who fired event X"): the cohort
+  /// compiler emits `sessions: { some: { eventNames: { has: ? } } }`, i.e.
+  /// Postgres `eventNames @> ARRAY[?]`. This GIN index (array_ops) serves the
+  /// containment probe directly — without it every AUTO-cohort refresh and
+  /// real-time membership check sequential-scans Session. Added in the same
+  /// change as the query that relies on it.
+  @@index([eventNames(ops: ArrayOps)], type: Gin)
+  /// Backs the daily MOBILE-perf rollup: `WHERE platform IN (ios,android,…) AND
+  /// startedAt >= ?` — platform-leading so the reconcile scans only mobile rows
+  /// in the day window, never the whole (web-heavy) Session table. Added with the
+  /// WorkspaceMobilePerfDailyService query that relies on it.
+  @@index([platform, startedAt(sort: Desc)])
+}
+
+// =========================================================================
+//  Semantic signals (Overview dashboard spine — the internal design notes). A Signal is one typed observation
+//  on one session; the nightly clusterer (Slice 1) promotes correlated
+//  signals into Incidents.
+// =========================================================================
+
+/// Whether a signal reflects something going wrong (NEGATIVE → Problems lane)
+/// or a positive product moment worth chasing (POSITIVE → Opportunities lane).
+enum SignalPolarity {
+  POSITIVE
+  NEGATIVE
+}
+
+/// One typed observation on one session, derived at session finalize (and a
+/// nightly backfill safety net) from the session's own counters + a bounded
+/// read of its ClickHouse events. Derivation is idempotent per session
+/// (delete-then-insert scoped to the session), so re-running never duplicates.
+model Signal {
+  id          Int            @id @default(autoincrement())
+  workspaceId Int
+  sessionId   Int
+  /// Signal vocabulary: user_frustrated | backend_failure | slow_api |
+  /// crash_detected | form_abandonment | navigation_loop |
+  /// conversion_success | conversion_failure. Stored as a string (not an enum)
+  /// so the vocabulary can grow without a schema migration.
+  type        String
+  polarity    SignalPolarity
+  /// Canonical locus — a route/screen for UX signals, an endpoint path for
+  /// network signals. Null for whole-session signals. This is the correlation
+  /// key the Slice-1 clusterer groups on alongside `type`.
+  screen      String?
+  /// The specific UI element the signal is attributed to (e.g. "password
+  /// field") when known — lets incidents read "rage clicks on the password
+  /// field" instead of "frustration across the app". Null when not element-level.
+  element     String?
+  /// Severity contribution (occurrence count for now; per-type multipliers live
+  /// in the Slice-1 ranking, not here).
+  weight      Int            @default(1)
+  occurredAt  DateTime
+  /// Set by the Slice-1 clusterer when this signal is folded into an incident.
+  /// Kept as a plain nullable column in Slice 0 — the FK relation to Incident
+  /// is added in Slice 1 when that model lands.
+  incidentId  Int?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  incident  Incident? @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+
+  /// Backs the Slice-1 clusterer's grouping scan:
+  /// `WHERE workspaceId=? AND type=? AND screen=? AND occurredAt >= ?`. Leading
+  /// workspaceId keeps every scan tenant-local; the trailing occurredAt lets a
+  /// day-window range-scan ride the same index.
+  @@index([workspaceId, type, screen, occurredAt])
+  /// Pull an incident's member signals (evidence) without a scan, AND resolve
+  /// incident → its attributed session id set INDEX-ONLY (the Recordings
+  /// `?incident=` scope, common/incident-scope.ts).
+  ///
+  /// All three columns are here on purpose. `incidentId` is the lookup key;
+  /// `workspaceId` is in the index rather than left as a heap residual because
+  /// the resolve MUST filter on it for tenant safety, and an incident holding
+  /// 50k signals over 4k sessions would otherwise pay 50k heap fetches just to
+  /// evaluate it — DISTINCT + LIMIT cannot save that, since the Unique node has
+  /// to drain every entry to find the distinct values. `sessionId` trails so the
+  /// resolve is answered from the index alone, never touching the table.
+  ///
+  /// Strictly supersedes the former `@@index([incidentId])`, which is a prefix
+  /// of this one — carrying both would cost writes on a hot table for nothing.
+  @@index([incidentId, workspaceId, sessionId])
+  /// Idempotent re-derive (`DELETE WHERE sessionId = ?`) + signals-for-session
+  /// evidence in the player.
+  @@index([sessionId])
+}
+
+/// Lifecycle of an incident. OPEN = active; ACK = a human has seen it; RESOLVED
+/// = auto-resolved after the no-recurrence window (or closed by hand). Part of
+/// the upsert unique key so a recurrence after resolve opens a fresh incident.
+enum IncidentStatus {
+  OPEN
+  ACK
+  RESOLVED
+}
+
+/// A correlated pattern across many signals — the canonical object the Overview
+/// ranks (doc 09 §4). Produced by the nightly clusterer as a single set-based
+/// INSERT…SELECT…ON CONFLICT off the Signal table, so it scales without a
+/// per-incident query loop.
+model Incident {
+  id           Int            @id @default(autoincrement())
+  workspaceId  Int
+  /// Template-generated, human-readable (e.g. "Backend failures on /api/checkout").
+  title        String
+  /// Dominant signal type driving the incident — half of the correlation key.
+  signalType   String
+  /// NEGATIVE → Problems lane, POSITIVE → Opportunities lane.
+  polarity     SignalPolarity
+  /// Locus — endpoint path / route, or "" for an app-wide (session-level)
+  /// incident. NON-NULL by design: it's part of the upsert unique key, and
+  /// Postgres treats NULLs as distinct (which would defeat dedup), so the
+  /// clusterer normalises a missing screen to "".
+  screen       String         @default("")
+  /// Specific UI element (e.g. "password field"), "" when not element-level.
+  /// Part of the dedup key so element-level incidents stay distinct.
+  element      String         @default("")
+  status       IncidentStatus @default(OPEN)
+  /// Precomputed ordering score (doc 09 §6.2: severity × reach × surprise ×
+  /// recency). The lanes are a pure `ORDER BY rank DESC`.
+  rank         Float          @default(0)
+  sessionCount Int            @default(0)
+  userCount    Int            @default(0)
+  /// Change in session volume vs the prior comparable window, ×100 (e.g. +37% →
+  /// 3700). Drives the "+37%" pill and the ranking surprise term.
+  deltaPctX100 Int            @default(0)
+  /// Business-impact estimate (Slice 5). 0 until computed / when AOV is unset.
+  impactCents  Int            @default(0)
+  firstSeenAt  DateTime
+  lastSeenAt   DateTime
+  resolvedAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  signals   Signal[]
+  storyline Storyline?
+
+  /// The two lane queries: `WHERE workspaceId=? AND status=? AND polarity=?
+  /// ORDER BY rank DESC LIMIT n`. Fully index-served, no scan, no sort step.
+  @@index([workspaceId, status, polarity, rank(sort: Desc)])
+  /// Idempotent clusterer upsert key — re-runs UPDATE the live incident rather
+  /// than spawning duplicates; a recurrence after RESOLVED opens a fresh row
+  /// because status is part of the key. Includes `element` so element-level
+  /// incidents (rage on the password field vs the email field) stay distinct.
+  @@unique([workspaceId, signalType, screen, element, status])
+}
+
+/// The human sentence behind an incident (doc 09 §8). Two halves kept strictly
+/// separate: deterministic, template-generated `factsText` (always present,
+/// always true) and an optional `causeText` LLM hypothesis (null unless a model
+/// ran — Slice 7). factsText is regenerated set-based each clusterer pass from
+/// the incident's current stats; causeText is preserved across regenerations.
+model Storyline {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  incidentId  Int      @unique
+  day         DateTime @db.Date
+  /// Storyline facts. The templated SQL generator was REMOVED (owner: storyline
+  /// must be AI-generated, never templated) — nullable so the AI cause writer can
+  /// create a row on its own, and pending the AI intelligence pass repopulating it.
+  factsText   String?
+  /// Optional model-written "likely cause". NULL until Slice 7 wires an LLM.
+  causeText   String?
+  causeModel  String?
+  /// The AI INVESTIGATION REPORT (incident-report.service.ts) — the structured
+  /// successor to `causeText`: summary, root cause, cited evidence, confidence,
+  /// deployment correlation, recommended fix, risks, next step, code areas.
+  ///
+  /// Json rather than columns because the shape is a RENDERING contract that
+  /// omits what the server could not ground — half its keys are absent on any
+  /// given incident, and modelling "absent" across ten nullable columns buys
+  /// nothing a client can use. Cached because the panel refetches on every card
+  /// open and each report costs two reasoning calls; only medium+ confidence
+  /// reports are stored, so a thin one is shown once and never pinned.
+  reportJson  Json?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  incident  Incident  @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  /// "Storyline of the day" lookups + future per-day storyline lists.
+  @@index([workspaceId, day])
+}
+
+/// Daily journey cluster (doc 09 §9 / 10 Slice 4). Sessions grouped by their
+/// normalized screen-sequence; records how often each journey "fails" (the
+/// session carried any negative signal). Powers the Overview "top failed
+/// journeys" health widget. Built nightly set-based from SessionPath + Signal;
+/// idempotent on (workspace, day, pathKey).
+model JourneyCluster {
+  id               Int      @id @default(autoincrement())
+  workspaceId      Int
+  day              DateTime @db.Date
+  /// md5 of the normalized screen sequence — stable, fixed-length cluster id
+  /// (the readable sequence can exceed a btree key's size).
+  pathKey          String
+  /// Human, capped screen sequence, e.g. "/home → /cart → /checkout".
+  label            String
+  sessionCount     Int      @default(0)
+  failCount        Int      @default(0)
+  /// failCount / sessionCount × 100, precomputed so the widget is a pure
+  /// ORDER BY.
+  failRate         Int      @default(0)
+  /// Sessions on this journey that ended in a conversion, + the rate ×100.
+  /// Powers the "top successful journeys" widget.
+  successCount     Int      @default(0)
+  successRate      Int      @default(0)
+  /// A representative session (prefers a failed one) to open from the widget.
+  exampleSessionId Int?
+  /// A representative successful session to open from the success widget.
+  exampleSuccessSessionId Int?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// "Top failed journeys": `WHERE workspaceId=? AND day=? ORDER BY failRate DESC`.
+  @@index([workspaceId, day, failRate(sort: Desc)])
+  /// "Top successful journeys".
+  @@index([workspaceId, day, successRate(sort: Desc)])
+  /// Idempotent nightly upsert.
+  @@unique([workspaceId, day, pathKey])
+}
+
+/// Lifecycle of an Issue (Sentry-style). OPEN = active; RESOLVED = marked
+/// fixed; IGNORED = muted; REGRESSED = a new occurrence arrived AFTER the
+/// issue was RESOLVED (auto-reopened, so the dashboard can say "regressed in
+/// 1.6.2"). Matches Sentry's identity model: the SAME issue persists across
+/// releases — a recurrence after resolve regresses it rather than spawning a
+/// new issue.
+enum IssueStatus {
+  OPEN
+  RESOLVED
+  IGNORED
+  REGRESSED
+}
+
+/// A group of identical errors/crashes across many sessions — the Sentry-
+/// style "Issue" ("NullPointerException at Cart.checkout · 142× · 96 users").
+/// Cross-session aggregate keyed by a stable fingerprint (platform + error
+/// type + top stack frame; message-fallback when there's no stack). Produced
+/// SET-BASED from IssueOccurrence (INSERT…SELECT…ON CONFLICT), so it scales
+/// without a per-issue query loop — the same shape as Incident off Signal.
+model Issue {
+  id              Int         @id @default(autoincrement())
+  workspaceId     Int
+  /// Stable group key = hash(platform, isCrash, errorType, culprit-or-
+  /// normalizedMessage). Unique per workspace.
+  fingerprint     String
+  /// true = fatal crash (mobile crash / fatal), false = handled/JS error.
+  isCrash         Boolean     @default(false)
+  /// Category the Crashlytics UI filters + badges on: "crash" | "exception" |
+  /// "error" (and "anr" for a UI-freeze issue). Finer than isCrash, which stays
+  /// the crash/non-crash split used for ranking and the daily chart.
+  errorClass      String      @default("error")
+  /// true = a BEHAVIORAL issue (no thrown error) grouped from signals —
+  /// dead-clicks / abandonment / backend-failure by (type, screen, element).
+  /// "100 users can't upload profile picture" = 1 behavioral Issue. Its
+  /// fingerprint is namespaced "beh:…" so it never collides with a crash/error.
+  behavioral      Boolean     @default(false)
+  /// Error class/type — "TypeError", "NullPointerException", "EXC_BAD_ACCESS".
+  errorType       String
+  /// Human title, e.g. "TypeError: undefined is not a function".
+  title           String
+  /// Representative message (the most-recent occurrence's message).
+  message         String
+  /// Top in-app stack frame — "checkout.ts in submitOrder" / "Cart.checkout".
+  /// Empty when the error had no usable stack (message-only grouping).
+  culprit         String      @default("")
+  /// Platform the issue occurs on (web/ios/android/…). Part of the key so a
+  /// web TypeError and an Android crash never collapse together.
+  platform        String      @default("")
+  status          IssueStatus @default(OPEN)
+  /// Precomputed ranking score (reach × severity × recency) so the list is a
+  /// pure ORDER BY — no per-request sort over occurrences.
+  rank            Float       @default(0)
+  occurrenceCount Int         @default(0)
+  sessionCount    Int         @default(0)
+  userCount       Int         @default(0)
+  /// Release first / most-recently seen in — powers "first seen in 1.4.0" and
+  /// "regressed in 1.6.2" labels.
+  firstRelease    String      @default("")
+  lastRelease     String      @default("")
+  firstSeenAt     DateTime
+  lastSeenAt      DateTime
+  resolvedAt      DateTime?
+  /// A representative session to open a recording from (the most recent).
+  /// Plain columns (no FK) — mirrors JourneyCluster.exampleSessionId.
+  lastSessionId   Int?
+  lastPublicId    String?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// The Issues list: `WHERE workspaceId=? AND status=? ORDER BY rank DESC`
+  /// (+ a lastSeenAt-ordered variant) — fully index-served, no scan/sort.
+  @@index([workspaceId, status, rank(sort: Desc)])
+  @@index([workspaceId, status, lastSeenAt(sort: Desc)])
+  /// The Crashlytics page pages ALL statuses in one keyset scan
+  /// (`WHERE workspaceId=? ORDER BY rank DESC, id DESC`, status shown as a
+  /// badge, not filtered) — the status-first index above can't serve a
+  /// rank-ordered scan when status isn't pinned, so this one backs it. The
+  /// optional errorClass (category tab) is a residual filter over a workspace's
+  /// small, bounded active-issue aggregate, not a table scan.
+  @@index([workspaceId, rank(sort: Desc)])
+  /// Same ALL-status keyset scan, ordered by lastSeenAt DESC — backs the
+  /// Crashlytics "sort by last seen" (freshest-first) default, which the
+  /// (workspaceId, rank) index above can't serve. Mirrors it for lastSeenAt.
+  @@index([workspaceId, lastSeenAt(sort: Desc)])
+  /// Idempotent set-based rebuild key: one row per fingerprint per workspace,
+  /// re-aggregated in place.
+  @@unique([workspaceId, fingerprint])
+}
+
+/// One error/crash grouped occurrence within ONE session — the per-session
+/// derived fact (like Signal) that Issues aggregate from. Derivation is
+/// idempotent per session (delete-then-insert scoped to sessionId), so
+/// re-processing a session never double-counts. `count` holds repeats of the
+/// same fingerprint inside that one session.
+model IssueOccurrence {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  sessionId   Int
+  /// Denormalised for the set-based rebuild's DISTINCT-user count. Null for
+  /// anonymous sessions (excluded from userCount).
+  endUserId   Int?
+  fingerprint String
+  isCrash     Boolean  @default(false)
+  /// Fine-grained category the Crashlytics UI filters/badges on: "crash" (fatal
+  /// — crash/signal/uncaught/promise), "exception" (handled captureException),
+  /// "error" (plain non-fatal error). isCrash stays the crash/non-crash split.
+  errorClass  String   @default("error")
+  errorType   String
+  message     String
+  culprit     String   @default("")
+  platform    String   @default("")
+  /// Route/URL where it fired — kept for display, NOT part of the fingerprint
+  /// (a crash groups the same regardless of screen).
+  screen      String   @default("")
+  release     String   @default("")
+  /// Repeats of this fingerprint within this one session.
+  count       Int      @default(1)
+  occurredAt  DateTime
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  /// Idempotent re-derive: `DELETE WHERE sessionId = ?`.
+  @@index([sessionId])
+  /// Backs the set-based Issue rebuild grouping scan:
+  /// `WHERE workspaceId=? [AND occurredAt >= ?] GROUP BY fingerprint`.
+  @@index([workspaceId, fingerprint])
+  /// Backs the Crashlytics metric-row sparkline/delta: a BOUNDED time-range
+  /// group-by (`WHERE workspaceId=? AND occurredAt >= now()-28d GROUP BY
+  /// date_trunc('day',occurredAt), errorClass`). The (workspaceId, occurredAt)
+  /// prefix makes it an index range-scan over just the recent slice — never a
+  /// full-table scan — so it stays cheap as occurrences grow to millions.
+  @@index([workspaceId, occurredAt])
+  /// One occurrence row per fingerprint per session (count holds repeats).
+  @@unique([sessionId, fingerprint])
+}
+
+/// Public, tokenised share-link for a single session. Lets a teammate (or
+/// customer) view the recording without an account. `panels` controls which
+/// side-panels the embedded viewer is allowed to render.
+model SessionShare {
+  id            Int       @id @default(autoincrement())
+  sessionId     Int
+  workspaceId   Int
+  token         String    @unique
+  panels        Json // { events, console, network, perf, comments }
+  createdById   Int?
+  createdAt     DateTime  @default(now())
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  /// First time the share link was opened by anyone. We use the presence
+  /// of this to decide whether to fire the "your shared recording was
+  /// viewed" notification — fires once per share, not per view, so the
+  /// owner doesn't get spammed if the recipient refreshes the page.
+  firstViewedAt DateTime?
+  viewCount     Int       @default(0)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@index([workspaceId])
+}
+
+model SessionSegment {
+  id              Int      @id @default(autoincrement())
+  sessionId       Int
+  segmentPublicId String
+  sequence        Int
+  eventCount      Int
+  startedAt       DateTime
+  endedAt         DateTime
+  mongoBatchId    String?
+  createdAt       DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, sequence])
+  @@index([sessionId])
+}
+
+model SessionPath {
+  id        Int    @id @default(autoincrement())
+  sessionId Int
+  sequence  Int
+  url       String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, sequence])
+}
+
+model SessionTag {
+  id        Int    @id @default(autoincrement())
+  sessionId Int
+  key       String
+  value     String
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId, key])
+}
+
+// =========================================================================
+//  Playlists, cohorts
+// =========================================================================
+
+enum PlaylistKind {
+  AUTO
+  MANUAL
+}
+
+model Playlist {
+  id          Int          @id @default(autoincrement())
+  workspaceId Int
+  ownerId     Int?
+  title       String
+  description String?
+  pinned      Boolean      @default(false)
+  kind        PlaylistKind @default(MANUAL)
+  filter      Json?
+  itemCount   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  workspace Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     User?             @relation(fields: [ownerId], references: [id])
+  sessions  PlaylistSession[]
+
+  @@index([workspaceId])
+}
+
+model PlaylistSession {
+  id         Int      @id @default(autoincrement())
+  playlistId Int
+  sessionId  Int
+  addedAt    DateTime @default(now())
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  session  Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, sessionId])
+  @@index([playlistId])
+}
+
+enum CohortKind {
+  AUTO
+  MANUAL
+}
+
+model Cohort {
+  id             Int        @id @default(autoincrement())
+  workspaceId    Int
+  ownerId        Int?
+  name           String
+  description    String?
+  kind           CohortKind @default(MANUAL)
+  filter         Json?
+  membersCount   Int        @default(0)
+  lastComputedAt DateTime?
+  /// True when the assistant created this cohort (agent capability), so the UI
+  /// can badge it "Created with Replayfy AI". Provenance flag only — never gates
+  /// behaviour. Defaults false so every existing/user-made cohort is unbadged.
+  createdByAi    Boolean    @default(false)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     User?          @relation(fields: [ownerId], references: [id])
+  members   CohortMember[]
+
+  @@index([workspaceId])
+}
+
+model CohortMember {
+  id        Int      @id @default(autoincrement())
+  cohortId  Int
+  endUserId Int
+  addedAt   DateTime @default(now())
+
+  cohort  Cohort  @relation(fields: [cohortId], references: [id], onDelete: Cascade)
+  endUser EndUser @relation(fields: [endUserId], references: [id], onDelete: Cascade)
+
+  @@unique([cohortId, endUserId])
+  @@index([cohortId])
+  @@index([endUserId])
+}
+
+// =========================================================================
+//  Comments, notifications
+// =========================================================================
+
+model Comment {
+  id          Int       @id @default(autoincrement())
+  workspaceId Int
+  sessionId   Int
+  authorId    Int?
+  body        String
+  atMs        Int
+  parentId    Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  session   Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  author    User?     @relation(fields: [authorId], references: [id])
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   Comment[] @relation("CommentReplies")
+
+  @@index([sessionId, atMs])
+  @@index([workspaceId, createdAt(sort: Desc)])
+}
+
+/// Funnel — ordered series of URL steps the analyst expects users to
+/// progress through. Each step is JSON: { name, matchType: "contains" |
+/// "equals" | "regex" | "startsWith", value: string }. The compute
+/// endpoint walks each session's recorded `paths` and counts how many
+/// hit step N in order.
+model Funnel {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  ownerId     Int?
+  name        String
+  description String?
+  /// `[{ name, matchType, value }, …]` — order matters.
+  steps       Json
+  /// The segment the funnel is scoped to (country/device/plan/user-attrs/…),
+  /// the SAME shape the compute endpoints already accept as `filter`. Nullable:
+  /// a funnel with no segment stores null and is computed unfiltered. Stored
+  /// WITH the steps because a filter and a step are the same kind of thing — a
+  /// predicate over a session — and a saved funnel that dropped its filter
+  /// silently returned different numbers than the one you built.
+  filter      Json?
+  /// Default window for compute when caller doesn't override (days).
+  windowDays  Int      @default(7)
+  pinned      Boolean  @default(false)
+  /// True when the assistant created this funnel (agent capability), so the UI
+  /// can badge it "Created with Replayfy AI". Provenance flag only — never gates
+  /// behaviour. Defaults false so every existing/user-made funnel is unbadged.
+  createdByAi Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     User?     @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  conversionDaily WorkspaceConversionDaily[]
+
+  @@index([workspaceId, pinned])
+  @@index([workspaceId, updatedAt(sort: Desc)])
+}
+
+/// Per-workspace, per-saved-funnel DAILY conversion series — the REAL conversion
+/// signal for the Conversion health subsystem (replaces the old signal proxy
+/// convSuccess/convFailure/formAbandon). Materialized from the windowFunnel
+/// timeline; the Overview reads a daily rate instead of recomputing a funnel at
+/// serve time. Keyed by funnel so a workspace with several funnels keeps them
+/// distinct (0b picks the workspace's primary/pinned funnel).
+model WorkspaceConversionDaily {
+  workspaceId Int
+  funnelId    Int
+  /// UTC day boundary (matches the other daily rollups).
+  day         DateTime @db.Date
+  /// Sessions that entered the funnel (fired step 1) this day.
+  entered     Int      @default(0)
+  /// Sessions that completed the final step this day.
+  converted   Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  funnel    Funnel    @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, funnelId, day])
+  /// Backs experienceHealth()'s Conversion subsystem: `WHERE workspaceId=? AND
+  /// day>=?` keyset-scans one workspace's recent conversion days — never a scan.
+  @@index([workspaceId, day(sort: Desc)])
+}
+
+/// Per-workspace DAILY engagement rollup — persisted DAU + trailing-30d MAU (for
+/// stickiness) + sessions + new users, so experienceHealth()'s Engagement
+/// subsystem reads a real daily series instead of the live OverviewUserMetrics
+/// prior-window approximation. v1 ships DAU/MAU stickiness; true D1/D7/D30 cohort
+/// retention is a deferred follow-up. Materialized daily from ClickHouse by
+/// WorkspaceEngagementDailyService (one grouped query/day over all workspaces).
+model WorkspaceEngagementDaily {
+  workspaceId Int
+  /// UTC day boundary (matches the other daily rollups).
+  day         DateTime @db.Date
+  /// Distinct active users on this day.
+  dau         Int      @default(0)
+  /// Distinct active users in the trailing 30 days AS-OF this day (for stickiness
+  /// = dau / mau). Stored per day so 0b needn't scan sessions at health time.
+  mau         Int      @default(0)
+  sessions    Int      @default(0)
+  newUsers    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, day])
+  /// Backs experienceHealth()'s Engagement subsystem: `WHERE workspaceId=? AND
+  /// day>=?` keyset-scans one workspace's recent engagement days — never a scan.
+  @@index([workspaceId, day(sort: Desc)])
+}
+
+/// Per-workspace DAILY MOBILE-performance rollup (ANR + frozen frames). Mobile
+/// sessions emit no LCP, so the web WorkspacePerfDaily can't score them; this is
+/// the mobile-perf proxy experienceHealth() reads so a mobile-heavy workspace
+/// gets a real Performance score instead of near-zero LCP samples. Sourced from
+/// the Postgres Session columns (anrCount/frozenFrameCount) via ONE set-based
+/// grouped query per reconcile — kept separate from WorkspacePerfDaily because it
+/// has a different source + population path (nightly reconcile, no live bump).
+model WorkspaceMobilePerfDaily {
+  workspaceId    Int
+  /// UTC day boundary (matches the other daily rollups).
+  day            DateTime @db.Date
+  /// Mobile sessions counted this day (the rate denominator).
+  mobileSessions Int      @default(0)
+  /// Sessions that hit ≥1 ANR / ≥1 frozen frame (rate numerators).
+  anrSessions    Int      @default(0)
+  frozenSessions Int      @default(0)
+  /// Totals for a per-session average.
+  anrSum         Int      @default(0)
+  frozenSum      Int      @default(0)
+  updatedAt      DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, day])
+  /// Backs experienceHealth()'s mobile-Performance branch: `WHERE workspaceId=?
+  /// AND day>=?` keyset-scans one workspace's recent days — never a session scan.
+  @@index([workspaceId, day(sort: Desc)])
+}
+
+enum NotificationKind {
+  COMMENT_MENTION
+  SESSION_ERROR
+  COHORT_GROWTH
+  PLAYLIST_SHARED
+  TEAM_INVITE_SENT
+  TEAM_INVITE_ACCEPTED
+  STORAGE_THRESHOLD
+  RAGE_CLUSTER
+  CSV_EXPORT_READY
+  SHARE_VIEWED
+  ALERT_TRIGGERED
+  SYSTEM
+}
+
+model Notification {
+  id          Int              @id @default(autoincrement())
+  workspaceId Int
+  userId      Int
+  kind        NotificationKind
+  payload     Json
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([workspaceId, createdAt(sort: Desc)])
+}

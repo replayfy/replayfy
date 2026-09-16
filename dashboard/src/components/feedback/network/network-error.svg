@@ -1,0 +1,203 @@
+<svg width="800" height="600" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title-network-error">
+  <title id="title-network-error">Replayfy's components are trying to reach your workspace, but the connection is interrupted and reconnecting</title>
+  <!-- Replayfy Illustration System · 07 Network error · hand-crafted SVG -->
+  <!--
+    STORY (top → bottom): Session Replay, Funnels and the Activity chart all tap
+    a shared bus → one trunk carries it toward the workspace → the inline
+    connector is PARTED → the workspace waits, desaturated.
+
+    THE FAILURE IS STRUCTURAL, NOT AN ICON. The red ✕ badge is gone: a filled
+    circle with an X is an OS error dialog, not infrastructure. Four things
+    carry the break instead, and each is a thing an engineer already reads:
+      1. AN INLINE CONNECTOR PARTED. Two terminal blocks, one live+filled, one
+         INACTIVE+HOLLOW. Hollow = dead node is the oldest convention in
+         topology drawing and needs no colour to say it.
+      2. A 22px HORIZONTAL OFFSET between the two halves. Aligned ends read as
+         a dotted line; offset ends read as parted. The offset does the work
+         the red used to do.
+      3. ONE AMBER DOT (#F0A45C, the same attention amber as alerts.svg) on the
+         dead half. Amber, not red: attention, not catastrophe.
+      4. LIFE DRAINS DOWNWARD across it — live indigo above, dead grey below.
+         The connector is the boundary between the halves.
+    No red anywhere in the file.
+
+    ARCHITECTURE, NOT ORGANICS. The bent-cable curves are gone. Routing is now
+    orthogonal: each surface drops a straight trace to a shared horizontal BUS,
+    the bus feeds ONE trunk, tap nodes mark every join. A topology diagram, not
+    a USB lead.
+
+    ASYMMETRY IS DELIBERATE. The trunk leaves the bus at x=460 — 68% along it,
+    not the middle — and the three surfaces differ in size and sit at three
+    different heights. Nothing is centred on the canvas axis.
+
+    NOTE: no <text> by system rule — copy is added in code at implementation.
+  -->
+
+  <style>
+    /* Slow, calm, no bouncing. */
+    @keyframes ne-reach { 0% { transform: scale(.55); opacity: .5 } 70%,100% { transform: scale(2.5); opacity: 0 } }
+    /* Packets leave the bus, run the trunk, and evaporate in the gap — they
+       never reach the far side. This is the "actively retrying" signal. */
+    @keyframes ne-pkt   { 0%   { transform: translateY(0); opacity: 0 }
+                          14%  { opacity: 1 }
+                          62%  { opacity: .9 }
+                          82%  { opacity: .35 }
+                          100% { transform: translateY(126px); opacity: 0 } }
+    @keyframes ne-tap   { 0%,100% { opacity: 1 } 50% { opacity: .45 } }
+    @keyframes ne-amber { 0%,100% { opacity: 1 } 50% { opacity: .35 } }
+    @keyframes ne-wait  { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+
+    .ne-reach  { transform-origin: 460px 300px; animation: ne-reach 3.4s cubic-bezier(.4,0,.2,1) infinite }
+    .ne-reach-2{ animation-delay: 1.7s }
+    .ne-pkt    { animation: ne-pkt 3.4s ease-in infinite }
+    .ne-pkt-2  { animation-delay: 1.15s }
+    .ne-pkt-3  { animation-delay: 2.3s }
+    .ne-tap    { animation: ne-tap 3s ease-in-out infinite }
+    .ne-amber  { animation: ne-amber 2.4s ease-in-out infinite }
+    .ne-wait   { animation: ne-wait 2.4s ease-in-out infinite }
+
+    @media (prefers-reduced-motion: reduce) {
+      .ne-reach, .ne-pkt, .ne-tap, .ne-amber, .ne-wait { animation: none }
+      .ne-reach { opacity: 0 } .ne-pkt { opacity: .85 }
+    }
+  </style>
+
+  <defs>
+    <linearGradient id="ne-accent" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6D9BFF"/>
+      <stop offset="1" stop-color="#4066F0"/>
+    </linearGradient>
+    <!-- The live trunk. Dies at the connector; never carries colour below it. -->
+    <linearGradient id="ne-trunk" x1="0" y1="186" x2="0" y2="300" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8B96FB"/>
+      <stop offset="1" stop-color="#5F6CEC"/>
+    </linearGradient>
+    <radialGradient id="ne-shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#3D4A6B" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#3D4A6B" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="ne-ws-clip"><rect x="336" y="432" width="268" height="120" rx="18"/></clipPath>
+    <clipPath id="ne-scr-clip"><rect x="164" y="54" width="128" height="52" rx="6"/></clipPath>
+  </defs>
+
+  <!-- ══ SOURCES — three real Replayfy surfaces, alive and still producing.
+       Three heights, three sizes: nothing lines up. ══ -->
+  <g id="sources">
+
+    <!-- SESSION REPLAY — player frame + scrubber + event ticks + playhead.
+         Largest: it is the flagship surface, and the ticks are the tell. -->
+    <g id="src-replay">
+      <rect x="150" y="38" width="156" height="100" rx="15" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <rect x="164" y="54" width="128" height="52" rx="6" fill="#F1F4FB"/>
+      <g clip-path="url(#ne-scr-clip)">
+        <rect x="164" y="54" width="128" height="11" rx="0" fill="#E7ECF7"/>
+        <rect x="172" y="72" width="46" height="5" rx="2.5" fill="#D3DBEC"/>
+        <rect x="172" y="83" width="70" height="5" rx="2.5" fill="#DFE5F2"/>
+        <rect x="172" y="94" width="34" height="5" rx="2.5" fill="#DFE5F2"/>
+        <circle cx="268" cy="90" r="9" fill="#C7CEF8" opacity="0.7"/>
+      </g>
+      <path d="M164 120 H 292" stroke="#E0E6F2" stroke-width="3.5" stroke-linecap="round"/>
+      <path d="M164 120 H 236" stroke="#7E8BFA" stroke-width="3.5" stroke-linecap="round"/>
+      <g stroke-linecap="round" stroke-width="2">
+        <path d="M186 115 V 125" stroke="#6AA4FF"/>
+        <path d="M208 115 V 125" stroke="#F0A45C"/>
+        <path d="M262 115 V 125" stroke="#B9C4DC"/>
+      </g>
+      <circle cx="236" cy="120" r="4.5" fill="#5F6CEC" stroke="#FFFFFF" stroke-width="1.5"/>
+    </g>
+
+    <!-- FUNNELS — descending steps. -->
+    <g id="src-funnel">
+      <rect x="340" y="62" width="124" height="76" rx="14" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <rect x="354" y="74" width="30" height="5" rx="2.5" fill="#D9E0EE"/>
+      <rect x="354" y="88" width="20" height="38" rx="5" fill="#7E8BFA"/>
+      <rect x="380" y="98" width="20" height="28" rx="5" fill="#A9B4F5"/>
+      <rect x="406" y="108" width="20" height="18" rx="5" fill="#C7CEF8"/>
+    </g>
+
+    <!-- ACTIVITY CHART — line over a grid. -->
+    <g id="src-activity">
+      <rect x="500" y="48" width="140" height="90" rx="14" fill="#FFFFFF" stroke="#E3E8F3" stroke-width="1.5"/>
+      <rect x="514" y="62" width="32" height="5" rx="2.5" fill="#D9E0EE"/>
+      <g stroke="#EDF1F8" stroke-width="1">
+        <path d="M540 78 V 124"/><path d="M568 78 V 124"/><path d="M596 78 V 124"/>
+      </g>
+      <path d="M514 118 L 538 104 L 562 110 L 586 88 L 606 96 L 626 78"
+            stroke="url(#ne-accent)" stroke-width="2.75" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+  </g>
+
+  <!-- ══ ROUTING — orthogonal. Straight drops into a shared bus, tap nodes at
+       every join, one trunk out. Infrastructure, not a cable. ══ -->
+  <g id="routing">
+    <g stroke="#C7CEF8" stroke-width="2" stroke-linecap="round">
+      <path d="M228 138 V 178"/>
+      <path d="M402 138 V 178"/>
+      <path d="M570 138 V 178"/>
+      <path d="M228 178 H 570"/>
+    </g>
+    <g id="taps">
+      <circle class="ne-tap" cx="228" cy="178" r="4" fill="#A9B4F5"/>
+      <circle class="ne-tap" style="animation-delay:.6s" cx="402" cy="178" r="4" fill="#A9B4F5"/>
+      <circle class="ne-tap" style="animation-delay:1.2s" cx="570" cy="178" r="4" fill="#A9B4F5"/>
+    </g>
+    <!-- gateway: where the bus commits everything to one trunk -->
+    <rect x="452" y="170" width="16" height="16" rx="5" fill="#FFFFFF" stroke="#A9B4F5" stroke-width="2"/>
+    <circle cx="460" cy="178" r="3" fill="#7E8BFA"/>
+  </g>
+
+  <!-- ══ THE PARTED CONNECTOR — the subject. ══ -->
+  <g id="parted-connector">
+    <!-- live trunk -->
+    <path d="M460 186 V 292" stroke="url(#ne-trunk)" stroke-width="7" stroke-linecap="round"/>
+    <!-- packets running it and evaporating in the gap — never crossing -->
+    <circle class="ne-pkt" cx="460" cy="196" r="2.8" fill="#EDEFFF"/>
+    <circle class="ne-pkt ne-pkt-2" cx="460" cy="196" r="2.8" fill="#EDEFFF"/>
+    <circle class="ne-pkt ne-pkt-3" cx="460" cy="196" r="2.8" fill="#EDEFFF"/>
+    <!-- the live half still calling across -->
+    <circle class="ne-reach" cx="460" cy="300" r="12" stroke="#7E8BFA" stroke-width="1.5"/>
+    <circle class="ne-reach ne-reach-2" cx="460" cy="300" r="12" stroke="#7E8BFA" stroke-width="1.5"/>
+    <rect x="450" y="290" width="20" height="20" rx="6" fill="#5F6CEC"/>
+    <rect x="455" y="295" width="10" height="10" rx="3" fill="#A9B4F5"/>
+
+    <!-- the dead half: HOLLOW = inactive, offset 22px, amber status -->
+    <rect x="472" y="342" width="20" height="20" rx="6" fill="#FFFFFF" stroke="#C9D3E6" stroke-width="2"/>
+    <circle class="ne-amber" cx="492" cy="342" r="4.5" fill="#F0A45C" stroke="#FFFFFF" stroke-width="1.5"/>
+    <!-- dead trunk on to the workspace -->
+    <path d="M482 362 V 432" stroke="#D3DAEA" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <!-- ══ DESTINATION — a miniature Replayfy workspace: rail + content, the
+       whole shell desaturated while it waits. Its status pill is grey, never
+       red — the failure is the link, and only the link gets an accent. ══ -->
+  <g id="workspace">
+    <ellipse cx="470" cy="562" rx="140" ry="10" fill="url(#ne-shadow)"/>
+    <rect x="336" y="432" width="268" height="120" rx="18" fill="#F7F8FC" stroke="#DDE3F6" stroke-width="1.5"/>
+    <g clip-path="url(#ne-ws-clip)">
+      <rect x="336" y="432" width="54" height="120" fill="#EFF2F9"/>
+      <rect x="348" y="444" width="18" height="18" rx="6" fill="#C9D3E6"/>
+      <g fill="#DDE3F6">
+        <rect x="348" y="476" width="30" height="4.5" rx="2.25"/>
+        <rect x="348" y="490" width="30" height="4.5" rx="2.25"/>
+        <rect x="348" y="504" width="30" height="4.5" rx="2.25"/>
+        <rect x="348" y="518" width="30" height="4.5" rx="2.25"/>
+      </g>
+    </g>
+    <!-- "waiting for connection" pill -->
+    <rect x="404" y="444" width="72" height="18" rx="9" fill="#EFF2F9"/>
+    <circle class="ne-wait" cx="415" cy="453" r="3.5" fill="#B9C4DC"/>
+    <rect x="424" y="450" width="42" height="5" rx="2.5" fill="#DDE3F6"/>
+    <!-- desaturated dashboard content -->
+    <g id="ws-bars" fill="#C9D3E6">
+      <rect x="404" y="500" width="13" height="24" rx="5"/>
+      <rect x="424" y="490" width="13" height="34" rx="5"/>
+      <rect x="444" y="504" width="13" height="20" rx="5"/>
+      <rect x="464" y="482" width="13" height="42" rx="5"/>
+    </g>
+    <g id="ws-lines" fill="#E0E6F2">
+      <rect x="496" y="490" width="80" height="6" rx="3"/>
+      <rect x="496" y="504" width="58" height="6" rx="3"/>
+      <rect x="496" y="518" width="68" height="6" rx="3"/>
+    </g>
+  </g>
+</svg>

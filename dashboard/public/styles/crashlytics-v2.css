@@ -1,0 +1,155 @@
+/* ============================================================================
+   crashlytics-v2.css — the FLAT Crashlytics canvas.
+
+   No section is a card. Structure comes from type, whitespace, thin `--line`
+   dividers, alignment and dense flat tables — the exact language of the
+   Analytics page (.anl-*), so Analytics ↔ Crashlytics read as one product.
+   Every container here is border/background/radius/shadow-free; the only
+   "chrome" is a hairline rule, an in-row magnitude bar, and a restrained
+   semantic accent (crash red / exception amber / freeze violet). Light-mode
+   only, tokens only. Scoped under `.cr2` so nothing leaks.
+   ========================================================================== */
+
+.cr2 { --cr2-gap: var(--sp-28); }
+
+/* Hairline section divider — the ONLY divider primitive (echoes .anl-results). */
+.cr2-rule { border-top: 1px solid var(--line); margin: var(--cr2-gap) 0; }
+
+/* Small uppercase section label. */
+.cr2-eyebrow {
+  font-size: var(--text-2xs); font-weight: var(--fw-semibold);
+  letter-spacing: .06em; text-transform: uppercase; color: var(--t3);
+  margin-bottom: var(--sp-14);
+}
+
+/* ---- §2 Inline metric row (replaces the bordered .stats box) ------------- */
+.cr2-metrics { display: flex; align-items: stretch; flex-wrap: wrap; row-gap: var(--sp-16); }
+.cr2-metric {
+  padding: 0 var(--sp-28); display: flex; flex-direction: column; gap: var(--sp-8);
+  min-width: 0; flex: 1 1 0;
+}
+.cr2-metric:first-child { padding-left: 0; }
+.cr2-metric:not(:first-child) { border-left: 1px solid var(--line); }
+.cr2-metric-l {
+  display: inline-flex; align-items: center; gap: var(--sp-6);
+  font-size: var(--text-2xs); font-weight: var(--fw-semibold);
+  letter-spacing: .4px; text-transform: uppercase; color: var(--t3);
+}
+.cr2-metric-dot { width: 7px; height: 7px; border-radius: 50%; flex: none; }
+.cr2-metric-row { display: flex; align-items: baseline; gap: var(--sp-8); }
+.cr2-metric-v {
+  font-family: var(--mono); font-size: var(--text-3xl); font-weight: var(--fw-semibold);
+  letter-spacing: -.6px; line-height: 1; color: var(--text); font-feature-settings: "tnum";
+}
+/* Delta semantics are INVERTED vs analytics: for failures, UP is bad (red),
+   DOWN is good (green). */
+.cr2-delta { display: inline-flex; align-items: center; gap: 1px; font-size: var(--text-xs); font-weight: var(--fw-medium); font-variant-numeric: tabular-nums; }
+.cr2-delta.bad { color: var(--red); }
+.cr2-delta.good { color: var(--green); }
+.cr2-delta.flat { color: var(--t4); }
+.cr2-metric-spark { margin-top: var(--sp-2); }
+.cr2-metric-sub { font-size: var(--text-xs); color: var(--t4); font-variant-numeric: tabular-nums; }
+
+/* ---- §3 Trend block ------------------------------------------------------ */
+.cr2-trend-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--sp-20); flex-wrap: wrap; margin-bottom: var(--sp-16);
+}
+.cr2-h {
+  font-size: var(--text-2xl); font-weight: var(--fw-semibold);
+  letter-spacing: -.02em; line-height: 1.15; color: var(--text);
+}
+.cr2-h-sub {
+  margin-top: var(--sp-6); font-size: var(--text-md); color: var(--t2);
+  font-variant-numeric: tabular-nums;
+}
+.cr2-h-big { font-weight: var(--fw-semibold); color: var(--text); }
+.cr2-controls { display: flex; align-items: center; gap: var(--sp-10); flex-wrap: wrap; flex-shrink: 0; }
+/* Crash-trend legend — names the four stacked category colours (the chart's
+   own key, since §2's metric row shows Affected users in place of Errors). */
+.cr2-trend-legend { display: flex; align-items: center; gap: var(--sp-14); flex-wrap: wrap; margin-top: var(--sp-6); }
+.cr2-lg { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--text-xs); color: var(--t2); white-space: nowrap; }
+.cr2-lg i { width: 9px; height: 9px; border-radius: var(--r-2xs); flex-shrink: 0; }
+
+/* ---- shared magnitude bar (release distribution + platform) -------------- */
+.cr2-track { display: block; width: 100%; height: 8px; background: var(--line-2); overflow: hidden; }
+.cr2-fill {
+  display: block; height: 100%; min-width: 2px; background: var(--t3);
+  transform-origin: left center; animation: cr2-grow .5s var(--ease-out) both;
+}
+@keyframes cr2-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) { .cr2-fill { animation: none; } }
+
+/* ---- §4 Release Health (flat table) -------------------------------------- */
+.cr2-rel { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.cr2-rel th {
+  font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .05em;
+  text-transform: uppercase; color: var(--t3); text-align: left;
+  padding: var(--sp-8) var(--sp-10); border-bottom: 1px solid var(--line);
+}
+.cr2-rel th.c-n, .cr2-rel td.c-n { text-align: right; font-variant-numeric: tabular-nums; }
+.cr2-rel td { padding: var(--sp-12) var(--sp-10); border-bottom: 1px solid var(--line-2); vertical-align: middle; font-size: var(--text-sm); }
+.cr2-rel tbody tr:last-child td { border-bottom: none; }
+.cr2-rel tbody tr.clickable { cursor: pointer; }
+.cr2-rel tbody tr.clickable:hover { background: rgba(17,17,20,.022); }
+.cr2-rel tbody tr.is-sel { background: var(--accent-tint); }
+.cr2-rel-rank { color: var(--t4); font-variant-numeric: tabular-nums; }
+.cr2-rel-name { font-family: var(--mono); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr2-rel-n { font-family: var(--mono); color: var(--text); font-weight: var(--fw-medium); }
+.cr2-rel .c-dist { width: 30%; }
+.cr2-rel tr.is-worst .cr2-rel-name { color: var(--red); font-weight: var(--fw-semibold); }
+.cr2-rel tr.is-worst .cr2-fill { background: var(--red); }
+
+/* ---- §5 Platform inline distribution ------------------------------------- */
+.cr2-plat { display: flex; flex-direction: column; gap: var(--sp-12); }
+.cr2-plat-row {
+  display: grid; grid-template-columns: 120px 1fr 64px 52px; gap: var(--sp-14);
+  align-items: center; font-size: var(--text-sm);
+}
+.cr2-plat-name { color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr2-plat-n { font-family: var(--mono); color: var(--text); text-align: right; font-variant-numeric: tabular-nums; }
+.cr2-plat-pct { font-family: var(--mono); color: var(--t3); text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ---- §6 Issues table (first-class flat surface) -------------------------- */
+.cr2-issues { width: 100%; table-layout: fixed; border-collapse: collapse; }
+.cr2-issues thead th {
+  font-size: var(--text-2xs); font-weight: var(--fw-semibold); letter-spacing: .05em;
+  text-transform: uppercase; color: var(--t3); text-align: left;
+  padding: var(--sp-8) var(--sp-12); border-bottom: 1px solid var(--line); white-space: nowrap;
+}
+.cr2-issues thead th.num { text-align: right; }
+.cr2-issues tbody td { padding: var(--sp-12); border-bottom: 1px solid var(--line-2); vertical-align: middle; font-size: var(--text-sm); }
+.cr2-issues tbody td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: var(--fw-semibold); color: var(--text); }
+.cr2-issues tbody td:first-child { max-width: 0; }
+.cr2-issues tbody tr.clickable { cursor: pointer; }
+.cr2-issues tbody tr.clickable:hover { background: rgba(17,17,20,.022); }
+.cr2-issues tr.cr2-more td { padding: 0; border: 0; height: 1px; }
+/* primary/secondary issue identity */
+.cr2-iss-main { display: flex; align-items: flex-start; gap: var(--sp-10); min-width: 0; }
+.cr2-iss-txt { min-width: 0; }
+.cr2-iss-ttl { font-weight: var(--fw-semibold); font-size: var(--text-base); color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr2-iss-sub { font-size: var(--text-xs); color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 1px; }
+.cr2-iss-rel { font-family: var(--mono); font-size: var(--text-xs); color: var(--t3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cr2-iss-seen { font-family: var(--mono); font-size: var(--text-xs); color: var(--t3); white-space: nowrap; }
+.cr2-iss-trend { display: inline-flex; align-items: center; gap: var(--sp-6); }
+.cr2-iss-reg { display: inline-flex; align-items: center; color: var(--red); font-size: var(--text-2xs); font-weight: var(--fw-semibold); }
+.cr2-iss-empty { padding: var(--sp-32) var(--sp-12); text-align: center; color: var(--t3); font-size: var(--text-sm); }
+/* Has-data-but-empty-window state: a clear message + one-click "View all time"
+   escape, so a workspace whose crashes are older than the picked range never
+   reads as a broken/blank page. */
+.cr2-window-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-6); padding: var(--sp-16) var(--sp-12); }
+.cr2-window-empty-t { font-size: var(--text-md); font-weight: var(--fw-semibold); color: var(--text); }
+.cr2-window-empty-s { font-size: var(--text-sm); color: var(--t3); }
+.cr2-viewall { margin-top: var(--sp-8); }
+
+/* The flat tables fit the content width on desktop (fixed columns + a flexible,
+   ellipsised first column), so there's nothing to scroll — `clip` guarantees no
+   phantom scrollbar there while still keeping any overflow off the page body.
+   Only genuinely narrow viewports get a horizontal scroller. */
+.cr2-scroll { overflow-x: clip; }
+@media (max-width: 1024px) { .cr2-scroll { overflow-x: auto; } }
+
+@media (max-width: 720px) {
+  .cr2-metric { flex-basis: 45%; }
+  .cr2-plat-row { grid-template-columns: 96px 1fr 56px 46px; }
+}

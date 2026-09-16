@@ -1,0 +1,22 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "./src",
+    "outDir": "./dist",
+    "composite": true,
+    "baseUrl": ".",
+    "paths": {
+      "@replay/replay-schema": ["../../packages/replay-schema/src"],
+      "@replay/db-postgres": ["../../packages/db-postgres/src"],
+      "@replay/db-mongo": ["../../packages/db-mongo/src"],
+      "@replay/db-clickhouse": ["../../packages/db-clickhouse/src"]
+    }
+  },
+  "references": [
+    { "path": "../../packages/replay-schema" },
+    { "path": "../../packages/db-postgres" },
+    { "path": "../../packages/db-mongo" },
+    { "path": "../../packages/db-clickhouse" }
+  ],
+  "include": ["src/**/*.ts"]
+}

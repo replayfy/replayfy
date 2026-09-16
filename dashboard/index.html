@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Replayfy</title>
+    <!-- Fonts are SELF-HOSTED (was Google Fonts). The old `<link rel=stylesheet>`
+         to fonts.googleapis.com was render-blocking AND needed two preconnects to
+         a third-party origin before the first byte of a glyph could load. These
+         are the exact subsetted woff2 files Google served (Inter as its VARIABLE
+         cut — the full 100–900 weight axis + the opsz optical-size axis, applied
+         automatically by `font-optical-sizing: auto`; IBM Plex Mono 400/500/600),
+         now local. The @font-face block is inlined so it is not itself a blocking
+         request, and the body's Inter file is preloaded so it starts in parallel
+         with the app bundle. Family names stay "Inter" / "IBM Plex Mono", so the
+         frozen --font / --mono tokens pick them up unchanged. -->
+    <link
+      rel="preload"
+      href="/fonts/inter-var-latin.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <style>
+      /* Inter — variable (weight 100–900, opsz axis baked into the file). */
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("/fonts/inter-var-latin.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+          U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "Inter";
+        font-style: normal;
+        font-weight: 100 900;
+        font-display: swap;
+        src: url("/fonts/inter-var-latin-ext.woff2") format("woff2");
+        unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7,
+          U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F,
+          U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
+          U+A720-A7FF;
+      }
+      /* IBM Plex Mono — 400 / 500 / 600 (latin), the --mono token's weights. */
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-style: normal;
+        font-weight: 400;
+        font-display: swap;
+        src: url("/fonts/plexmono-latin-400.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+          U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-style: normal;
+        font-weight: 500;
+        font-display: swap;
+        src: url("/fonts/plexmono-latin-500.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+          U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        font-style: normal;
+        font-weight: 600;
+        font-display: swap;
+        src: url("/fonts/plexmono-latin-600.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6,
+          U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122,
+          U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+      }
+    </style>
+    <!-- Approved design system — served verbatim, in the prototype's exact order -->
+    <link rel="stylesheet" href="/styles/styles.css" />
+    <link rel="stylesheet" href="/styles/pages.css" />
+    <link rel="stylesheet" href="/styles/recordings-v2.css" />
+    <link rel="stylesheet" href="/styles/overview-v3.css" />
+    <link rel="stylesheet" href="/styles/overview-v4.css?v=3" />
+    <link rel="stylesheet" href="/styles/auth-v2.css" />
+    <link rel="stylesheet" href="/styles/settings-v2.css" />
+    <link rel="stylesheet" href="/styles/funnel-templates.css" />
+    <link rel="stylesheet" href="/styles/comments-v2.css" />
+    <link rel="stylesheet" href="/styles/interactions.css" />
+    <link rel="stylesheet" href="/styles/auth-flow.css" />
+    <link rel="stylesheet" href="/styles/alerts.css" />
+    <link rel="stylesheet" href="/styles/typography.css" />
+    <link rel="stylesheet" href="/styles/activity-v2.css" />
+    <link rel="stylesheet" href="/styles/funnels-v2.css" />
+    <link rel="stylesheet" href="/styles/analytics-v2.css?v=1" />
+    <link rel="stylesheet" href="/styles/crashlytics-v2.css" />
+    <link rel="stylesheet" href="/styles/users-table-v2.css" />
+    <link rel="stylesheet" href="/styles/user-detail-v2.css" />
+    <link rel="stylesheet" href="/styles/comments-entity-v2.css" />
+    <link rel="stylesheet" href="/styles/recordings-player-v2.css" />
+    <link rel="stylesheet" href="/styles/recordings-search-v2.css" />
+    <link rel="stylesheet" href="/styles/illustrations.css" />
+    <link rel="stylesheet" href="/styles/network-v2.css" />
+    <link rel="stylesheet" href="/styles/modal-v2.css" />
+    <link rel="stylesheet" href="/styles/share-v2.css" />
+    <link rel="stylesheet" href="/styles/cursors-v2.css" />
+    <link rel="stylesheet" href="/styles/billing-usage-v2.css" />
+    <!-- last on purpose: motion-v2 matches frozen selectors at equal
+         specificity, so load order is what lets its overrides win -->
+    <link rel="stylesheet" href="/styles/nav-v2.css" />
+    <link rel="stylesheet" href="/styles/motion-v2.css" />
+    <!-- Signals investigation workspace (owner-directed). Namespaced .sigw* —
+         self-contained so the approved stylesheets above stay untouched. -->
+    <link rel="stylesheet" href="/styles/signals-workspace.css" />
+    <!-- last on purpose: hover-affordance fixes match frozen/ox- selectors at
+         equal specificity, so load order is what lets these overrides win -->
+    <link rel="stylesheet" href="/styles/hover-affordance-v2.css" />
+    <!-- LAST on purpose: mobile-responsive (<=768px) overrides. Every rule is
+         media-gated (or targets mobile-only components), so desktop is
+         untouched; loading last lets equal-specificity mobile rules win. -->
+    <link rel="stylesheet" href="/styles/responsive-v2.css" />
+    <link rel="stylesheet" href="/styles/responsive-routes-v2.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!-- Boot splash. Deliberately STATIC MARKUP with INLINE styles, sitting in
+         the HTML rather than in React: it has to paint on the very first frame,
+         and anything React-rendered can't; the module graph has to download and
+         parse first. It also can't lean on /styles/*.css, since those are
+         separate requests that may not have landed yet — so every rule it needs
+         is in the <style> below.
+
+         It covers BOTH boot gaps that used to show as a blank flash:
+           1. HTML parsed → JS downloaded/parsed → React mounts (#root empty)
+           2. React mounted → /v1/me resolves (RequireAuth rendered null)
+         auth.tsx removes it once the session resolves, to `authed` OR `anon`,
+         so the login screen is covered too. -->
+    <style>
+      #boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        background: #fafafa;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', sans-serif;
+        /* Removed by a class, not unmounted, so the fade can play out. */
+        transition: opacity .28s ease, visibility .28s ease;
+      }
+      #boot.boot-done { opacity: 0; visibility: hidden; pointer-events: none; }
+      #boot .boot-mark {
+        width: 42px; height: 42px; border-radius: 11px;
+        display: grid; place-items: center;
+        color: #fff; background: linear-gradient(140deg, #7173f0, #5b5ceb);
+        box-shadow: 0 6px 18px rgb(17 17 20 / .16);
+        animation: bootPulse 1.6s ease-in-out infinite;
+      }
+      #boot .boot-t { font-size: 13px; color: #9aa1ac; letter-spacing: -.01em; }
+      @keyframes bootPulse {
+        0%, 100% { transform: scale(1);    opacity: 1;   }
+        50%      { transform: scale(.94);  opacity: .78; }
+      }
+      /* Motion is decoration here — the text carries the meaning. */
+      @media (prefers-reduced-motion: reduce) {
+        #boot .boot-mark { animation: none; }
+        #boot { transition: none; }
+      }
+    </style>
+    <div id="boot" role="status" aria-live="polite">
+      <span class="boot-mark" aria-hidden="true" style="font-family:Inter,system-ui,sans-serif;font-weight:700;font-size:23px;line-height:1;">R</span>
+      <span class="boot-t">Loading your workspace…</span>
+    </div>
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

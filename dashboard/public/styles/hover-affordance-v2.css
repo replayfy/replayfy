@@ -1,0 +1,67 @@
+/* ============================================================================
+   Hover-affordance fixes (additive; frozen sheets untouched). Loaded LAST.
+
+   Since `button:not(:disabled){cursor:default}` (cursors-v2.css) removed the
+   pointing-hand from every button, a control's HOVER STATE is now the primary
+   signal that it's clickable. An audit found several clickable rows whose only
+   `:hover` rule painted `var(--panel)` / `var(--surface)` — the exact color of
+   the surface they sit on — so hovering repainted the color it already was and
+   nothing visibly changed (the "why doesn't the crash row react" report).
+
+   These give the three worst offenders a real, perceptible hover using
+   `--accent-tint` (the same faint indigo the sidebar nav hover already uses),
+   so the fix reads as one existing convention rather than a new look. Owner
+   picked the accent tint over a neutral gray. Scoped to the exact selectors so
+   nothing else shifts; load order (last) + specificity is what lets them win.
+   ========================================================================== */
+
+/* 1 — Dashboard "Top crashes" group rows. Was `:hover{background:var(--panel)}`
+   over the --panel #fcfcfd .main surface → invisible. */
+.ox-crash:hover { background: var(--accent-tint); }
+
+/* 2 — Dashboard storyline "needs attention" rows (same no-op, more prominent —
+   top pulse band, visible on first paint). Class is shared by the AI-off and
+   AI-on-fallback rows, so both are covered. */
+.ox-att-row:hover { background: var(--accent-tint); }
+
+/* 3 — Cohort list rows (open /users?cohort= on click). The frozen
+   `tbody tr.clickable:hover{background:var(--surface)}` (styles.css:240) paints
+   #ffffff over the #fcfcfd page — a ~2/255 delta, invisible. Scoped to .co-tbl
+   so specificity (0,3,2) + load order beat the frozen rule without touching it,
+   and no other `tr.clickable` table changes. */
+.co-tbl tbody tr.clickable:hover { background: var(--accent-tint); }
+
+/* ---------------------------------------------------------------------------
+   Consistency pass (owner-directed): the same indigo row-hover, extended to the
+   other primary list surfaces so every clickable list row reacts identically.
+   Each mirrors the EXACT selector that already styles that page's row hover, so
+   we only change the colour; equal specificity + last-in-cascade lets it win
+   without editing any earlier (incl. frozen) sheet.
+   ------------------------------------------------------------------------- */
+
+/* Alerts list rows — was `.al-page .co-tbl tbody tr:hover{background:--surface}`
+   (alerts.css:66), #fff on the #fcfcfd page → invisible. */
+.al-page .co-tbl tbody tr:hover { background: var(--accent-tint); }
+
+/* Comments list rows — effective hover was
+   `.cmt-page .crow:hover{background:rgba(17,17,20,.02)}` (comments-entity-v2.css:20),
+   a ~2% overlay. */
+.cmt-page .crow:hover { background: var(--accent-tint); }
+
+/* Users table rows (whole <tr> navigates to /users/:id) — was
+   `.uatt tbody tr.clickable:hover{background:rgba(17,17,20,.022)}`
+   (users-table-v2.css:33), the sheet's own comment calls it "near-invisible".
+   Leave the existing `.u-name` hover underline (users-table-v2.css:38) intact. */
+.uatt tbody tr.clickable:hover { background: var(--accent-tint); }
+
+/* Funnels index rows — was frozen `.fnx-row:hover{background:var(--surface)}`
+   (pages.css:1363), #fff on #fcfcfd → invisible. The sibling
+   `.fnx-row:hover .fnx-actions{opacity:1}` reveal is untouched. */
+.fnx-row:hover { background: var(--accent-tint); }
+
+/* User-detail session-recordings table rows (whole <tr> opens the replay) — was
+   `.udx-sec tbody tr.clickable:hover{background:var(--panel)}` (user-detail-v2.css:200),
+   the same #fcfcfd-on-#fcfcfd no-op as the crash rows. Matches the user LIST
+   above so the detail page reacts identically. The `.udx-rec-route` hover
+   underline (user-detail-v2.css:215) is untouched. */
+.udx-sec tbody tr.clickable:hover { background: var(--accent-tint); }

@@ -1,0 +1,41 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../client"
+  // Match db-postgres so the Docker runtime image (linux/arm64 on
+  // Apple Silicon hosts, linux/amd64 on cloud deploys) can load the
+  // Query Engine. Without these, the runtime container crashes at
+  // boot with "could not locate Query Engine".
+  binaryTargets = ["native", "linux-arm64-openssl-3.0.x", "debian-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL_MONGO")
+}
+
+model ReplayBatch {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId  String?
+  sessionId  String
+  segmentId  String
+  sequence   Int
+  sentAt     BigInt
+  startedAt  BigInt
+  endedAt    BigInt
+  eventCount Int
+  sdk        Json
+  page       Json
+  events     Json
+  createdAt  DateTime @default(now())
+
+  // TENANT ISOLATION: `projectId` holds String(workspaceId) — the tenant key
+  // every writer stamps. A client-generated `sessionId` is only unique WITHIN a
+  // workspace (and a hostile/degenerate SDK can even repeat one across sites), so
+  // the uniqueness + all reads/writes/deletes MUST be scoped by projectId. The
+  // unique key was `[sessionId, sequence]` (global), which let one crawler's
+  // colliding id merge two workspaces' replay batches under one id — a viewer in
+  // workspace A then rendered workspace B's recording. Scoping by projectId keeps
+  // each workspace's batches separate even when a sessionId collides.
+  @@unique([projectId, sessionId, sequence])
+  @@index([projectId, sessionId])
+}

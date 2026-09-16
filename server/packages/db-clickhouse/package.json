@@ -1,0 +1,10 @@
+{
+  "name": "@replay/db-clickhouse",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "dependencies": {
+    "@clickhouse/client": "^1.7.0"
+  }
+}
