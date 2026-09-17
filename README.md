@@ -85,13 +85,19 @@ No project cap, no seat cap, no metering when you self-host.
 
 ## Quick start
 
-Requires Docker.
+Requires Docker. **No clone, no build** — grab two files and go:
 
 ```bash
-git clone https://github.com/replayfy/replayfy.git && cd replayfy
-cp .env.example .env          # change JWT_SECRET before exposing it
-docker compose up             # builds + starts the whole stack
+mkdir replayfy && cd replayfy
+curl -O https://raw.githubusercontent.com/replayfy/replayfy/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/replayfy/replayfy/main/.env.example
+# change JWT_SECRET in .env before exposing it
+docker compose up             # pulls the pre-built images and starts the stack
 ```
+
+`docker compose up` pulls multi-arch (amd64 + arm64) images from the GitHub
+Container Registry — there's nothing to compile. Pin a version with
+`REPLAYFY_IMAGE_TAG` (defaults to `latest`); see [Releases](#releases).
 
 That's it — the API, dashboard, Postgres, MongoDB, Redis, ClickHouse, and MinIO
 object storage all come up together; migrations run on first boot, and (by
@@ -124,43 +130,30 @@ There is no instance-wide super-admin — every user owns the workspaces they
 create. Full walkthrough:
 [docs.replayfy.app/quickstart](https://docs.replayfy.app/quickstart).
 
-### Use pre-built images (skip the build)
+### Build from source (contributors)
 
-Every push to `main` publishes multi-arch (amd64 + arm64) images to the GitHub
-Container Registry, so you can run without compiling anything. `docker-compose.yml`
-builds from source by default; layer the `ghcr` override on top to pull the
-published images instead:
+Working on Replayfy, or running local changes? Clone the repo and layer the build
+override, which compiles the images instead of pulling them:
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up
+git clone https://github.com/replayfy/replayfy.git && cd replayfy
+cp .env.example .env
+docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
 ```
 
 The dashboard image is runtime-configurable (`API_BASE_URL`), so the published
-image works for any deployment — not just localhost. Pin a version by setting
-`REPLAYFY_IMAGE_TAG` (defaults to `latest`).
+image works for any deployment — not just localhost.
 
-### Deploy to a cloud host (no server to manage)
+### Deploy to a cloud host
 
-Don't want to run a box? The tested path is still `docker compose up` on any VPS,
-but you can also deploy to a managed platform. Heads-up: Replayfy uses five
-datastores, and Postgres + Redis are the only ones these platforms manage —
-**MongoDB, ClickHouse, and object storage you point at externally** (MongoDB
-Atlas, ClickHouse Cloud, Cloudflare R2 / S3). These run **paid** instances.
-
-**Render** — a [`render.yaml`](render.yaml) blueprint provisions the API +
-dashboard + managed Postgres + Redis; you fill in the three external datastore
-URLs. It's an experimental starting point — review it first.
+Prefer a managed platform to your own VPS? Setup and caveats for each are in the
+[deploy guide](https://docs.replayfy.app/self-hosting/deploy).
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/replayfy/replayfy)
-
-**Railway** manages Postgres, Redis **and** MongoDB (three of the four), leaving
-only ClickHouse + storage external; deploy it as a Railway template.
-
-**Brimble** has no one-click button — deploy the app with its CLI
-(`brimble deploy`) and attach managed datastores from the dashboard.
-
-Full walkthrough, env reference, and the caveats for each:
-[docs.replayfy.app/self-hosting/deploy](https://docs.replayfy.app/self-hosting/deploy).
+&nbsp;
+[![Deploy on Railway](https://railway.com/button.svg)](https://docs.replayfy.app/self-hosting/deploy#railway)
+&nbsp;
+[![Deploy on Brimble](https://img.shields.io/badge/Deploy%20on-Brimble-6D28D9)](https://docs.replayfy.app/self-hosting/deploy#brimble)
 
 ---
 
@@ -262,6 +255,21 @@ Full docs live at **[docs.replayfy.app](https://docs.replayfy.app)**:
   [Search & filters](https://docs.replayfy.app/guides/search-and-filters)
 
 ---
+
+## Releases
+
+Images are versioned so you can pin a build and report exactly what you're
+running.
+
+- **Pin a version:** set `REPLAYFY_IMAGE_TAG` in `.env` (e.g. `REPLAYFY_IMAGE_TAG=0.1.0`).
+  It defaults to `latest`. Tags follow [semver](https://semver.org) — `0.1.0`,
+  `0.1`, and `latest` all point at published images.
+- **Which version am I on?** It's in **Settings** (a small footer under every
+  tab), or query the API directly: `curl https://your-host/version` →
+  `{"version":"0.1.0","commit":"…","builtAt":"…"}`. Include it in bug reports.
+- **Cutting a release** (maintainers): push a `vX.Y.Z` tag. CI builds the
+  matching `ghcr.io/replayfy/*:X.Y.Z` images and opens a GitHub Release with
+  generated notes. See [releases](https://github.com/replayfy/replayfy/releases).
 
 ## Open core vs. Cloud
 

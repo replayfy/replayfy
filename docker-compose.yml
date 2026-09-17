@@ -2,8 +2,13 @@
 # a mail catcher, runs migrations + an optional demo seed, then the API and the
 # dashboard. Everything is overridable via .env (copy .env.example → .env).
 #
+# By DEFAULT this PULLS the pre-built images from GHCR — no clone, no build. Pin a
+# version with REPLAYFY_IMAGE_TAG (defaults to `latest`). To build from source
+# instead (contributors, local changes), layer the build override:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+#
 # Defaults are wired for a single-host local run; change secrets + URLs before
-# exposing it. See docs/self-hosting.md.
+# exposing it. See https://docs.replayfy.app/self-hosting.
 
 services:
   # ── Datastores ──────────────────────────────────────────────────────────
@@ -107,9 +112,7 @@ services:
 
   # ── Migrations + optional demo seed (one-shot, then exits) ──────────────
   migrate:
-    build:
-      context: ./server
-    image: replayfy-server:local
+    image: ghcr.io/replayfy/server:${REPLAYFY_IMAGE_TAG:-latest}
     environment:
       DATABASE_URL_POSTGRES: postgresql://${POSTGRES_USER:-replay}:${POSTGRES_PASSWORD:-replay}@postgres:5432/${POSTGRES_DB:-replay_platform}
       DATABASE_URL_MONGO: mongodb://mongo:27017/${MONGO_DB:-replay}?replicaSet=rs0
@@ -134,9 +137,7 @@ services:
 
   # ── The application ─────────────────────────────────────────────────────
   api:
-    build:
-      context: ./server
-    image: replayfy-server:local
+    image: ghcr.io/replayfy/server:${REPLAYFY_IMAGE_TAG:-latest}
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
@@ -204,12 +205,7 @@ services:
       retries: 20
 
   dashboard:
-    build:
-      context: ./dashboard
-      args:
-        VITE_API_URL: ${API_BASE_URL:-http://localhost:4000}
-        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
-    image: replayfy-dashboard:local
+    image: ghcr.io/replayfy/dashboard:${REPLAYFY_IMAGE_TAG:-latest}
     environment:
       # Written into /runtime-config.js at container start (see the dashboard
       # entrypoint) and preferred by the app over the build-time VITE_API_URL —

@@ -22,9 +22,18 @@ RUN npm ci --no-audit --no-fund \
     && npm run prisma:generate \
     && npm run build
 
+# Build identity, surfaced at GET /version so a self-hoster can report exactly
+# which build they're on. APP_VERSION defaults to package.json's version; CI
+# overrides it with the release tag and passes the commit + build time.
+ARG APP_VERSION
+ARG GIT_SHA
+ARG BUILD_TIME
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
-    PORT=4000
+    PORT=4000 \
+    APP_VERSION=${APP_VERSION} \
+    GIT_SHA=${GIT_SHA} \
+    BUILD_TIME=${BUILD_TIME}
 
 EXPOSE 4000
 

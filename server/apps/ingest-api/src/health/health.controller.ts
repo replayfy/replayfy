@@ -36,6 +36,22 @@ export class HealthController {
     return { ok: true, at: new Date().toISOString() };
   }
 
+  /**
+   * Build identity — so a self-hoster (or a bug report) can say exactly which
+   * version they're running. Baked into the image at build time (APP_VERSION from
+   * package.json / the release tag, GIT_SHA + BUILD_TIME from CI); falls back to
+   * dev placeholders for a from-source run. Public + unauthenticated — it leaks
+   * only the version, never config.
+   */
+  @Get("version")
+  version(): { version: string; commit: string; builtAt: string | null } {
+    return {
+      version: process.env.APP_VERSION || "0.0.0-dev",
+      commit: process.env.GIT_SHA || "unknown",
+      builtAt: process.env.BUILD_TIME || null,
+    };
+  }
+
   @Get("readyz")
   async readyz(
     @Res({ passthrough: true }) res: Response,

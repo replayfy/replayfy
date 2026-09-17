@@ -84,6 +84,14 @@ export const Auth = {
   oauthProviders: () => api.get<{ providers: OAuthProvider[] }>("/v1/auth/oauth/providers"),
 };
 
+/* -------------------------------------------------------------------- meta */
+export type VersionInfo = { version: string; commit: string; builtAt: string | null };
+export const Meta = {
+  /** Build identity of the running API (public, unauthenticated). Shown in
+   *  Settings so a self-hoster can report exactly which version they're on. */
+  version: () => api.get<VersionInfo>("/version"),
+};
+
 /* -------------------------------------------------------------- workspaces */
 export const Workspaces = {
   list: () => api.get<WorkspaceSummary[]>("/v1/workspaces"),

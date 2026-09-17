@@ -2,6 +2,8 @@ import { Suspense, type ComponentType } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { Sk } from "@/components/feedback";
 import { useAuth } from "@/lib/auth";
+import { Meta } from "@/api/endpoints";
+import { useApi } from "@/api/useApi";
 import { PANEL_DESC } from "./settings.data";
 import { PanelGeneral } from "./panels/PanelGeneral";
 import { PanelRecording } from "./panels/PanelRecording";
@@ -108,8 +110,31 @@ export function Settings() {
           >
             <Comp openId={tab === "integrations" ? integration : undefined} />
           </Suspense>
+          <SettingsVersion />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* A quiet build-identity footer under every settings tab, so a self-hoster can
+   read (and screenshot) exactly which version they're running when reporting an
+   issue. Reads the API's public /version. Silent until it resolves. */
+function SettingsVersion() {
+  const { data } = useApi(() => Meta.version(), [], { key: "app-version" });
+  if (!data?.version) return null;
+  const sha =
+    data.commit && data.commit !== "unknown" ? data.commit.slice(0, 7) : "";
+  return (
+    <div
+      style={{
+        marginTop: "var(--sp-24)",
+        fontSize: "var(--text-xs)",
+        color: "var(--t4)",
+      }}
+    >
+      Replayfy v{data.version}
+      {sha ? ` · ${sha}` : ""}
     </div>
   );
 }

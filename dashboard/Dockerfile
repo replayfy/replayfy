@@ -19,6 +19,11 @@ RUN rm -f package-lock.json && npm install --no-audit --no-fund
 
 ARG VITE_API_URL=http://localhost:4000
 ARG VITE_STRIPE_PUBLISHABLE_KEY=
+# Declared so the shared CI build-args don't warn; the dashboard reads the running
+# version from the API's /version endpoint rather than baking its own.
+ARG APP_VERSION=
+ARG GIT_SHA=
+ARG BUILD_TIME=
 ENV VITE_API_URL=$VITE_API_URL \
     VITE_STRIPE_PUBLISHABLE_KEY=$VITE_STRIPE_PUBLISHABLE_KEY
 # `@ee` resolves to src/ee.stub.tsx when the proprietary src/ee/ is absent

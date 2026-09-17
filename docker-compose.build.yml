@@ -1,0 +1,26 @@
+# Build the images from source instead of pulling them from GHCR. For
+# contributors and anyone running local modifications. Layer it over the base:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml up --build
+#
+# It adds a build context to the server + dashboard services; the built images
+# are tagged with the same names the base file references, so the rest of the
+# stack (ports, env, datastores) is unchanged.
+services:
+  migrate:
+    build:
+      context: ./server
+    image: ghcr.io/replayfy/server:${REPLAYFY_IMAGE_TAG:-latest}
+
+  api:
+    build:
+      context: ./server
+    image: ghcr.io/replayfy/server:${REPLAYFY_IMAGE_TAG:-latest}
+
+  dashboard:
+    build:
+      context: ./dashboard
+      args:
+        VITE_API_URL: ${API_BASE_URL:-http://localhost:4000}
+        VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
+    image: ghcr.io/replayfy/dashboard:${REPLAYFY_IMAGE_TAG:-latest}
