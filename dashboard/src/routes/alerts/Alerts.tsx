@@ -12,7 +12,6 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Icon, Modal, Popover } from "@/components/primitives";
 import { EmptyState, EMPTY_ART } from "@/components/feedback";
-import { ee } from "@ee";
 import { Alerts as AlertsApi, Dashboard } from "@/api/endpoints";
 import { useApi, useApiInfinite } from "@/api/useApi";
 import { useInfiniteScroll } from "@/hooks";
@@ -150,11 +149,7 @@ export function Alerts({ empty }: AlertsProps) {
         <EmptyState
           art={EMPTY_ART.alerts}
           title="Alerts"
-          desc={
-            ee.hasAsk
-              ? "An alert is a subscription: Replayfy already detects the issues, and an alert says where to tell you when one comes back. Ask Replayfy AI to watch an issue and it shows up here."
-              : "An alert is a subscription: Replayfy already detects the issues, and an alert says where to tell you when one comes back. Create one from any funnel or signal and it shows up here."
-          }
+          desc="An alert is a subscription: Replayfy already detects the issues, and an alert says where to tell you when one comes back. Ask Replayfy AI to watch an issue and it shows up here."
           actions={[
             {
               label: "Documentation",

@@ -64,7 +64,7 @@ import { SignalsWorkspace } from "./drawers/SignalsWorkspace";
 import { SignalInvestigation } from "./drawers/SignalInvestigation";
 import { SkText } from "./sections/OverviewSkeletons";
 import { OnboardingChecklist } from "./sections/OnboardingChecklist";
-import { ee } from "@ee";
+import { useAsk } from "./AskProvider";
 import { CrashAllList } from "./drawers/CrashAllList";
 import { osLabel, flagEmoji } from "@/lib/device-format";
 
@@ -256,9 +256,9 @@ export function Overview({ empty }: { empty?: boolean }) {
   const conversionLoading =
     funnelListLoading || (!!pinnedFunnel && funnelComputePending);
 
-  // Ask AI is mounted globally (ee.AskProvider in AppLayout) — trigger it from
-  // here. Open-source build: ee.useAsk() is a no-op, so these calls do nothing.
-  const { openAsk } = ee.useAsk();
+  // Ask AI is mounted globally (AskProvider in AppLayout) — trigger it from
+  // here.
+  const { openAsk } = useAsk();
 
   // ── Derived view-models (fixture fallback while a payload is unresolved). ──
   const pulse = overviewData?.pulse;

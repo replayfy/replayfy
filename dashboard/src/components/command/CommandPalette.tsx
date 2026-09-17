@@ -165,7 +165,7 @@ export function CommandPalette({ onClose, onNewPlaylist, onShortcuts }: CommandP
   // viewer can't spend AI credits, so the row isn't offered to them.
   const actionDefs: { icon: string; label: string; show?: boolean; run: () => void }[] = [
     // Ask AI is Enterprise Edition — hidden entirely in the open-source build.
-    { icon: 'spark', label: 'Ask AI', show: can.contribute && ee.hasAsk, run: () => go('/overview?ask=' + encodeURIComponent(q.trim())) },
+    { icon: 'spark', label: 'Ask AI', show: can.contribute, run: () => go('/overview?ask=' + encodeURIComponent(q.trim())) },
     { icon: 'pages', label: 'View documentation', run: () => { window.open(DOCS_URL, '_blank', 'noopener'); onClose(); } },
     { icon: 'sparkle', label: 'Changelog', run: () => { window.open(CHANGELOG_URL, '_blank', 'noopener'); onClose(); } },
     { icon: 'comment', label: 'Support', run: () => { window.open(SUPPORT_URL, '_blank', 'noopener'); onClose(); } },

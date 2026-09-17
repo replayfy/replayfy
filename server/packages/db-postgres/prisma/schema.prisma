@@ -836,7 +836,7 @@ enum KnowledgeSource {
 }
 
 /// The AI's durable, per-workspace learned memory — the workspace's own
-/// "CLAUDE.md". Semantic mappings + preferences the AI accumulates so it never
+/// knowledge file. Semantic mappings + preferences the AI accumulates so it never
 /// re-asks (e.g. payment_success_event = "purchase_completed", primary_metric =
 /// "D7 retention"). Injected into the planner/narrator context every turn.
 /// Workspace-scoped; stores mappings/preferences, NEVER secrets or PII. Distinct

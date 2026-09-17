@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { Icon } from "@/components/primitives";
 import { EvidenceList, storyEvidence } from "./EvidenceList";
-import { ee } from "@ee";
+import { AskBar } from "../ask/AskBar";
 import { segmentText, type OverviewStoryline } from "../overview.api";
 import type { Signal } from "../overview.data";
 
@@ -37,10 +37,6 @@ export function SignalsSection({
   onAll,
   onAct,
 }: SignalsSectionProps) {
-  // Enterprise Edition: the inline Ask bar exists only in the cloud build; the
-  // open-source build has no assistant (ee.AskBar is null), so the whole
-  // "Ask Replayfy" header is omitted and Signals renders exactly as before.
-  const AskBar = ee.AskBar;
   const [evOpen, setEvOpen] = useState(false);
   const evRef = useRef<HTMLSpanElement>(null);
   useEffect(() => {
@@ -125,7 +121,7 @@ export function SignalsSection({
 
   return (
     <section className="ox-sec" aria-label={ai ? "Signals" : "Needs attention"}>
-      {ai && AskBar && (
+      {ai && (
         <div className="ox-askbar" data-tour="ask">
           <h1 className="ox-askbar-l">
             Ask <span className="brand">Replayfy</span>

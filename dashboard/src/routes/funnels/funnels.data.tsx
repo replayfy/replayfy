@@ -102,7 +102,7 @@ export type ApiFunnelComputeStep = {
 };
 /** GET /v1/funnels/:id/compute response (FunnelsService.compute). Carries the
  *  funnel name + fully-resolved steps + counts in ONE call, so the detail page
- *  needs only this single per-funnel compute (never a loop — see CLAUDE.md). */
+ *  needs only this single per-funnel compute (never a loop — avoids N+1). */
 export type ApiFunnelCompute = {
   funnelId: number | null;
   name: string | null;
@@ -178,7 +178,7 @@ export type ApiFunnelBreakdown = {
 /** API funnel (list summary) → the design's FnListItem row.
  *  conv/sessions/trend are NOT on the list summary — they only come from the
  *  per-funnel compute, which we must NOT call in a loop over the list (N+1 is
- *  forbidden by CLAUDE.md). They stay neutral (0) here; the detail page shows
+ *  forbidden). They stay neutral (0) here; the detail page shows
  *  the real numbers via a single Funnels.compute for the one opened funnel. */
 export function adaptFunnel(f: ApiFunnel): FnListItem {
   return {

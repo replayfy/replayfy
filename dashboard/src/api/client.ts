@@ -6,12 +6,27 @@
  */
 import { reportReachable, reportUnreachable } from "./health";
 
+declare global {
+  interface Window {
+    __REPLAYFY_API_URL__?: string;
+  }
+}
+
+// Runtime override, so ONE pre-built image (e.g. ghcr.io/replayfy/dashboard)
+// serves any deployment instead of being frozen to the origin it was built for.
+// The container's entrypoint writes /runtime-config.js from $API_BASE_URL at
+// start; index.html loads it (a classic script) before this module runs, so the
+// value is present here. Empty/absent → fall through to the build-time value.
+const runtimeApiUrl =
+  (typeof window !== "undefined" && window.__REPLAYFY_API_URL__) || undefined;
+
 // VITE_ vars are frozen into the bundle at BUILD time. A production build that
-// forgets VITE_API_URL would otherwise silently bake in the localhost fallback,
-// so every request hits the VISITOR's own machine and the app looks dead. Fail
-// loud in that case (prod build only) rather than shipping a broken bundle; dev
-// (import.meta.env.PROD === false) keeps the convenient localhost default.
-const configuredApiUrl = import.meta.env.VITE_API_URL;
+// forgets VITE_API_URL (and has no runtime override) would otherwise silently
+// bake in the localhost fallback, so every request hits the VISITOR's own
+// machine and the app looks dead. Fail loud in that case (prod build only)
+// rather than shipping a broken bundle; dev (import.meta.env.PROD === false)
+// keeps the convenient localhost default.
+const configuredApiUrl = runtimeApiUrl || import.meta.env.VITE_API_URL;
 if (import.meta.env.PROD && !configuredApiUrl) {
   throw new Error(
     "VITE_API_URL is not set. A production build must be built with " +

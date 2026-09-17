@@ -1,0 +1,26 @@
+# Run the PUBLISHED images from the GitHub Container Registry instead of building
+# from source. Layer it on top of the base compose file:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up
+#
+# Pin a version with REPLAYFY_IMAGE_TAG (defaults to `latest`). Everything else —
+# ports, env, datastores — comes from docker-compose.yml unchanged; this only
+# swaps "build from source" for "pull a published image".
+#
+# Requires Docker Compose v2.24+ (for the `!reset` tag that drops the inherited
+# build section). On older Compose, run `... pull` first, then `... up --no-build`.
+services:
+  migrate:
+    build: !reset null
+    image: ghcr.io/replayfy/server:${REPLAYFY_IMAGE_TAG:-latest}
+
+  api:
+    build: !reset null
+    image: ghcr.io/replayfy/server:${REPLAYFY_IMAGE_TAG:-latest}
+
+  dashboard:
+    build: !reset null
+    image: ghcr.io/replayfy/dashboard:${REPLAYFY_IMAGE_TAG:-latest}
+    # API_BASE_URL (from docker-compose.yml) is rendered into /runtime-config.js
+    # at start, so this published image points at whatever origin you set — no
+    # rebuild needed.

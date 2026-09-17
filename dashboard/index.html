@@ -5,6 +5,13 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Replayfy</title>
+    <!-- Runtime config. A classic (non-module) script, so it runs during head
+         parsing — before the deferred app bundle reads it. The self-host
+         container's entrypoint overwrites this file from $API_BASE_URL at start,
+         letting one pre-built image point at any API origin. Ships as a no-op
+         default (empty), so dev and from-source builds fall back to
+         VITE_API_URL. See public/runtime-config.js + the Dockerfile entrypoint. -->
+    <script src="/runtime-config.js"></script>
     <!-- Fonts are SELF-HOSTED (was Google Fonts). The old `<link rel=stylesheet>`
          to fonts.googleapis.com was render-blocking AND needed two preconnects to
          a third-party origin before the first byte of a glyph could load. These

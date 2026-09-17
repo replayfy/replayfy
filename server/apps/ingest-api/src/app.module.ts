@@ -42,6 +42,8 @@ import { IncidentsModule } from "./incidents/incidents.module";
 import { IssuesModule } from "./issues/issues.module";
 import { JourneyModule } from "./journeys/journey.module";
 import { LlmModule } from "./llm/llm.module";
+import { AgentModule } from "./agent/agent.module";
+import { InsightsModule } from "./insights/insights.module";
 import { ReleaseModule } from "./releases/release.module";
 import { WorkspacePrecomputeModule } from "./workspace-precompute/workspace-precompute.module";
 import { AlertsModule } from "./alerts/alerts.module";
@@ -132,8 +134,11 @@ function eeModules(): any[] {
     // backfill / mobile-quiet / precompute sweeps into the intelligence Bull
     // queue (consumed by IntelligenceProcessor in QueueModule).
     IntelligenceSchedulerModule,
-    // Enterprise Edition (agentic assistant + AI insights) — present only when
-    // the proprietary ee/ directory ships with the build; empty otherwise.
+    // The agentic Ask assistant + AI insights — open-core (bring-your-own-key).
+    AgentModule,
+    InsightsModule,
+    // Enterprise Edition (billing / AI-credit metering) — present only when the
+    // proprietary ee/ directory ships with the build; empty otherwise.
     ...eeModules(),
     JourneyModule,
     // LLM provider layer (@Global) — Overview cause + the agent.

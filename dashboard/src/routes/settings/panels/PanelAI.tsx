@@ -20,12 +20,12 @@ type AiStatus = null | "checking" | "valid" | "invalid";
    than re-fetching /v1/settings/ai/usage and duplicating the breakdown.
    TODO(api): Settings.aiMode (aiEnabled) and Settings.intelInterval have no
    control in this layout. */
-/** Mirrors LlmService.BYOK_ENABLED on the backend. BYOK is withdrawn as a
- *  product option; the picker, the provider form, and the key field below are
- *  all left intact behind this flag so re-enabling is one edit in each repo
- *  rather than a rebuild. While false the API also REJECTS mode: "BYOK", so
- *  showing the option would only produce an error. */
-const BYOK_ENABLED = false;
+/** Mirrors LlmService.BYOK_ENABLED on the backend. In the open-source /
+ *  self-hosted build (no billing) BYOK is ON — self-hosters bring their own
+ *  provider key. In the cloud build AI is the managed, metered "Replayfy AI" on
+ *  the platform key, so the per-workspace-key path is withheld (the API also
+ *  rejects mode:"BYOK" there). Keyed off ee.hasBilling to stay in lock-step. */
+const BYOK_ENABLED = !ee.hasBilling;
 
 export function PanelAI() {
   const {
@@ -33,7 +33,11 @@ export function PanelAI() {
     loading: llmLoading,
     stale: llmStale,
     refetch,
-  } = useApi<ApiLlm>(() => Settings.llm.get<ApiLlm>());
+  } = useApi<ApiLlm>(() => Settings.llm.get<ApiLlm>(), [], {
+    // Shared cache entry with the Ask panel's aiReady probe (AskProvider): one
+    // request, and saving a key here refreshes the panel's composer state.
+    key: "settings-llm",
+  });
   /* Cold load only, per read: `stale` = the PREVIOUS workspace's provider
      (keepPreviousData); `syncing` is excluded so saving a key or switching
      provider refetches under the block that is already correct. */
@@ -43,6 +47,8 @@ export function PanelAI() {
     BYOK_ENABLED && data?.mode === "BYOK" ? "BYOK" : "PLATFORM";
   const serverProvider = data?.provider ?? "anthropic";
   const tokensToday = data?.tokensUsedToday ?? 0;
+  // Whether AI can actually run right now (a provider key + model are resolved).
+  const aiReady = data?.aiReady ?? false;
   const budget = data?.dailyTokenBudget ?? 0;
 
   const [modeOverride, setModeOverride] = useState<string | null>(null);
@@ -116,11 +122,16 @@ export function PanelAI() {
             </span>
             <span className="ai-mode-radio" />
           </span>
-          <span className="ai-mode-t">Replayfy AI</span>
-          <span className="ai-mode-badge">Managed · Recommended</span>
+          <span className="ai-mode-t">
+            {ee.hasBilling ? "Replayfy AI" : "Server key"}
+          </span>
+          <span className="ai-mode-badge">
+            {ee.hasBilling ? "Managed · Recommended" : "Unmetered"}
+          </span>
           <span className="ai-mode-d">
-            Fully managed by Replayfy. No setup — Storylines, Ask, and
-            investigations work out of the box. Metered with your plan.
+            {ee.hasBilling
+              ? "Fully managed by Replayfy. No setup — Storylines, Ask, and investigations work out of the box. Metered with your plan."
+              : "Uses the AI provider key configured on the server (LLM_PROVIDER + a key + LLM_MODEL). Unmetered — you pay your provider directly."}
           </span>
         </button>
         <button
@@ -155,22 +166,39 @@ export function PanelAI() {
         <div className="ai-cfg">
           <div className="ai-cfg-row">
             <span className="ai-cfg-k">Status</span>
-            <span className="ai-ok">
-              <span className="dot" /> Active — managed by Replayfy
-            </span>
+            {ee.hasBilling ? (
+              <span className="ai-ok">
+                <span className="dot" /> Active — managed by Replayfy
+              </span>
+            ) : aiReady ? (
+              <span className="ai-ok">
+                <span className="dot" /> Active — using the server's AI key
+              </span>
+            ) : (
+              <span className="ai-key-msg">
+                Not configured — set <code>LLM_PROVIDER</code>, a provider key
+                (<code>OPENROUTER_API_KEY</code> or <code>ANTHROPIC_API_KEY</code>)
+                and <code>LLM_MODEL</code> on the server, then restart. Or bring
+                your own key below.
+              </span>
+            )}
           </div>
           <div className="ai-cfg-row">
             <span className="ai-cfg-k">Models</span>
             <span className="ai-cfg-v">
-              Auto — latest Replayfy-tuned models
+              {ee.hasBilling
+                ? "Auto — latest Replayfy-tuned models"
+                : "From LLM_MODEL (server)"}
             </span>
           </div>
-          <div className="ai-cfg-row">
-            <span className="ai-cfg-k">Budget</span>
-            <span className="ai-cfg-v">
-              {fmtN(tokensToday)} / {fmtN(budget)} tokens today
-            </span>
-          </div>
+          {data?.metered && (
+            <div className="ai-cfg-row">
+              <span className="ai-cfg-k">Budget</span>
+              <span className="ai-cfg-v">
+                {fmtN(tokensToday)} / {fmtN(budget)} tokens today
+              </span>
+            </div>
+          )}
         </div>
       )}
       {BYOK_ENABLED && mode === "BYOK" && (
@@ -252,6 +280,33 @@ export function PanelAI() {
             </span>
           </Link>
         </>
+      )}
+
+      {/* Self-host: a quiet pointer to the managed option (Enterprise/Cloud is
+          the only place billing + no-setup managed AI live). No paywall — the
+          full AI works here with your own key. */}
+      {!ee.hasBilling && (
+        <div
+          style={{
+            marginTop: "var(--sp-20)",
+            padding: "var(--sp-12) var(--sp-16)",
+            borderRadius: 8,
+            background: "var(--surface-2, rgba(0,0,0,.03))",
+            fontSize: "var(--text-sm)",
+            lineHeight: 1.5,
+          }}
+        >
+          Prefer zero setup? <b>Replayfy Cloud</b> runs and manages the AI for
+          you — no keys, no server config, usage-based billing.{" "}
+          <a
+            href="https://replayfy.app"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ whiteSpace: "nowrap", fontWeight: 600 }}
+          >
+            Learn about Cloud →
+          </a>
+        </div>
       )}
     </>
   );

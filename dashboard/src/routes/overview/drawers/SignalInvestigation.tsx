@@ -372,7 +372,7 @@ function AiInvestigation({
         if (!r || r.available === false || !r.report?.executiveSummary) {
           setWhy(
             r?.reason === "no_key" || r?.reason === "disabled"
-              ? "Replayfy AI isn't enabled for this workspace."
+              ? "Replayfy AI isn't set up yet — add a model provider in Settings → AI."
               : r?.reason === "budget" || r?.reason === "credits"
                 ? "This workspace has reached its AI budget for now."
                 : "Replayfy couldn't reach a conclusion from the available evidence.",

@@ -198,6 +198,11 @@ services:
         VITE_API_URL: ${API_BASE_URL:-http://localhost:4000}
         VITE_STRIPE_PUBLISHABLE_KEY: ${VITE_STRIPE_PUBLISHABLE_KEY:-}
     image: replayfy-dashboard:local
+    environment:
+      # Written into /runtime-config.js at container start (see the dashboard
+      # entrypoint) and preferred by the app over the build-time VITE_API_URL —
+      # so the SAME image points at whatever origin you set here.
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:4000}
     depends_on:
       api: { condition: service_started }
     ports:

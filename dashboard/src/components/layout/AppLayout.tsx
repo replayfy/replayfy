@@ -9,7 +9,7 @@ import { queryClient } from "@/api/queryClient";
 import { NetworkError } from "@/components/feedback/network/NetworkError";
 import { useAuth } from "@/lib/auth";
 import { wsFromMembership, type Workspace } from "@/lib/workspaces";
-import { ee } from "@ee";
+import { AskProvider } from "@/routes/overview/AskProvider";
 
 /**
  * Routed app shell. Mirrors the prototype's app.jsx frame exactly — the `.app`
@@ -108,12 +108,10 @@ export function AppLayout() {
             is unreachable. */}
         {reachable ? (
           /* Ask AI (FAB + floating panel) mounts once here so it's available on
-             every page and stays fixed as the page scrolls. Enterprise Edition:
-             ee.AskProvider is the real provider in the cloud build and a
-             transparent passthrough in the open-source build (no assistant). */
-          <ee.AskProvider>
+             every page and stays fixed as the page scrolls. */
+          <AskProvider>
             <Outlet />
-          </ee.AskProvider>
+          </AskProvider>
         ) : (
           <NetworkError />
         )}

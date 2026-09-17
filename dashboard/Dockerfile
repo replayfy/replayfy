@@ -1,7 +1,10 @@
 # Replayfy dashboard — self-host image (static build served by nginx).
 #
-# VITE_API_URL is baked in at BUILD time (Vite inlines import.meta.env), so it is
-# a build ARG, not a runtime env. Point it at the public origin of the API.
+# VITE_API_URL is baked in at BUILD time (Vite inlines import.meta.env). For a
+# from-source build, point it at the public origin of the API. But the image is
+# ALSO runtime-configurable: set API_BASE_URL on the container and the entrypoint
+# writes /runtime-config.js at start (see docker-entrypoint.sh), which the app
+# prefers over the baked value — so one published image works for any deployment.
 FROM node:20.17.0-bookworm-slim AS build
 WORKDIR /app
 COPY . .
@@ -25,4 +28,7 @@ RUN npm run build
 FROM nginx:1.27-alpine
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Runs before nginx starts (the base image execs every *.sh here) and renders
+# /runtime-config.js from $API_BASE_URL, so the API origin is a runtime knob.
+COPY --chmod=0755 docker-entrypoint.sh /docker-entrypoint.d/40-runtime-config.sh
 EXPOSE 80

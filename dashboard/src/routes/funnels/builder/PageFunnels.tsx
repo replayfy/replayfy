@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { AiBadge, ConfirmDialog, DatePicker, Icon, NumberFlow, Popover, Select } from "@/components/primitives";
 import { EmptyState, EMPTY_ART } from "@/components/feedback";
 import { Funnels } from "@/api/endpoints";
-import { ee } from "@ee";
+import { useAsk } from "@/routes/overview/AskProvider";
 import { useAuth } from "@/lib/auth";
 import { deserializeFilters, fmtDur, fmtN, fnKind, fnMatch, fnOpsFor, serializeFilters } from "../funnels.helpers";
 import { FN_SEED, FN_BDIMS, FN_FLABEL, FN_FKIND, FN_OPS, FN_FVALUES, toBackendSteps, type ApiFunnel, type ApiFunnelCompute, type ApiFunnelBreakdown, type ApiFunnelBreakdownBucket, type ApiFunnelTimeline, type ApiFunnelTimelinePoint, type FnStep, type FnFilter, type FnSettings } from "../funnels.data";
@@ -127,7 +127,7 @@ export function PageFunnels({ empty, onBack, funnelName, funnelId, initialSteps,
   // drives it the same way; the funnel page had grown its own parallel drawer
   // that opened an independent conversation, so a question here and a question
   // on Overview lived in two different threads.
-  const { openAsk } = ee.useAsk();
+  const { openAsk } = useAsk();
   // The global panel only renders for contributors (viewers get a 403 from the
   // agent routes anyway), so the button must match — otherwise a viewer clicks
   // "Ask AI why" and nothing opens.
@@ -820,18 +820,14 @@ export function PageFunnels({ empty, onBack, funnelName, funnelId, initialSteps,
         <div className="fn-det-sub" style={{ display: 'flex', alignItems: 'center', gap: "var(--sp-10)" }}>
           <span>What&rsquo;s hurting conversion</span>
           <span className="sp" style={{ flex: 1 }} />
-          {/* #6 — grounded agent investigation of THIS transition (real stream).
-              Enterprise Edition: the assistant is absent in the open-source
-              build (ee.hasAsk false), so this control is omitted rather than
-              left dead — mirrors the command-palette Ask gate. */}
-          {ee.hasAsk && can.contribute && (
+          {/* #6 — grounded agent investigation of THIS transition (real stream). */}
+          {can.contribute && (
             <button className="fn-ai-ask" onClick={askWhyDrop}><Icon name="spark" size={12} fill /> Ask AI why</button>
           )}
         </div>
         {/* Real issue→drop correlations off the compute (#6/F6) — never a
-            fabricated reason. Empty state surfaces "Ask AI why" only when the
-            assistant exists (ee present); passing undefined omits it. */}
-        <FnInsights insights={insights} onAsk={ee.hasAsk && can.contribute ? askWhyDrop : undefined} />
+            fabricated reason. Empty state surfaces "Ask AI why" for contributors. */}
+        <FnInsights insights={insights} onAsk={can.contribute ? askWhyDrop : undefined} />
       </section>
       )}
         </>

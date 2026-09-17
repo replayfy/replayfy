@@ -1,6 +1,6 @@
 import "reflect-metadata";
 import { config as loadEnv } from "dotenv";
-import { validateStripePriceConfig } from "./billing/plan-catalog";
+import { validateStripePriceConfig, BILLING_ENABLED } from "./billing/plan-catalog";
 import { NestFactory } from "@nestjs/core";
 import { ValidationPipe } from "@nestjs/common";
 import type { INestApplication } from "@nestjs/common";
@@ -385,7 +385,9 @@ async function bootstrap() {
   // mapped back to a tier, so the grant is dropped while Stripe considers the
   // event delivered. Logged rather than thrown: running with Stripe entirely
   // unwired is a legitimate local-dev state, but it must never be quiet.
-  const priceProblems = validateStripePriceConfig();
+  // Only meaningful in the cloud build — the open-source / self-hosted build has
+  // no billing, so skip the check (and its alarming warning) entirely.
+  const priceProblems = BILLING_ENABLED ? validateStripePriceConfig() : [];
   if (priceProblems.length > 0) {
     process.stdout.write(
       `\n!! STRIPE PRICE CONFIG — ${priceProblems.length} problem(s). Customers can be charged for a plan the server cannot grant:\n` +

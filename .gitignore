@@ -6,10 +6,11 @@ dist/
 .env.*.local
 *.log
 .DS_Store
+# Prisma clients are generated on build
 packages/*/client/
 server/packages/*/client/
 
-# Keep a local, private working-notes file for maintainers — never publish it
+# Maintainers can keep a local, private working-notes file — never published
 CLAUDE.md
 **/CLAUDE.md
 .claude/

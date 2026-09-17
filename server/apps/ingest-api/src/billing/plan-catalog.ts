@@ -109,10 +109,35 @@ export const LEGACY_PLAN_ALIASES: Record<string, PlanKey> = {
   TEAM: "GROWTH",
 };
 
+/**
+ * Whether billing + plans are in this build. Billing is Enterprise Edition, so
+ * the proprietary `ee/` directory ships only in the cloud build; its absence is
+ * the open-source / self-hosted build. Detected with a runtime require of a
+ * dependency-free ee marker (the ee barrel can't be required here — it pulls in
+ * BillingService, which imports this file). When billing is absent, there are no
+ * plan ceilings: every workspace runs unlimited.
+ */
+function detectBillingEnabled(): boolean {
+  try {
+    require("../ee/present");
+    return true;
+  } catch {
+    return false;
+  }
+}
+export const BILLING_ENABLED = detectBillingEnabled();
+
 /** Resolve any stored plan string — including the legacy PRO/TEAM values that
  *  predate this catalog — to a tier. PRO/TEAM map to their nearest current
- *  paid tier so a legacy row still renders a coherent plan. Unknown → FREE. */
+ *  paid tier so a legacy row still renders a coherent plan. Unknown → FREE.
+ *
+ *  In the open-source / self-hosted build (no billing) EVERY workspace resolves
+ *  to the unlimited Enterprise tier — no retention ceiling, full mobile fps/
+ *  quality, no AI cadence floor or manual-refresh throttle. All plan-derived
+ *  caps funnel through here, so this one short-circuit makes the whole product
+ *  unlimited when billing isn't present, without touching the stored plan. */
 export function resolvePlan(plan: string | null | undefined): PlanTier {
+  if (!BILLING_ENABLED) return PLAN_TIERS.ENTERPRISE;
   const p = (plan ?? "FREE").toUpperCase();
   if (p in PLAN_TIERS) return PLAN_TIERS[p as PlanKey];
   const legacy = LEGACY_PLAN_ALIASES[p];

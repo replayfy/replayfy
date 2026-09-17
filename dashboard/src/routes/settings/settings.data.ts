@@ -367,6 +367,10 @@ export type ApiLlm = {
   askModel: string | null;
   dailyTokenBudget: number;
   tokensUsedToday: number;
+  /** Whether AI can actually run right now (a provider key + model are resolved). */
+  aiReady: boolean;
+  /** Whether this build meters AI (cloud). false in the self-hosted build. */
+  metered: boolean;
 };
 
 /* ---------- Team members + invites ---------- */

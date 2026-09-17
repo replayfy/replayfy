@@ -17,7 +17,7 @@ import {
  *  - "new" → an empty builder that persists via POST /v1/funnels on save.
  *  - <id>  → the saved funnel: its name, steps, conversion and per-step counts
  *            all come from a SINGLE GET /v1/funnels/:id/compute for the one
- *            opened funnel (never a per-funnel loop — see CLAUDE.md). */
+ *            opened funnel (never a per-funnel loop — avoids N+1). */
 /** The date-range preset that matches a saved funnel's conversion window, so
  *  the detail page opens over the same span the pinned dashboard widget
  *  computes. Only the presets the picker offers; an unusual window falls

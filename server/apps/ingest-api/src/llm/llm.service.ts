@@ -16,7 +16,11 @@ import { AnthropicProvider } from "./anthropic.provider";
 import { OpenRouterProvider } from "./openrouter.provider";
 import { LLM_MODELS, priceMicroCents } from "./llm.models";
 import { decryptSecret, encryptSecret, last4 } from "./llm-crypto";
-import { microCentsToCredits, planAiCredits } from "../billing/plan-catalog";
+import {
+  microCentsToCredits,
+  planAiCredits,
+  BILLING_ENABLED,
+} from "../billing/plan-catalog";
 import { AI_METERING_ENABLED } from "../billing/billing.port";
 import { REDIS_CLIENT } from "../common/redis.module";
 
@@ -97,20 +101,28 @@ export class LlmService {
 
   /** Client-safe view — never includes the key, only its last 4. */
   /**
-   * BYOK ("bring your own key") is WITHDRAWN as a product option.
+   * BYOK ("bring your own key") — per-workspace provider key set in the UI.
    *
-   * The whole implementation is deliberately left in place — the enum member,
-   * the AES-GCM key crypto (llm-crypto.ts), the resolution branch, and the
-   * metering carve-out — so re-enabling it is this one constant rather than a
-   * re-implementation. Flipping it back to true restores the previous behaviour
-   * exactly; nothing else has been deleted.
+   * ENABLED in the open-source / self-hosted build (no billing): self-hosters
+   * bring their own provider key. DISABLED in the cloud build, where AI is the
+   * managed, metered "Replayfy AI" on the platform key — that managed + billed
+   * AI is the paid product, so the per-workspace-key path is withheld there.
    *
-   * While false: the API refuses to SET the mode, and any workspace already
-   * stored as BYOK resolves through the PLATFORM key instead (and is therefore
-   * metered against its AI credits like everyone else). No stored key is read
-   * and none is deleted.
+   * (Self-host can also just set a server-env provider key — the PLATFORM path
+   * runs unmetered when billing is absent — so BYOK is the optional per-workspace
+   * alternative, not the only way to turn AI on.)
    */
-  static readonly BYOK_ENABLED = false;
+  static readonly BYOK_ENABLED = !BILLING_ENABLED;
+
+  /** Whether a PLATFORM provider key is present in the environment (the same
+   *  resolution resolve() uses). */
+  private hasPlatformKey(): boolean {
+    const usingOpenRouter = process.env.LLM_PROVIDER === "openrouter";
+    const key = usingOpenRouter
+      ? process.env.OPENROUTER_API_KEY || process.env.LLM_PLATFORM_KEY
+      : process.env.LLM_PLATFORM_KEY || process.env.ANTHROPIC_API_KEY;
+    return !!key;
+  }
 
   async getPublicConfig(workspaceId: number) {
     const c = await this.getConfig(workspaceId);
@@ -118,6 +130,16 @@ export class LlmService {
     // PLATFORM — so the dashboard never renders a mode the API would reject.
     const mode =
       !LlmService.BYOK_ENABLED && c.mode === "BYOK" ? "PLATFORM" : c.mode;
+    // Can AI actually run? The dashboard uses this to show honest state (and to
+    // gate the chat input) instead of advertising AI that would fail on a
+    // missing key/model. Both paths need LLM_MODEL (env-global); PLATFORM needs
+    // a provider key in env, BYOK a stored per-workspace key.
+    const hasModel = !!process.env.LLM_MODEL;
+    const hasKey =
+      LlmService.BYOK_ENABLED && mode === "BYOK"
+        ? !!(c.apiKeyCipher && c.apiKeyIv && c.apiKeyTag)
+        : this.hasPlatformKey();
+    const aiReady = mode !== "DISABLED" && hasModel && hasKey;
     return {
       mode,
       provider: c.provider,
@@ -128,6 +150,9 @@ export class LlmService {
       askModel: c.askModel,
       dailyTokenBudget: c.dailyTokenBudget,
       tokensUsedToday: c.tokensUsedToday,
+      // Whether AI is usable right now, and whether this build meters it (cloud).
+      aiReady,
+      metered: BILLING_ENABLED,
     };
   }
 
