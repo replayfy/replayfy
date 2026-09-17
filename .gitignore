@@ -14,3 +14,7 @@ server/packages/*/client/
 CLAUDE.md
 **/CLAUDE.md
 .claude/
+
+# Launch/marketing graphics live in the internal build workspace only — never
+# published to the product repo (publish.sh also excludes /assets).
+assets/

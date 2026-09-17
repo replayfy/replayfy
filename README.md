@@ -1,3 +1,5 @@
+<img src=".github/replayfy-hero.png" alt="Replayfy — sessions become evidence, AI reads them" width="100%">
+
 # Replayfy
 
 **The open-source product experience platform.** Session replay, product
