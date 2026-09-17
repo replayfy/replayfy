@@ -216,14 +216,43 @@ export class AuthService {
     // workspace, with the name/slug/region the user actually picks. Creating a
     // throwaway one first left every account with a dead `X's Workspace`
     // alongside the real one.
+    // Self-host escape hatch. Verification is a MAGIC LINK, so with no working
+    // mail server it can never be clicked and login stays blocked forever
+    // (login() refuses until emailVerifiedAt is set). AUTH_AUTOVERIFY marks the
+    // email verified at creation and returns a real session immediately — the
+    // same shape confirmVerification() hands a fresh signup (no workspace yet →
+    // onboarding). Default OFF: on a publicly reachable instance this drops the
+    // proof-of-ownership the link provides (anyone could mint verified
+    // accounts), so it is a single/trusted-instance bootstrap switch. The
+    // turnkey stack ships Mailpit, so the link is available (at :8025) even
+    // without this.
+    const autoVerifyRaw = (process.env.AUTH_AUTOVERIFY ?? "").toLowerCase();
+    const autoVerify =
+      autoVerifyRaw === "true" || autoVerifyRaw === "1" || autoVerifyRaw === "yes";
     const user = await this.db.user.create({
       data: {
         email,
         name,
         initials,
         passwordHash: hashPassword(input.password),
+        ...(autoVerify ? { emailVerifiedAt: new Date() } : {}),
       },
     });
+    if (autoVerify) {
+      return {
+        token: signJwt({ userId: user.id, email: user.email, workspaceId: null }),
+        pendingVerification: false,
+        workspaceId: null,
+        firstWorkspace: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          initials: user.initials,
+          avatarUrl: user.avatarUrl,
+        },
+      };
+    }
     // Issue verification token + send email — no JWT until they verify.
     const verifyUrl = await this.issueVerification(
       user.id,

@@ -16,6 +16,7 @@ import {
   planMobileMaxQuality,
   planRetentionDays,
   resolvePlan,
+  BILLING_ENABLED,
 } from "../billing/plan-catalog";
 
 export interface RecordingConfig {
@@ -220,7 +221,7 @@ export class SettingsService {
   ): Promise<
     RetentionConfig & {
       storageUsedBytes: number;
-      storageQuotaBytes: number;
+      storageQuotaBytes: number | null; // null = unlimited (self-host / no billing)
       maxRetentionDays: number | null;
     }
   > {
@@ -249,7 +250,14 @@ export class SettingsService {
       extendBookmarked: extras.extendBookmarked ?? "never",
       keepErrorsLonger: extras.keepErrorsLonger ?? true,
       storageUsedBytes: used,
-      storageQuotaBytes: quotas[ws?.plan ?? "FREE"] ?? quotas.FREE,
+      // Self-host / no billing: storage is uncapped. `null` = unlimited, the
+      // same short-circuit every other plan cap uses via resolvePlan()/
+      // BILLING_ENABLED (unlike them, this quota was a hardcoded map that
+      // bypassed it — hence a stray "/100 GB" leaked into the self-host UI).
+      // Cloud path (billing on) is unchanged.
+      storageQuotaBytes: BILLING_ENABLED
+        ? (quotas[ws?.plan ?? "FREE"] ?? quotas.FREE)
+        : null,
       // The plan's retention ceiling (null = unlimited), surfaced so the panel
       // can state the limit up front instead of only discovering it when a save
       // is rejected. Both the default period AND the bookmark extension are

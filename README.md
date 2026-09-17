@@ -93,13 +93,9 @@ cp .env.example .env          # change JWT_SECRET before exposing it
 docker compose up             # builds + starts the whole stack
 ```
 
-Then open **http://localhost:8080** and sign in with the seeded demo account:
-
-- **email** `admin@local`  ·  **password** `admin`
-
 That's it — the API, dashboard, Postgres, MongoDB, Redis, ClickHouse, and MinIO
-object storage all come up together; migrations and a small demo workspace run
-on first boot.
+object storage all come up together; migrations run on first boot, and (by
+default) a small demo workspace is seeded.
 
 | What | URL |
 | --- | --- |
@@ -108,7 +104,24 @@ on first boot.
 | Emails (Mailpit catcher) | http://localhost:8025 |
 | Object storage console (MinIO) | http://localhost:9001 |
 
-Set `SEED_DEMO=0` in `.env` to start empty. Full walkthrough:
+### Signing in
+
+Open **http://localhost:8080**. How you get your first account depends on
+`SEED_DEMO`:
+
+- **`SEED_DEMO=1` (default)** — a demo workspace ("Loop, Inc.") is seeded with a
+  ready-to-use owner account:
+  - **email** `admin@local`  ·  **password** `admin`
+- **`SEED_DEMO=0` (start empty)** — no account exists yet. Open
+  **http://localhost:8080/signup** and create one; sign-up is open (not
+  invite-only) and the account you create becomes the **owner** of the workspace
+  it sets up. Sign-up sends a verification email first — on the default stack
+  that lands in the **Mailpit catcher at http://localhost:8025**, so open it and
+  click the link to finish. (If you point `EMAIL_PROVIDER` at a real relay,
+  configure it or the verification link won't arrive.)
+
+There is no instance-wide super-admin — every user owns the workspaces they
+create. Full walkthrough:
 [docs.replayfy.app/quickstart](https://docs.replayfy.app/quickstart).
 
 ### Use pre-built images (skip the build)
@@ -125,6 +138,29 @@ docker compose -f docker-compose.yml -f docker-compose.ghcr.yml up
 The dashboard image is runtime-configurable (`API_BASE_URL`), so the published
 image works for any deployment — not just localhost. Pin a version by setting
 `REPLAYFY_IMAGE_TAG` (defaults to `latest`).
+
+### Deploy to a cloud host (no server to manage)
+
+Don't want to run a box? The tested path is still `docker compose up` on any VPS,
+but you can also deploy to a managed platform. Heads-up: Replayfy uses five
+datastores, and Postgres + Redis are the only ones these platforms manage —
+**MongoDB, ClickHouse, and object storage you point at externally** (MongoDB
+Atlas, ClickHouse Cloud, Cloudflare R2 / S3). These run **paid** instances.
+
+**Render** — a [`render.yaml`](render.yaml) blueprint provisions the API +
+dashboard + managed Postgres + Redis; you fill in the three external datastore
+URLs. It's an experimental starting point — review it first.
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/replayfy/replayfy)
+
+**Railway** manages Postgres, Redis **and** MongoDB (three of the four), leaving
+only ClickHouse + storage external; deploy it as a Railway template.
+
+**Brimble** has no one-click button — deploy the app with its CLI
+(`brimble deploy`) and attach managed datastores from the dashboard.
+
+Full walkthrough, env reference, and the caveats for each:
+[docs.replayfy.app/self-hosting/deploy](https://docs.replayfy.app/self-hosting/deploy).
 
 ---
 

@@ -143,6 +143,18 @@ services:
       PORT: 4000
       # APP_ROLE unset = all-in-one (HTTP + ingest + worker + cron in one process).
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production-please-32chars}
+      # Let /signup work without a mail server (marks new signups verified). Off
+      # by default; safe for a local/trusted instance. See .env.example.
+      AUTH_AUTOVERIFY: ${AUTH_AUTOVERIFY:-}
+      # Social login (optional) — set a provider's CLIENT_ID + SECRET to show its
+      # "Continue with …" button; unset providers are hidden. Callback URL is
+      # <API_BASE_URL>/v1/auth/oauth/<provider>/callback.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+      GITLAB_CLIENT_ID: ${GITLAB_CLIENT_ID:-}
+      GITLAB_CLIENT_SECRET: ${GITLAB_CLIENT_SECRET:-}
       DATABASE_URL_POSTGRES: postgresql://${POSTGRES_USER:-replay}:${POSTGRES_PASSWORD:-replay}@postgres:5432/${POSTGRES_DB:-replay_platform}
       DATABASE_URL_MONGO: mongodb://mongo:27017/${MONGO_DB:-replay}?replicaSet=rs0
       REDIS_URL: redis://redis:6379

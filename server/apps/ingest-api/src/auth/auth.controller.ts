@@ -107,6 +107,18 @@ export class AuthController {
   }
 
   /**
+   * Which social-login providers are actually configured (both CLIENT_ID and
+   * CLIENT_SECRET set). The dashboard renders a button only for these — otherwise
+   * a fresh self-host shows Google/GitHub buttons that 400 the moment they're
+   * clicked. Public: the login screen calls it before anyone is signed in.
+   */
+  @Get("oauth/providers")
+  oauthProviders(): { providers: OAuthProvider[] } {
+    const all: OAuthProvider[] = ["google", "github", "gitlab"];
+    return { providers: all.filter((p) => getProviderConfig(p) !== null) };
+  }
+
+  /**
    * OAuth start — 302 to the provider's auth URL. We sign a `state` query
    * param so the callback can verify the round trip is ours (CSRF defence).
    * Provider env vars must be set, otherwise we 400 with a clear message.

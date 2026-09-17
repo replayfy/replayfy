@@ -78,6 +78,10 @@ export const Auth = {
     api.post<AuthSession>("/v1/auth/invite/accept", body),
   /** Full-page redirect target (not fetch). Backend redirects back with ?token=. */
   oauthStartUrl: (provider: OAuthProvider) => `${API_URL}/v1/auth/oauth/${provider}/start`,
+  /** Social-login providers configured on THIS server (public). The login screen
+   *  renders a button only for these, so a self-host with no OAuth set up shows
+   *  no dead buttons. */
+  oauthProviders: () => api.get<{ providers: OAuthProvider[] }>("/v1/auth/oauth/providers"),
 };
 
 /* -------------------------------------------------------------- workspaces */

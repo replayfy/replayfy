@@ -1,0 +1,119 @@
+# Render blueprint — EXPERIMENTAL starting point, review before you deploy.
+#
+# A one-click "Deploy to Render" reads this file. It runs the two Replayfy app
+# services on Render + managed Postgres and Redis, and expects you to point at
+# THREE external managed datastores, because Render has no managed MongoDB,
+# ClickHouse, or object storage:
+#
+#   • MongoDB   — a replica set (Prisma requires one). Use MongoDB Atlas (free
+#                 M0 tier is a replica set) and paste its SRV URL below.
+#   • ClickHouse — ClickHouse Cloud (or your own), URL below.
+#   • Object storage — Cloudflare R2 / AWS S3 / Backblaze B2 (S3_* below).
+#
+# Why not run all six on Render? Mongo needs rs0 init that a plain pserv image
+# won't do, and ClickHouse/MinIO would be self-run on paid disks with no managed
+# backups. Pointing at managed datastores is the reliable path. If you'd rather
+# run everything yourself, `docker compose up` on a VPS is the tested route — see
+# https://docs.replayfy.app/self-hosting.
+#
+# NOTE: this provisions PAID services (web services + managed Postgres/Redis).
+# The free tier will not run it. Set the secrets marked `sync: false` in the
+# Render dashboard after the blueprint loads.
+
+databases:
+  - name: replayfy-postgres
+    plan: basic-256mb
+    postgresMajorVersion: "16"
+
+services:
+  # Managed Redis-compatible key/value store.
+  - name: replayfy-redis
+    type: keyvalue
+    plan: starter
+    ipAllowList: [] # only reachable from other services in this Render project
+
+  # The API (build from the repo Dockerfile). Runs all-in-one (APP_ROLE unset).
+  - name: replayfy-api
+    type: web
+    runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: ./server
+    autoDeployTrigger: "off"
+    healthCheckPath: /readyz
+    # Run DB migrations (+ optional demo seed) before each new version goes live.
+    preDeployCommand: >-
+      npm run prisma:deploy && npm run ch:migrate &&
+      if [ "$SEED_DEMO" = "1" ]; then npm run seed; else echo 'skip seed'; fi
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "4000"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL_POSTGRES
+        fromDatabase: { name: replayfy-postgres, property: connectionString }
+      - key: REDIS_URL
+        fromService:
+          { name: replayfy-redis, type: keyvalue, property: connectionString }
+      # ── You must fill these (external managed datastores) ──
+      - key: DATABASE_URL_MONGO
+        sync: false # e.g. mongodb+srv://user:pass@cluster.mongodb.net/replay
+      - key: CLICKHOUSE_URL
+        sync: false # e.g. https://xxx.clickhouse.cloud:8443
+      - key: CLICKHOUSE_USER
+        sync: false
+      - key: CLICKHOUSE_PASSWORD
+        sync: false
+      - key: CLICKHOUSE_DATABASE
+        value: replay
+      - key: S3_ENDPOINT
+        sync: false # R2/S3 endpoint
+      - key: S3_REGION
+        value: auto
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
+      # ── Public URLs — Render can't derive a service's PUBLIC https URL from a
+      # blueprint, so set these by hand after the first deploy assigns the
+      # *.onrender.com hostnames, then redeploy. ──
+      - key: APP_BASE_URL
+        sync: false # https://replayfy-dashboard.onrender.com
+      - key: API_BASE_URL
+        sync: false # https://replayfy-api.onrender.com
+      - key: CORS_ORIGINS
+        sync: false # your dashboard origin, e.g. https://replayfy-dashboard.onrender.com
+      - key: TRUST_PROXY
+        value: "1"
+      # ── Optional ──
+      - key: SEED_DEMO
+        value: "1" # admin@local / admin; set 0 to start empty
+      - key: AUTH_AUTOVERIFY
+        value: "1" # let /signup work before you configure email; turn OFF if public
+      - key: EMAIL_PROVIDER
+        value: console # logs emails; set smtp/resend for real delivery
+      - key: LLM_PROVIDER
+        sync: false # optional: openrouter (then set OPENROUTER_API_KEY + LLM_MODEL)
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+
+  # The dashboard — built from its Dockerfile (nginx) so /runtime-config.js can
+  # point at the API at runtime via API_BASE_URL.
+  - name: replayfy-dashboard
+    type: web
+    runtime: docker
+    dockerfilePath: ./dashboard/Dockerfile
+    dockerContext: ./dashboard
+    autoDeployTrigger: "off"
+    envVars:
+      # Baked into /runtime-config.js at container start. Set to the API's public
+      # URL after the first deploy assigns it, then redeploy.
+      - key: API_BASE_URL
+        sync: false # https://replayfy-api.onrender.com

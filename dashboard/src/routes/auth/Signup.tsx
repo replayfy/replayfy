@@ -83,7 +83,6 @@ export function Signup() {
         <button className="av-btn" onClick={submit} disabled={busy}>
           {busy ? "Creating account…" : "Create account"}
         </button>
-        <div className="av-or">Or</div>
         <OAuthRow
           verb="Continue"
           onProvider={(p) => window.location.assign(Auth.oauthStartUrl(p))}

@@ -608,6 +608,14 @@
 .ai-key-msg{display:flex;align-items:center;gap:var(--sp-6);font-size:var(--text-xs);color:var(--t3);}
 .ai-key-msg.ok{color:var(--green);}
 .ai-key-msg.err{color:var(--red);}
+/* A multi-line status paragraph (env-var names inline). NOT a flex row — inline
+   <code> children must reflow as normal wrapped text, not split into per-word
+   columns the way .ai-key-msg (display:flex) does. */
+.ai-cfg-note{font-size:var(--text-xs);line-height:var(--lh-cozy);color:var(--t3);}
+.ai-cfg-note code{font-family:var(--mono);font-size:.9em;color:var(--t2);background:var(--line-2);padding:var(--sp-2) var(--sp-4);border-radius:var(--r-xs);white-space:nowrap;}
+/* When the value is a paragraph (not a one-line control), top-align the row so
+   the 70px key label sits at the first line rather than the vertical middle. */
+.ai-cfg-row:has(.ai-cfg-note){align-items:flex-start;}
 /* ============================ Billing ==================================== */
 /* Concise workspace surface + the dedicated Change Plan page. Square-shouldered
    cards (12px, matching .set-card), tabular figures, indigo only for the primary

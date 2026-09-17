@@ -36,8 +36,11 @@ export function PanelRetention() {
   const capNote =
     maxDays == null ? "" : ` Your plan allows up to ${maxDays} days.`;
   const used = data?.storageUsedBytes ?? 0;
-  const quota = data?.storageQuotaBytes ?? 0;
-  const usedPctExact = quota > 0 ? Math.min(100, (used / quota) * 100) : 0;
+  // null = unlimited (self-host / no billing) — no cap to render a "/X GB" against.
+  const quota = data?.storageQuotaBytes ?? null;
+  const unlimited = quota == null;
+  const usedPctExact =
+    quota != null && quota > 0 ? Math.min(100, (used / quota) * 100) : 0;
   // Never let real (but tiny) usage render as an empty bar — floor the fill to a
   // visible sliver whenever there is any usage.
   const barPct = used > 0 ? Math.max(usedPctExact, 2) : 0;
@@ -123,9 +126,11 @@ export function PanelRetention() {
           >
             {fmtBytes(used)}
           </span>
-          <span style={{ fontSize: "var(--text-base)", color: "var(--t2)" }}>
-            of {fmtBytes(quota)}
-          </span>
+          {quota != null && (
+            <span style={{ fontSize: "var(--text-base)", color: "var(--t2)" }}>
+              of {fmtBytes(quota)}
+            </span>
+          )}
         </div>
         {/* Ticked / equalizer meter — same construction as the billing usage
             bars: a neutral tick track with the fill re-drawn in the row hue
@@ -142,8 +147,9 @@ export function PanelRetention() {
           <span className="blt-fill" style={{ width: barPct + "%" }} />
         </div>
         <div style={{ fontSize: "var(--text-sm)", color: "var(--t2)", marginTop: "var(--sp-10)" }}>
-          {used > 0 && usedPctExact < 1 ? "<1" : Math.round(usedPctExact)}% used
-          · {retentionDays} default retention
+          {unlimited
+            ? `Unlimited · ${retentionDays} default retention`
+            : `${used > 0 && usedPctExact < 1 ? "<1" : Math.round(usedPctExact)}% used · ${retentionDays} default retention`}
         </div>
       </div>
     </>

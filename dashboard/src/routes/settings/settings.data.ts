@@ -297,7 +297,8 @@ export type ApiRetention = {
   extendBookmarked: string;
   keepErrorsLonger: boolean;
   storageUsedBytes: number;
-  storageQuotaBytes: number;
+  /** Storage quota in bytes; null = unlimited (self-host / no billing). */
+  storageQuotaBytes: number | null;
   /** The plan's retention ceiling in days; null = unlimited (Enterprise). Both
    *  the default period and the bookmark extension are capped by it. */
   maxRetentionDays: number | null;

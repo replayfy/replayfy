@@ -122,7 +122,6 @@ export function Login() {
         <button className="av-btn" onClick={submit} disabled={busy}>
           {busy ? "Signing in…" : "Sign in"}
         </button>
-        <div className="av-or">Or</div>
         <OAuthRow
           verb="Continue"
           onProvider={(p) => window.location.assign(Auth.oauthStartUrl(p))}
