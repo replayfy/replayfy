@@ -5,6 +5,12 @@ analytics, funnels, crashlytics, cohorts, and an agentic AI assistant — in one
 self-hostable stack. Capture what your users actually do, then replay it, slice
 it, and let AI tell you what's hurting conversion and stability.
 
+**Why Replayfy.** Your users' sessions are the ground truth of what your product
+actually does — they should be *evidence*, not just replays you never watch.
+Replayfy exists so AI can read that evidence end-to-end and tell you, in plain
+language, what's working, what's broken, and why. That belief is what it's built
+around.
+
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
 &nbsp;·&nbsp; [Documentation](https://docs.replayfy.app)
 &nbsp;·&nbsp; [Quickstart](https://docs.replayfy.app/quickstart)
