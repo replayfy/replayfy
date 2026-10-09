@@ -143,6 +143,33 @@ export class ReplayIngestService {
     return cached?.workspaceId ?? null;
   }
 
+  /**
+   * Resolve the workspace for a CI symbol upload. Unlike SDK ingest, this
+   * requires a SERVER key (rpl_sk_): the publishable key ships inside every
+   * customer's app, so accepting it would let anyone who unpacks an APK
+   * overwrite that workspace's mapping files (corrupting deobfuscated stacks)
+   * or fill its storage. Throws (401 missing/invalid, 403 wrong scope) rather
+   * than failing soft, so the Gradle plugin / CI step fails loudly with an
+   * actionable message instead of reporting a silent non-upload.
+   */
+  async resolveSymbolUploadWorkspace(
+    rawApiKey: string | undefined,
+  ): Promise<number> {
+    if (!rawApiKey)
+      throw new UnauthorizedException("Missing x-replay-api-key header");
+    const keyHash = createHash("sha256").update(rawApiKey).digest("hex");
+    const cached = await this.apiKeyCache.lookup(keyHash);
+    if (!cached) throw new UnauthorizedException("Invalid or revoked API key");
+    if (cached.scope !== "SERVER") {
+      throw new ForbiddenException(
+        "Symbol uploads need a server key (rpl_sk_...), not a publishable or " +
+          "webhook key. Create one in Settings > Install > Generate key > Server, " +
+          "and keep it in your CI secrets.",
+      );
+    }
+    return cached.workspaceId;
+  }
+
   private assertEnvelope(envelope: ReplayBatchEnvelope) {
     // A malformed envelope is a CLIENT error → 400, not a 500. (These threw a
     // plain Error before, which the exception filter mapped to 500 and polluted

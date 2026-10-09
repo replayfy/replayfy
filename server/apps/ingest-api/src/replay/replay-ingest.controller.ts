@@ -107,7 +107,8 @@ export class ReplayIngestController {
    * overwrite. Per-version retention is permanent (crashes from
    * old releases keep arriving for a long tail).
    *
-   * Auth via x-replay-api-key. Body is a base64 data URL so we can
+   * Auth via a SERVER key (rpl_sk_) in x-replay-api-key; publishable keys
+   * get a 403 (they ship inside apps). Body is a base64 data URL so we can
    * stay JSON-only (no multipart machinery) — same shape as the
    * existing asset / thumbnail endpoints. Caps the payload at 50 MB
    * decoded (mapping.txt can run a few MB, .so debug binaries can run
@@ -125,6 +126,10 @@ export class ReplayIngestController {
     @Param("filename") filename: string,
     @Body() body: { dataUrl?: string },
   ): Promise<{ ok: boolean; url: string | null }> {
+    // Authenticate first, with a SERVER (CI) key only — see
+    // resolveSymbolUploadWorkspace. 401/403 here, never a soft `ok:false`.
+    const workspaceId =
+      await this.replayIngestService.resolveSymbolUploadWorkspace(apiKey);
     if (!body?.dataUrl) return { ok: false, url: null };
     // Whitelist platform — keeps the bucket layout predictable.
     if (platform !== "android" && platform !== "ios") {
@@ -148,10 +153,6 @@ export class ReplayIngestController {
       );
     if (!filenameOk) return { ok: false, url: null };
     if (!this.storage.enabled) return { ok: false, url: null };
-
-    const workspaceId =
-      await this.replayIngestService.resolveWorkspaceId(apiKey);
-    if (!workspaceId) return { ok: false, url: null };
 
     const decoded = this.storage.decodeDataUrl(body.dataUrl);
     if (!decoded) return { ok: false, url: null };
