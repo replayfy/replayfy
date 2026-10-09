@@ -1,5 +1,6 @@
 /* Settings fixtures + avatar-hue helper + per-panel descriptions —
    future API-swap points. Extracted verbatim from the approved prototype. */
+import { API_URL } from "@/api/client";
 import { relTime } from "@/lib/format";
 
 /* avatar hue (Team panel) */
@@ -124,15 +125,12 @@ export const SNIP_API_HOST = "https://us.replayfy.app";
 export const SNIP_CDN_URL = "https://cdn.replayfy.app/v1/replay.global.js";
 
 /** The SDK `apiHost` shown in copy-paste install snippets. Defaults to the API
- *  origin the dashboard itself talks to, so a self-hosted dashboard hands out
- *  snippets that point at the self-hoster's own server; override with
- *  VITE_INGEST_HOST. */
+ *  origin the dashboard itself talks to (`API_URL`, which prefers the runtime
+ *  `/runtime-config.js` value over the build-time VITE_API_URL), so a pre-built
+ *  self-hosted image hands out snippets that point at the self-hoster's own
+ *  server; override with VITE_INGEST_HOST. */
 export function installIngestHost(): string {
-  return (
-    import.meta.env.VITE_INGEST_HOST ||
-    import.meta.env.VITE_API_URL ||
-    SNIP_API_HOST
-  );
+  return import.meta.env.VITE_INGEST_HOST || API_URL || SNIP_API_HOST;
 }
 /** URL of the web-SDK loader script. Override with VITE_SDK_URL; the published
  *  SDK on the default CDN works against any host, so self-hosters can keep it. */

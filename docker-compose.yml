@@ -70,9 +70,12 @@ services:
       retries: 20
 
   # ── Object storage (S3-compatible) + a mail catcher ─────────────────────
-  # MinIO publishes to quay.io (the Docker Hub `minio/minio` repo is gone).
+  # MinIO no longer publishes free images (quay.io/minio/* and Docker Hub
+  # minio/* now return 401), so this uses the pgsty community build of the same
+  # AGPL MinIO server + client, pinned. Any S3-compatible store works too: point
+  # the S3_* settings at it and drop these two services.
   minio:
-    image: quay.io/minio/minio:latest
+    image: pgsty/minio:RELEASE.2026-08-04T00-00-00Z
     command: ["server", "/data", "--console-address", ":9001"]
     environment:
       MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID:-replayfy}
@@ -90,7 +93,7 @@ services:
   # fetches replay archives directly). `mc` lives only in this client image, so
   # the wait loop lives here rather than in a minio healthcheck.
   minio-init:
-    image: quay.io/minio/mc:latest
+    image: pgsty/mc:RELEASE.2026-09-16T00-00-00Z
     depends_on:
       - minio
     entrypoint: >
