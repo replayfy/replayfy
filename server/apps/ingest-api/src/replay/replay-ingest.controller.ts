@@ -66,16 +66,20 @@ export class ReplayIngestController {
   ): Promise<ReplayIngestResponse> {
     const apiKey = headerKey || queryKey;
     // Accept either a raw envelope (legacy) or { envelope, identify, fingerprint } (current SDK).
-    const isRawEnvelope = "events" in body && "sessionId" in body;
-    const envelope: ReplayBatchEnvelope = isRawEnvelope
+    // A missing / non-JSON body must reach assertEnvelope (→ 400), not throw a
+    // TypeError here (`in` on undefined) and surface as a 500.
+    const isObjectBody = body !== null && typeof body === "object";
+    const isRawEnvelope =
+      isObjectBody && "events" in body && "sessionId" in body;
+    const envelope: ReplayBatchEnvelope | undefined = isRawEnvelope
       ? (body as ReplayBatchEnvelope)
-      : (body as ReplayBatchBody).envelope;
+      : (body as ReplayBatchBody | undefined)?.envelope;
     const identify = isRawEnvelope
       ? undefined
-      : (body as ReplayBatchBody).identify;
+      : (body as ReplayBatchBody | undefined)?.identify;
     const fingerprint = isRawEnvelope
       ? undefined
-      : (body as ReplayBatchBody).fingerprint;
+      : (body as ReplayBatchBody | undefined)?.fingerprint;
     const clientIp =
       forwardedFor?.split(",")[0]?.trim() ||
       ip ||

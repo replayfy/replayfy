@@ -35,7 +35,7 @@ export class ReplayIngestService {
 
   async ingestBatch(
     rawApiKey: string | undefined,
-    envelope: ReplayBatchEnvelope,
+    envelope: ReplayBatchEnvelope | undefined,
     extras: {
       ip?: string;
       geoCountry?: string;
@@ -170,10 +170,14 @@ export class ReplayIngestService {
     return cached.workspaceId;
   }
 
-  private assertEnvelope(envelope: ReplayBatchEnvelope) {
+  private assertEnvelope(
+    envelope: ReplayBatchEnvelope | undefined,
+  ): asserts envelope is ReplayBatchEnvelope {
     // A malformed envelope is a CLIENT error → 400, not a 500. (These threw a
     // plain Error before, which the exception filter mapped to 500 and polluted
     // error monitoring for what is just a bad request body.)
+    if (!envelope || typeof envelope !== "object")
+      throw new BadRequestException("envelope is required");
     if (!envelope.sessionId)
       throw new BadRequestException("sessionId is required");
     if (!envelope.segmentId)
