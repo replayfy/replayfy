@@ -43,20 +43,29 @@ function parseRoles(raw: string | undefined): Set<AppRole> {
   return new Set(tokens as AppRole[]);
 }
 
-// Parsed ONCE at import time — APP_ROLE is a deploy-time constant, never
-// per-request, so there is no reason to re-split it on every check.
-const ACTIVE_ROLES = parseRoles(process.env.APP_ROLE);
+// Parsed ONCE, on first use — APP_ROLE is a deploy-time constant, never
+// per-request. NOT at import time: bootstrap.ts imports this module before it
+// loads .env / .env.local, so an import-time read would miss an APP_ROLE that
+// lives only in a dotenv file and silently run every role (which, for an
+// ingest-only node, would expose the full API). Every caller runs after
+// loadEnv(), so the first call sees the final value; a bad token still throws
+// at boot from that first call.
+let activeRoleSet: Set<AppRole> | undefined;
+function roles(): Set<AppRole> {
+  activeRoleSet ??= parseRoles(process.env.APP_ROLE);
+  return activeRoleSet;
+}
 
 export function activeRoles(): AppRole[] {
-  return [...ACTIVE_ROLES];
+  return [...roles()];
 }
 
 export function hasRole(role: AppRole): boolean {
-  return ACTIVE_ROLES.has(role);
+  return roles().has(role);
 }
 
 export function isSingleProcess(): boolean {
-  return ACTIVE_ROLES.size === ALL_ROLES.length;
+  return roles().size === ALL_ROLES.length;
 }
 
 /**
@@ -66,5 +75,5 @@ export function isSingleProcess(): boolean {
  * stays private. `api,ingest` and single-process nodes are unaffected.
  */
 export function isIngestOnly(): boolean {
-  return ACTIVE_ROLES.has("ingest") && !ACTIVE_ROLES.has("api");
+  return roles().has("ingest") && !roles().has("api");
 }

@@ -1,6 +1,6 @@
 /**
  * The public SDK ingest surface: the only routes the web + mobile SDKs (and CI
- * symbol uploads) call. They authenticate with the workspace PUBLISHABLE key
+ * symbol uploads) call. They authenticate with a workspace API key
  * (x-replay-api-key), never a cookie or dashboard session.
  *
  * Shared by two consumers that must agree exactly:
@@ -8,8 +8,18 @@
  *   • the ingest-only gate (an APP_ROLE=ingest node serves ONLY these paths +
  *     the health endpoints, so it can be exposed publicly while the full
  *     dashboard API stays private).
+ *
+ * Listed per route, not as a bare `/v1/replay` prefix, because that prefix also
+ * hosts a DASHBOARD route (POST /v1/replay/symbolicate, JWT-authed) which must
+ * not be reachable on an ingest-only node. A new SDK route has to be added here
+ * or the SDK is CORS-blocked and 404s on ingest-only nodes.
  */
-export const SDK_PUBLIC_PREFIXES = ["/v1/replay", "/v1/sdk", "/v1/mobile"] as const;
+export const SDK_PUBLIC_PREFIXES = [
+  "/v1/replay/batch", // web + mobile replay batches
+  "/v1/replay/symbols", // CI symbol / mapping uploads
+  "/v1/sdk", // GET /v1/sdk/config
+  "/v1/mobile", // mobile session lifecycle + frames
+] as const;
 
 /** Health/identity endpoints every HTTP node keeps (LB probes, `GET /version`). */
 export const HEALTH_PATHS: ReadonlySet<string> = new Set([

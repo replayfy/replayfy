@@ -136,10 +136,15 @@ root — the easiest way to run the whole stack. For a bespoke deploy, supply yo
 own process supervision (systemd / pm2 / container orchestrator).
 
 **Important routing nuance:** role gating stops crons + local-pauses queues on
-the wrong node, but it does **not** unregister HTTP controllers — every role node
-still serves the full API surface on its port. So the load balancer must route
-ingest traffic to ingest nodes and dashboard traffic to api nodes; the app will
-not refuse a mis-routed request.
+the wrong node. An **ingest-only** node (`ingest` without `api`, i.e.
+`npm run role:ingest`) also refuses everything except the SDK routes
+(`/v1/replay/batch`, `/v1/replay/symbols/*`, `/v1/sdk/*`, `/v1/mobile/*`) and
+`/healthz`, `/readyz`, `/version` with a 404, so it can be the only
+internet-facing node. `api`, `worker`, `cron` and `api,ingest` nodes still serve
+the full HTTP surface. So the load balancer must send dashboard, auth, OAuth and
+integration callbacks, and the Stripe webhook to api (or `api,ingest`) nodes, and
+`API_BASE_URL` (the OAuth/integration callback origin) must reach an api node,
+never an ingest-only one.
 
 Graceful shutdown is handled: SIGTERM/SIGINT flushes the in-memory batchers
 (3s box) then closes. For zero-downtime rolling deploys, drain via `/readyz`

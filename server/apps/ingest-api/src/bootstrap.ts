@@ -25,7 +25,13 @@ import {
   isSingleProcess,
   isIngestOnly,
 } from "./common/app-roles";
-import { HEALTH_PATHS, isSdkPublicPath } from "./common/sdk-public-paths";
+import {
+  HEALTH_PATHS,
+  SDK_PUBLIC_PREFIXES,
+  isSdkPublicPath,
+} from "./common/sdk-public-paths";
+import type { ApiError } from "./common/api-response";
+import { randomBytes } from "crypto";
 import {
   REPLAY_QUEUE,
   RETENTION_QUEUE,
@@ -193,35 +199,10 @@ async function bootstrap() {
     process.stdout.write(`trust proxy: ${String(value)}\n`);
   }
 
-  // ── Ingest-only gate ───────────────────────────────────────────────────────
-  // An ingest-only node (`ingest` without `api`, e.g. APP_ROLE=ingest) serves
-  // ONLY the public SDK routes + health, and 404s everything else (auth,
-  // settings, sessions, …). That lets self-hosters expose just this node to the
-  // internet for SDK traffic while the full dashboard API stays private. First
-  // middleware, so a gated request never reaches CORS, body parsing or a route.
-  // No-op on `api,ingest` and single-process nodes (today's deploys).
-  if (isIngestOnly()) {
-    app.use((req: Request, res: Response, next: NextFunction) => {
-      if (isSdkPublicPath(req.path) || HEALTH_PATHS.has(req.path)) {
-        next();
-        return;
-      }
-      res.status(404).json({
-        ok: false,
-        error: {
-          code: "NOT_FOUND",
-          message: `${req.method} ${req.path} is not served by an ingest-only node`,
-        },
-      });
-    });
-    process.stdout.write(
-      "ingest-only node: serving SDK routes (/v1/replay, /v1/sdk, /v1/mobile) + health only\n",
-    );
-  }
-
   // ── CORS (path-aware) ──────────────────────────────────────────────────────
   // This one app serves two very different audiences, so CORS is split by path:
-  //   • Public SDK ingest routes (/v1/replay, /v1/sdk, /v1/mobile) are called by
+  //   • Public SDK ingest routes (common/sdk-public-paths.ts: /v1/replay/batch,
+  //     /v1/replay/symbols, /v1/sdk, /v1/mobile) are called by
   //     the web SDK running on CUSTOMERS' OWN domains (any origin). They auth
   //     with the workspace PUBLISHABLE key (x-replay-api-key) — never a cookie —
   //     so reflecting ANY origin with credentials OFF is correct AND safe: there
@@ -332,6 +313,36 @@ async function bootstrap() {
           req.url?.startsWith("/v1/sdk/config") === true),
     }),
   );
+
+  // ── Ingest-only gate ───────────────────────────────────────────────────────
+  // An ingest-only node (`ingest` without `api`, e.g. APP_ROLE=ingest) serves
+  // ONLY the public SDK routes + health, and 404s everything else (auth,
+  // settings, sessions, OAuth callbacks, the billing webhook, …). That lets
+  // self-hosters expose just this node to the internet for SDK traffic while
+  // the full dashboard API stays private. Placed after CORS, helmet and morgan
+  // (so a refused request still gets the security headers and an access-log
+  // line) but before body parsing and routing. No-op on `api,ingest` and
+  // single-process nodes (today's deploys).
+  if (isIngestOnly()) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (isSdkPublicPath(req.path) || HEALTH_PATHS.has(req.path)) {
+        next();
+        return;
+      }
+      const body: ApiError = {
+        ok: false,
+        error: {
+          code: "NOT_FOUND",
+          message: `${req.method} ${req.path} is not served by an ingest-only node`,
+        },
+        meta: { request_id: `req_${randomBytes(8).toString("hex")}`, ts: Date.now() },
+      };
+      res.status(404).json(body);
+    });
+    process.stdout.write(
+      `ingest-only node: serving SDK routes (${SDK_PUBLIC_PREFIXES.join(", ")}) + health (${[...HEALTH_PATHS].join(", ")}) only\n`,
+    );
+  }
 
   // ── Compressed-body (gzip-bomb) guard ───────────────────────────────────
   // The body parsers below inherit body-parser's default inflate:true, so a

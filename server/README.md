@@ -58,10 +58,12 @@ npm run role:cron      # APP_ROLE=cron    :4003  the @Cron schedulers (run exact
 An unknown `APP_ROLE` crashes at boot on purpose.
 
 An **ingest-only** node (`ingest` without `api`) serves only the public SDK
-routes (`/v1/replay`, `/v1/sdk`, `/v1/mobile`) plus `/healthz`, `/readyz` and
-`/version`; every other route returns 404. So you can expose just that node to
-the internet for SDK traffic and keep the dashboard API private (VPN, internal
-network, or an access proxy). `api,ingest` and single-process nodes serve
+routes (`/v1/replay/batch`, `/v1/replay/symbols/*`, `/v1/sdk/*`, `/v1/mobile/*`)
+plus `/healthz`, `/readyz` and `/version`; every other route returns 404. So you
+can expose just that node to the internet for SDK traffic and keep the dashboard
+API private (VPN, internal network, or an access proxy). OAuth/integration
+callbacks and the billing webhook still need a node that serves `api`, so keep
+`API_BASE_URL` pointed there. `api,ingest` and single-process nodes serve
 everything, exactly as before.
 
 ## Configuration
