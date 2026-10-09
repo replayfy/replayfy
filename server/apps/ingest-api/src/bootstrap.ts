@@ -19,7 +19,13 @@ import helmet from "helmet";
 import compression from "compression";
 import morgan from "morgan";
 import { flushProjectionInserts } from "@replay/db-clickhouse";
-import { hasRole, activeRoles, isSingleProcess } from "./common/app-roles";
+import {
+  hasRole,
+  activeRoles,
+  isSingleProcess,
+  isIngestOnly,
+} from "./common/app-roles";
+import { HEALTH_PATHS, isSdkPublicPath } from "./common/sdk-public-paths";
 import {
   REPLAY_QUEUE,
   RETENTION_QUEUE,
@@ -187,6 +193,32 @@ async function bootstrap() {
     process.stdout.write(`trust proxy: ${String(value)}\n`);
   }
 
+  // ── Ingest-only gate ───────────────────────────────────────────────────────
+  // An ingest-only node (`ingest` without `api`, e.g. APP_ROLE=ingest) serves
+  // ONLY the public SDK routes + health, and 404s everything else (auth,
+  // settings, sessions, …). That lets self-hosters expose just this node to the
+  // internet for SDK traffic while the full dashboard API stays private. First
+  // middleware, so a gated request never reaches CORS, body parsing or a route.
+  // No-op on `api,ingest` and single-process nodes (today's deploys).
+  if (isIngestOnly()) {
+    app.use((req: Request, res: Response, next: NextFunction) => {
+      if (isSdkPublicPath(req.path) || HEALTH_PATHS.has(req.path)) {
+        next();
+        return;
+      }
+      res.status(404).json({
+        ok: false,
+        error: {
+          code: "NOT_FOUND",
+          message: `${req.method} ${req.path} is not served by an ingest-only node`,
+        },
+      });
+    });
+    process.stdout.write(
+      "ingest-only node: serving SDK routes (/v1/replay, /v1/sdk, /v1/mobile) + health only\n",
+    );
+  }
+
   // ── CORS (path-aware) ──────────────────────────────────────────────────────
   // This one app serves two very different audiences, so CORS is split by path:
   //   • Public SDK ingest routes (/v1/replay, /v1/sdk, /v1/mobile) are called by
@@ -200,16 +232,14 @@ async function bootstrap() {
   //     set this deliberately). The dashboard authenticates with a Bearer token.
   // Implemented as middleware (Nest's built-in cors is disabled above) because
   // the split is by req.path, which the cors `origin` callback never sees.
-  // Registered before helmet so preflight (OPTIONS) is answered first.
-  const SDK_PUBLIC_PREFIXES = ["/v1/replay", "/v1/sdk", "/v1/mobile"];
+  // Registered before helmet so preflight (OPTIONS) is answered first. The SDK
+  // prefixes live in common/sdk-public-paths.ts (shared with the gate above).
   const CORS_METHODS = "GET,POST,PATCH,PUT,DELETE,OPTIONS";
   // The exact header set the SDK sends: Content-Encoding (gzipped batches) and
   // the x-replay-* auth/identity headers are NOT CORS-safelisted, so they must
   // be named explicitly or Safari/Chrome reject the preflight.
   const CORS_ALLOW_HEADERS =
     "Content-Type,Content-Encoding,Authorization,x-workspace-id,x-replay-api-key,x-replay-fingerprint,x-replay-identify";
-  const isSdkPublicPath = (p: string): boolean =>
-    SDK_PUBLIC_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`));
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.headers.origin;
     if (isSdkPublicPath(req.path)) {

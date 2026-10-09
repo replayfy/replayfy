@@ -49,13 +49,20 @@ workers, the `@Cron` schedulers, and the dashboard read API independently, run
 the same build as separate roles:
 
 ```bash
-npm run role:ingest    # APP_ROLE=ingest  :4000  SDK accept path
+npm run role:ingest    # APP_ROLE=ingest  :4000  SDK routes + health ONLY (everything else 404s)
 npm run role:api       # APP_ROLE=api     :4001  dashboard reads
 npm run role:worker    # APP_ROLE=worker  :4002  drains the Bull queues
 npm run role:cron      # APP_ROLE=cron    :4003  the @Cron schedulers (run exactly one)
 ```
 
 An unknown `APP_ROLE` crashes at boot on purpose.
+
+An **ingest-only** node (`ingest` without `api`) serves only the public SDK
+routes (`/v1/replay`, `/v1/sdk`, `/v1/mobile`) plus `/healthz`, `/readyz` and
+`/version`; every other route returns 404. So you can expose just that node to
+the internet for SDK traffic and keep the dashboard API private (VPN, internal
+network, or an access proxy). `api,ingest` and single-process nodes serve
+everything, exactly as before.
 
 ## Configuration
 

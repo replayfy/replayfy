@@ -58,3 +58,13 @@ export function hasRole(role: AppRole): boolean {
 export function isSingleProcess(): boolean {
   return ACTIVE_ROLES.size === ALL_ROLES.length;
 }
+
+/**
+ * True for a node that accepts SDK traffic but does not serve the dashboard API
+ * (`ingest` without `api`, e.g. `APP_ROLE=ingest`). Such a node serves ONLY the
+ * public SDK routes + health, so it can face the internet while the full API
+ * stays private. `api,ingest` and single-process nodes are unaffected.
+ */
+export function isIngestOnly(): boolean {
+  return ACTIVE_ROLES.has("ingest") && !ACTIVE_ROLES.has("api");
+}
