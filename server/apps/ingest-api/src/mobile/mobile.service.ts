@@ -1,4 +1,5 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
+import { makeWellFormedInPlace } from "../common/well-formed";
 import { createHash, randomBytes } from "crypto";
 import { gunzipSync } from "zlib";
 import { getPostgresClient } from "@replay/db-postgres";
@@ -9,6 +10,7 @@ import {
 import { ApiKeyCache } from "../api-keys/api-keys.cache";
 import { mobileDeviceFacts, humanizeDeviceModel } from "../common/device-facts";
 import { mergeSessionCustomProps } from "../common/session-props";
+import { toInt4 } from "../common/int4";
 import { resolveGeo, deviceGeoFallback } from "../replay/geo";
 import { FramesStreamService } from "../frames/frames-stream.service";
 import { PresenceService } from "../presence/presence.service";
@@ -66,6 +68,10 @@ interface StartParams {
  * correct clock is never "corrected".
  */
 const CLOCK_SKEW_TOLERANCE_MS = 120_000;
+
+/** A device timestamp further than this from the server's clock is treated as
+ *  missing: it is garbage, not a skew to keep (and would overflow INT8). */
+const MAX_PLAUSIBLE_SKEW_MS = 10 * 365 * 86_400_000;
 
 @Injectable()
 export class MobileService {
@@ -161,6 +167,9 @@ export class MobileService {
     const rec = await this.settings.getRecording(workspaceId);
 
     const publicId = `ses_${randomBytes(8).toString("hex")}`;
+    // The /start body is unvalidated JSON; its strings go to Postgres
+    // (Session device columns, EndUser) and must be storable.
+    makeWellFormedInPlace(params);
     // Device clock skew. The SDK stamps this /start and every message and frame
     // with the device's wall clock, which can be hours off (a hand-set clock).
     // Session.startedAt drives the recordings list (sort, "x min ago", date
@@ -172,7 +181,11 @@ export class MobileService {
     // from it (the skew, the BigInt column, the token) is an integer.
     const sentTs = Number(params.timestamp);
     const deviceStartMs =
-      Number.isFinite(sentTs) && sentTs > 0 ? Math.round(sentTs) : recvMs;
+      Number.isFinite(sentTs) &&
+      sentTs > 0 &&
+      Math.abs(sentTs - recvMs) <= MAX_PLAUSIBLE_SKEW_MS
+        ? Math.round(sentTs)
+        : recvMs;
     const measuredSkewMs = deviceStartMs - recvMs;
     const clockSkewMs =
       Math.abs(measuredSkewMs) > CLOCK_SKEW_TOLERANCE_MS ? measuredSkewMs : 0;
@@ -341,6 +354,9 @@ export class MobileService {
     const raw = gzipped ? gunzipSync(body) : body;
     const { messages } = decodeMobileBatch(raw);
     if (messages.length === 0) return { count: 0 };
+    // Decoded strings can carry NUL, which Postgres text and jsonb reject
+    // (identify traits, metadata → EndUser / Session.customProps).
+    makeWellFormedInPlace(messages);
 
     // Resolve this session's release once (marketing appVersion preferred, then
     // revId, then the appBuild build number). Stamped onto every CH row below so
@@ -684,8 +700,11 @@ export class MobileService {
         endedAt: new Date(),
         // Grow the duration to the furthest activity offset in this batch; never
         // shrink it (Math.max vs the value read above). Serial per session, so
-        // this read-modify-write can't lose ground.
-        durationMs: Math.max(Number(sessRow?.durationMs ?? 0), maxOffsetMs),
+        // this read-modify-write can't lose ground. Clamped: the offsets come
+        // from the device clock and must never overflow the INT4 column.
+        durationMs: toInt4(
+          Math.max(Number(sessRow?.durationMs ?? 0), maxOffsetMs),
+        ),
       },
     });
     this.stats
@@ -799,7 +818,7 @@ export class MobileService {
     const initials = name
       ? name
           .split(" ")
-          .map((p) => p[0])
+          .map((p) => Array.from(p)[0] ?? "")
           .slice(0, 2)
           .join("")
           .toUpperCase()

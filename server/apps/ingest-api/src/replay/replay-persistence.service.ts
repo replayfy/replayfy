@@ -32,6 +32,8 @@ import { redactBody, redactHeaders, isHostAllowed } from "./redactor";
 import { resolveGeo } from "./geo";
 import { webDeviceFacts } from "../common/device-facts";
 import { mergeSessionCustomProps } from "../common/session-props";
+import { INT4_MAX, toInt4, toSafeInt } from "../common/int4";
+import { truncateWellFormed, wellFormed } from "../common/well-formed";
 
 const LIVE_THRESHOLD_MS = 30_000;
 
@@ -346,7 +348,7 @@ export class ReplayPersistenceService {
     const initials = identify?.name
       ? identify.name
           .split(" ")
-          .map((p) => p[0])
+          .map((p) => Array.from(p)[0] ?? "")
           .slice(0, 2)
           .join("")
           .toUpperCase()
@@ -486,13 +488,20 @@ export class ReplayPersistenceService {
     try {
       const q = new URL(url).searchParams;
       return {
-        utmSource: q.get("utm_source"),
-        utmMedium: q.get("utm_medium"),
-        utmCampaign: q.get("utm_campaign"),
+        // Decoded query values: "%00" decodes to NUL, which Postgres rejects.
+        utmSource: ReplayPersistenceService.queryValue(q, "utm_source"),
+        utmMedium: ReplayPersistenceService.queryValue(q, "utm_medium"),
+        utmCampaign: ReplayPersistenceService.queryValue(q, "utm_campaign"),
       };
     } catch {
       return empty;
     }
+  }
+
+  /** A decoded query parameter, made storable (or null when absent). */
+  private static queryValue(q: URLSearchParams, key: string): string | null {
+    const v = q.get(key);
+    return v === null ? null : wellFormed(v);
   }
 
   private async upsertSession(args: {
@@ -580,7 +589,6 @@ export class ReplayPersistenceService {
       }
       if (counts.perf.longTaskCount > 0) {
         perfUpdate.longTaskCount = { increment: counts.perf.longTaskCount };
-        perfUpdate.longTaskTotalMs = { increment: counts.perf.longTaskTotalMs };
         perfUpdate.longTaskSlowestMs = Math.max(
           existing.longTaskSlowestMs ?? 0,
           counts.perf.longTaskSlowestMs,
@@ -641,12 +649,6 @@ export class ReplayPersistenceService {
           np.batteryDrainPctX100,
         );
       }
-      if (np.frozenFrameCount > 0) {
-        perfUpdate.frozenFrameCount = { increment: np.frozenFrameCount };
-      }
-      if (np.anrCount > 0) {
-        perfUpdate.anrCount = { increment: np.anrCount };
-      }
       // Bump workspace storage + (if the session is transitioning from
       // LIVE to COMPLETED, decrement live counter). Counters update
       // out-of-band so a failure here can't undo the session update.
@@ -667,7 +669,9 @@ export class ReplayPersistenceService {
         where: { id: existing.id },
         data: {
           endedAt: new Date(args.endedAt),
-          durationMs: Math.max(0, args.endedAt - existing.startedAt.getTime()),
+          // Clamped: the span comes from SDK timestamps, and a client clock jump
+          // past ~24.8 days would otherwise overflow the INT4 and fail the write.
+          durationMs: toInt4(args.endedAt - existing.startedAt.getTime()),
           clickCount: { increment: counts.click },
           rageCount: { increment: counts.rage },
           errorCount: { increment: counts.error },
@@ -700,6 +704,21 @@ export class ReplayPersistenceService {
           ...perfUpdate,
         },
       });
+      // Client-derived running totals saturate at the INT4 maximum instead of
+      // overflowing: a plain increment past it makes Postgres reject the whole
+      // session update, for this batch and every later one of the session.
+      // Atomic (two batches of one session can run at once). Access pattern:
+      // one primary-key UPDATE, only on batches that carry these metrics.
+      const longTaskMs =
+        counts.perf.longTaskCount > 0 ? counts.perf.longTaskTotalMs : 0;
+      if (longTaskMs > 0 || np.frozenFrameCount > 0 || np.anrCount > 0) {
+        await this.db.$executeRaw`
+          UPDATE "Session" SET
+            "longTaskTotalMs"  = LEAST("longTaskTotalMs"::bigint  + ${longTaskMs}, ${INT4_MAX})::int,
+            "frozenFrameCount" = LEAST("frozenFrameCount"::bigint + ${np.frozenFrameCount}, ${INT4_MAX})::int,
+            "anrCount"         = LEAST("anrCount"::bigint         + ${np.anrCount}, ${INT4_MAX})::int
+          WHERE id = ${existing.id}`;
+      }
       return { ...updatedRow, claimAnonymous };
     }
     // First batch for this publicId → a new Session row.
@@ -740,7 +759,7 @@ export class ReplayPersistenceService {
           status,
           startedAt: new Date(args.startedAt),
           endedAt: new Date(args.endedAt),
-          durationMs: Math.max(0, args.endedAt - args.startedAt),
+          durationMs: toInt4(args.endedAt - args.startedAt),
           pageCount: 1,
           clickCount: counts.click,
           rageCount: counts.rage,
@@ -1386,8 +1405,12 @@ export class ReplayPersistenceService {
           typeof data.key === "string" &&
           data.key
         ) {
-          sessionProps[data.key.slice(0, 80)] =
-            typeof data.value === "string" ? data.value.slice(0, 500) : "";
+          // Cut without splitting an emoji: half of one makes Postgres reject
+          // the jsonb merge.
+          sessionProps[truncateWellFormed(data.key, 80)] =
+            typeof data.value === "string"
+              ? truncateWellFormed(data.value, 500)
+              : "";
         }
       }
       if (ev.type === "performance") {
@@ -1492,29 +1515,37 @@ export class ReplayPersistenceService {
       frames,
       trackNames: Array.from(trackNames),
       sessionProps,
+      // Every value below lands in an INT4 column and comes straight from the
+      // SDK, so it goes through toInt4: one absurd metric (bad clock, buggy or
+      // hostile client) must not make Postgres reject the whole session write.
+      // peakHeapBytes is a BigInt column and needs no clamp.
       perf: {
-        lcp: lcpThisBatch || null,
-        clsX1000: clsThisBatch > 0 ? Math.round(clsThisBatch * 1000) : null,
-        fid: fidThisBatch || null,
-        inp: inpThisBatch || null,
-        fcp: fcpThisBatch || null,
-        ttfb: ttfbThisBatch || null,
+        lcp: toInt4(lcpThisBatch) || null,
+        clsX1000: clsThisBatch > 0 ? toInt4(clsThisBatch * 1000) : null,
+        fid: toInt4(fidThisBatch) || null,
+        inp: toInt4(inpThisBatch) || null,
+        fcp: toInt4(fcpThisBatch) || null,
+        ttfb: toInt4(ttfbThisBatch) || null,
         longTaskCount: longTaskCountThisBatch,
-        longTaskTotalMs: Math.round(longTaskTotalThisBatch),
-        longTaskSlowestMs: Math.round(longTaskSlowestThisBatch),
-        peakHeapBytes: Math.round(peakHeapThisBatch),
+        longTaskTotalMs: toInt4(longTaskTotalThisBatch),
+        longTaskSlowestMs: toInt4(longTaskSlowestThisBatch),
+        peakHeapBytes: toSafeInt(peakHeapThisBatch),
       },
       nativePerf: {
-        coldStartMs: coldStartThisBatch,
-        firstMeaningfulRenderMs: firstMeaningfulRenderThisBatch || null,
-        tapResponseMs: tapResponseThisBatch || null,
-        firstNetworkTtfbMs: firstNetworkTtfbThisBatch,
-        frameDropPctX100: frameDropPctX100ThisBatch || null,
-        frozenFrameCount: frozenFrameCountThisBatch,
-        anrCount: anrCountThisBatch,
-        memoryRssMb: memoryRssThisBatch || null,
-        thermalState: thermalStateThisBatch || null,
-        batteryDrainPctX100: batteryDrainPctX100ThisBatch || null,
+        coldStartMs:
+          coldStartThisBatch === null ? null : toInt4(coldStartThisBatch),
+        firstMeaningfulRenderMs: toInt4(firstMeaningfulRenderThisBatch) || null,
+        tapResponseMs: toInt4(tapResponseThisBatch) || null,
+        firstNetworkTtfbMs:
+          firstNetworkTtfbThisBatch === null
+            ? null
+            : toInt4(firstNetworkTtfbThisBatch),
+        frameDropPctX100: toInt4(frameDropPctX100ThisBatch) || null,
+        frozenFrameCount: toInt4(frozenFrameCountThisBatch),
+        anrCount: toInt4(anrCountThisBatch),
+        memoryRssMb: toInt4(memoryRssThisBatch) || null,
+        thermalState: toInt4(thermalStateThisBatch) || null,
+        batteryDrainPctX100: toInt4(batteryDrainPctX100ThisBatch) || null,
       },
     };
   }

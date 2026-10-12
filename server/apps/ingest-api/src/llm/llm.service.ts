@@ -11,6 +11,7 @@ import {
   type LlmProviderMode,
 } from "@replay/db-postgres";
 import type { Redis } from "ioredis";
+import { makeWellFormedInPlace } from "../common/well-formed";
 import type { LlmCompletion, LlmProvider, LlmRequest } from "./llm.types";
 import { AnthropicProvider } from "./anthropic.provider";
 import { OpenRouterProvider } from "./openrouter.provider";
@@ -46,6 +47,15 @@ type Resolution =
  */
 @Injectable()
 export class LlmService {
+  /**
+   * Model output (text and tool-call input, from any provider) ends up
+   * persisted, and a "\\udXXX" or "\\u0000" escape in it decodes to a string
+   * that Postgres and Prisma reject. Repair it in place, once per completion.
+   */
+  private static wellFormedCompletion(completion: LlmCompletion): void {
+    makeWellFormedInPlace(completion);
+  }
+
   private readonly db = getPostgresClient();
   private readonly logger = new Logger(LlmService.name);
 
@@ -580,6 +590,7 @@ export class LlmService {
       maxTokens: opts.maxTokens ?? 4000,
       temperature: opts.temperature ?? 0,
     });
+    LlmService.wellFormedCompletion(completion);
     await this.record(workspaceId, r.config, completion, {
       surface: opts.label ?? opts.surface,
       model: this.modelFor(r.config, opts.surface),
@@ -660,6 +671,9 @@ export class LlmService {
       completion = await r.provider.complete(req);
       if (completion.text) onText(completion.text);
     }
+    // Repaired once the stream is whole, so an emoji split across two deltas
+    // rejoins first (see wellFormedCompletion).
+    LlmService.wellFormedCompletion(completion);
     await this.record(workspaceId, r.config, completion, {
       surface: opts.label ?? opts.surface,
       model: this.modelFor(r.config, opts.surface),
@@ -701,6 +715,7 @@ export class LlmService {
     meta: { surface?: string; userId?: number } = {},
   ): Promise<LlmCompletion> {
     const completion = await provider.complete(req);
+    LlmService.wellFormedCompletion(completion);
     await this.record(workspaceId, config, completion, {
       surface: meta.surface ?? "ask",
       model: req.model,

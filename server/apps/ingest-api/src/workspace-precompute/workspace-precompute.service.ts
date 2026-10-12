@@ -1,3 +1,4 @@
+import { truncateWellFormed, wellFormed } from "../common/well-formed";
 import {
   BadRequestException,
   Inject,
@@ -321,7 +322,7 @@ export class WorkspacePrecomputeService {
         return null;
       }
       const text = (r.data.storyline || "").trim();
-      return text ? text.slice(0, 1000) : null;
+      return text ? truncateWellFormed(wellFormed(text), 1000) : null;
     } catch (e) {
       this.logger.warn(
         `narrate ws ${workspaceId} failed: ${(e as Error).message}`,

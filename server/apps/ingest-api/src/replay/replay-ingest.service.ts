@@ -17,6 +17,7 @@ import { BILLING_SERVICE, type BillingPort } from "../billing/billing.port";
 import { QueueService } from "../queue/queue.service";
 import { PresenceService } from "../presence/presence.service";
 import { isHostAllowed } from "./redactor";
+import { INT4_MAX } from "../common/int4";
 
 // Throttle lastUsedAt writes to once per minute per key — no UX value in
 // bumping the column on every single batch.
@@ -182,8 +183,18 @@ export class ReplayIngestService {
       throw new BadRequestException("sessionId is required");
     if (!envelope.segmentId)
       throw new BadRequestException("segmentId is required");
-    if (!Number.isInteger(envelope.sequence) || envelope.sequence < 1) {
-      throw new BadRequestException("sequence must be a positive integer");
+    // Upper bound too: sequence lands in INT4 columns (SessionSegment.sequence,
+    // ReplayBatch.sequence), and an out-of-range value used to fail only in the
+    // worker, after the session counters had already been applied, on every
+    // retry. Never clamp it: it keys the batch, so clamping would merge batches.
+    if (
+      !Number.isInteger(envelope.sequence) ||
+      envelope.sequence < 1 ||
+      envelope.sequence > INT4_MAX
+    ) {
+      throw new BadRequestException(
+        `sequence must be an integer between 1 and ${INT4_MAX}`,
+      );
     }
     if (!Array.isArray(envelope.events) || envelope.events.length === 0) {
       throw new BadRequestException("events must be a non-empty array");

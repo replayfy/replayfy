@@ -1,4 +1,5 @@
 import type { getPostgresClient } from "@replay/db-postgres";
+import { makeWellFormedInPlace } from "./well-formed";
 
 type PostgresClient = ReturnType<typeof getPostgresClient>;
 
@@ -24,6 +25,8 @@ export async function mergeSessionCustomProps(
   props: Record<string, unknown>,
 ): Promise<void> {
   if (!props || Object.keys(props).length === 0) return;
+  // Postgres jsonb rejects a lone surrogate or NUL in any key or value.
+  makeWellFormedInPlace(props);
   // COALESCE seeds an empty object on the first write; `||` merges top-level
   // keys. The JSON string is passed as a bound parameter (injection-safe).
   await db.$executeRaw`

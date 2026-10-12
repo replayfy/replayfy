@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { truncateWellFormed } from "../common/well-formed";
 
 /**
  * Error/crash fingerprinting.
@@ -193,18 +194,18 @@ function deriveErrorType(ev: RawErrorEvent): string {
   // The SDK also uses "error"/"unhandledrejection"/"crash" as the wire `kind`;
   // those aren't real error classes, so ignore them as a type.
   if (name && !/^(error|unhandledrejection|crash)$/i.test(name)) {
-    return name.slice(0, 120);
+    return truncateWellFormed(name, 120);
   }
   const src = (ev.message ?? ev.stack ?? "").trim();
   const m = /^([A-Za-z][\w.$]*(?:Error|Exception))\b\s*:/.exec(src);
-  if (m) return m[1].slice(0, 120);
+  if (m) return truncateWellFormed(m[1], 120);
   return ev.isCrash ? "Crash" : "Error";
 }
 
 function firstLine(s: string | undefined): string {
   if (!s) return "";
   const line = s.split(/\r?\n/, 1)[0].trim();
-  return line.slice(0, 500);
+  return truncateWellFormed(line, 500);
 }
 
 /**

@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { truncateWellFormed, wellFormed } from "../common/well-formed";
 import { getPostgresClient } from "@replay/db-postgres";
 import { WorkspaceHealthService } from "../workspace-health/workspace-health.service";
 import { IssuesService } from "../issues/issues.service";
@@ -243,8 +244,8 @@ export class IntelFactsService {
 
   // ── helpers ──────────────────────────────────────────────────────────────
   private static cap(s: unknown, n = STR_CAP): string {
-    const str = String(s ?? "");
-    return str.length > n ? str.slice(0, n - 1) + "…" : str;
+    const str = wellFormed(String(s ?? ""));
+    return str.length > n ? truncateWellFormed(str, n - 1) + "…" : str;
   }
   /** Derive a funnel's goal key from its TERMINAL step (lowercased matchType:value). */
   private static terminalKey(steps: unknown): string | null {

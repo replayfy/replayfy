@@ -70,6 +70,39 @@ const MONGO_INFRA_SERVER_CODES = new Set([
 const INFRA_MESSAGE_RE =
   /econnrefused|econnreset|etimedout|enotfound|epipe|socket hang up|connection (closed|reset|refused|terminated|lost)|server selection|topology (was )?(destroyed|closed)|not (writable )?primary|no primary|primary stepped down|writes are blocked|over your (space )?quota|space quota|quota exceeded|shutdown in progress|too many connections|pool (was )?cleared/i;
 
+// Deterministic DATA errors: the store is up and rejected this payload's values.
+// Prisma's engine raises some of them (e.g. a number that doesn't fit its INT4
+// column) as PrismaClientUnknownRequestError, which is on the infra list above,
+// so they must be recognised first. Retrying or pausing never fixes them: the
+// same payload fails the same way. On 2026-10-08 one session's INT4 overflow
+// opened the circuit again and again, pausing ALL ingestion for one bad batch.
+// The JSON-escape alternatives are Prisma's engine refusing a malformed string
+// in the query (a lone UTF-16 surrogate or a control character), e.g.
+// "unexpected end of hex escape at line 1 column 3121".
+const DATA_ERROR_MESSAGE_RE =
+  /unable to fit integer value|integer out of range|out of range for type|numeric field overflow|value too long for type|invalid input syntax for type|unexpected end of hex escape|lone leading surrogate|invalid escape|invalid unicode code point|control character \(\\u0000-\\u001F\) found/i;
+
+// A Postgres SQLSTATE means the server ANSWERED. Only these classes say it is
+// unavailable or refusing work: 08 connection exception, 53 insufficient
+// resources, 57 operator intervention (shutting down, cannot connect now), 58
+// system error, plus 25006 read-only transaction (failover, read replica). Any
+// other (22 data exception, 23 constraint, 42 syntax/undefined, 54 program
+// limit such as an index row too large for a client string, ...) rejected this
+// payload: pausing the queue would never fix it, so it is a data error. The
+// engine reports it as `PostgresError { code: "54000" ...`; raw queries as
+// Prisma P2010 with the SQLSTATE in meta.code.
+const PG_INFRA_SQLSTATE_RE = /^(08|53|57|58)|^25006$/;
+const PG_SQLSTATE_IN_MESSAGE_RE = /PostgresError \{ code: "([0-9A-Z]{5})"/;
+
+function sqlstateOf(e: unknown, message: string): string | undefined {
+  const inMessage = PG_SQLSTATE_IN_MESSAGE_RE.exec(message)?.[1];
+  if (inMessage) return inMessage;
+  const metaCode = (e as { meta?: { code?: unknown } })?.meta?.code;
+  return typeof metaCode === "string" && /^[0-9A-Z]{5}$/.test(metaCode)
+    ? metaCode
+    : undefined;
+}
+
 function codeOf(e: unknown): string | number | undefined {
   const c = (e as { code?: unknown })?.code;
   return typeof c === "string" || typeof c === "number" ? c : undefined;
@@ -84,6 +117,11 @@ export function isInfraError(err: unknown): boolean {
     const name = (e as { name?: string })?.name ?? "";
     const code = codeOf(e);
     const message = (e as { message?: string })?.message ?? "";
+
+    // A data error means the store answered: never infra, whatever the class.
+    if (DATA_ERROR_MESSAGE_RE.test(message)) return false;
+    const sqlstate = sqlstateOf(e, message);
+    if (sqlstate) return PG_INFRA_SQLSTATE_RE.test(sqlstate);
 
     // Ambiguous-capacity codes never count as infra AT THIS LEVEL — but keep
     // walking, so a real store-down nested in the cause chain still trips.

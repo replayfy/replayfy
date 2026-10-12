@@ -4,6 +4,14 @@ import {
   type ClickHouseSettings,
 } from "@clickhouse/client";
 import { ClickHouseInsertBatcher } from "./insert-batcher";
+import { makeRowsWellFormedInPlace } from "./well-formed";
+
+export {
+  wellFormed,
+  truncateWellFormed,
+  makeWellFormedInPlace,
+  makeRowsWellFormedInPlace,
+} from "./well-formed";
 
 /**
  * Discriminator for `replay.session_events` rows.
@@ -430,6 +438,10 @@ async function insertProjectionRowsDirect(
   if (rows.length === 0) {
     return;
   }
+  // ClickHouse refuses the WHOLE insert over one lone surrogate ("missing second
+  // part of surrogate pair"), and one flush carries rows from many sessions and
+  // workspaces. Repair client strings first so one bad row can't drop the rest.
+  makeRowsWellFormedInPlace(rows);
   const client = getClickHouseClient();
   const settings = asyncInsertSettings();
   await client.insert({
@@ -546,6 +558,7 @@ export async function insertSessionRows(rows: SessionRow[]): Promise<void> {
   if (rows.length === 0) {
     return;
   }
+  makeRowsWellFormedInPlace(rows); // see insertProjectionRowsDirect
   const client = getClickHouseClient();
   await client.insert({
     table: "replay.sessions",
@@ -605,6 +618,7 @@ export async function insertSessionCards(
   if (rows.length === 0) {
     return;
   }
+  makeRowsWellFormedInPlace(rows); // see insertProjectionRowsDirect
   const client = getClickHouseClient();
   await client.insert({
     table: "replay.session_cards",

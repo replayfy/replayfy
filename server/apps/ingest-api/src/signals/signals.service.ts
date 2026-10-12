@@ -1,4 +1,9 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
+import {
+  makeWellFormedInPlace,
+  truncateWellFormed,
+  wellFormed,
+} from "../common/well-formed";
 import { getPostgresClient, Prisma, SignalPolarity } from "@replay/db-postgres";
 import type { Redis } from "ioredis";
 import {
@@ -379,6 +384,7 @@ export class SignalsService {
         WHERE s.id = v.id`,
     ];
     if (chRows.length > 0) {
+      makeWellFormedInPlace(chRows); // ClickHouse values, see cleanLabel
       ops.push(this.db.signal.createMany({ data: chRows }));
     }
     await this.db.$transaction(ops);
@@ -572,7 +578,9 @@ export class SignalsService {
     const v = (raw ?? "").trim();
     if (!v) return null;
     if (/^(view$|_?ui[a-z]|rct|rns|flutterview)/i.test(v)) return null;
-    return v.slice(0, 60);
+    // Cut without splitting an emoji, and repair labels already stored in
+    // ClickHouse before strings were repaired at insert: Signal is Postgres.
+    return truncateWellFormed(wellFormed(v), 60);
   }
 
   /**

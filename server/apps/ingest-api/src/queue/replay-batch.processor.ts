@@ -5,6 +5,7 @@ import { ReplayPersistenceService } from "../replay/replay-persistence.service";
 import { REPLAY_QUEUE, REPLAY_JOB_PROCESS_BATCH } from "./queue.constants";
 import type { ReplayBatchJob } from "./queue.types";
 import { QueueBreakerService } from "./queue-breaker.service";
+import { makeWellFormedInPlace } from "../common/well-formed";
 
 @Processor(REPLAY_QUEUE)
 export class ReplayBatchProcessor {
@@ -21,6 +22,16 @@ export class ReplayBatchProcessor {
   })
   async handleBatch(job: Job<ReplayBatchJob>): Promise<void> {
     try {
+      // Client strings can hold half an emoji (an SDK slice through one) or NUL,
+      // and either makes the stores reject the whole batch on every retry.
+      // Repair them once here, the single entry for every web replay job
+      // (including failed jobs requeued after this shipped).
+      const repaired = makeWellFormedInPlace(job.data);
+      if (repaired > 0) {
+        this.logger.warn(
+          `replay-batch ${job.id}: repaired ${repaired} malformed string(s)`,
+        );
+      }
       await this.persistence.persist(job.data);
     } catch (e) {
       // If this failure means a backing store is DOWN (not a bad payload), the

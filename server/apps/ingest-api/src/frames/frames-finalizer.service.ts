@@ -3,6 +3,7 @@ import { Interval } from "@nestjs/schedule";
 import type { Redis } from "ioredis";
 import { getPostgresClient } from "@replay/db-postgres";
 import { REDIS_CLIENT } from "../common/redis.module";
+import { toInt4 } from "../common/int4";
 import { StorageService } from "../storage/storage.service";
 import { WorkspaceStatsService } from "../workspace-stats/workspace-stats.service";
 import { SignalsService } from "../signals/signals.service";
@@ -123,9 +124,10 @@ export class FramesFinalizerService {
           session.startedAt.getTime() + Number(session.clockSkewMs ?? 0n);
         const frameDurationMs =
           totals.lastTs > deviceStartMs ? totals.lastTs - deviceStartMs : 0;
-        const durationMs = Math.max(
-          Number(session.durationMs ?? 0),
-          frameDurationMs,
+        // Clamped: frame timestamps come from the device clock, and a jump past
+        // ~24.8 days would overflow the INT4 column and fail the finalize write.
+        const durationMs = toInt4(
+          Math.max(Number(session.durationMs ?? 0), frameDurationMs),
         );
         await this.db.session.update({
           where: { id: session.id },

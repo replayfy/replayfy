@@ -207,7 +207,7 @@ export class AuthService {
     const name = input.name?.trim() || email.split("@")[0];
     const initials = name
       .split(" ")
-      .map((p) => p[0])
+      .map((p) => Array.from(p)[0] ?? "")
       .slice(0, 2)
       .join("")
       .toUpperCase();
@@ -405,7 +405,7 @@ export class AuthService {
         throw new BadRequestException("password must be at least 6 characters");
       const initials = (name || invite.email)
         .split(/\s+/)
-        .map((p) => p[0])
+        .map((p) => Array.from(p)[0] ?? "")
         .slice(0, 2)
         .join("")
         .toUpperCase();
@@ -474,7 +474,7 @@ export class AuthService {
     const initials = name
       ? name
           .split(/\s+/)
-          .map((p) => p[0])
+          .map((p) => Array.from(p)[0] ?? "")
           .slice(0, 2)
           .join("")
           .toUpperCase()
@@ -756,7 +756,7 @@ export class AuthService {
     const name = profile.name?.trim() || profile.email.split("@")[0];
     const initials = name
       .split(" ")
-      .map((p) => p[0])
+      .map((p) => Array.from(p)[0] ?? "")
       .slice(0, 2)
       .join("")
       .toUpperCase();

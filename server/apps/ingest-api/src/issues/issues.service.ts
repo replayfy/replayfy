@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { makeWellFormedInPlace } from "../common/well-formed";
 import { getPostgresClient, Prisma, IssueStatus } from "@replay/db-postgres";
 import {
   errorEventsForSessions,
@@ -332,6 +333,9 @@ export class IssuesService {
         .$executeRaw`DELETE FROM "IssueOccurrence" WHERE "sessionId" IN (${Prisma.join(ids)})`,
     ];
     if (rows.length > 0) {
+      // Values come from ClickHouse rows, some written before strings were
+      // repaired at insert (NUL is legal there, not in Postgres text).
+      makeWellFormedInPlace(rows);
       ops.push(this.db.issueOccurrence.createMany({ data: rows }));
     }
     await this.db.$transaction(ops);
