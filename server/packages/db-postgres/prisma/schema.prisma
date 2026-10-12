@@ -1428,6 +1428,13 @@ model Session {
   /// `hasFullSnapshot AND replayPrunedAt IS NULL`). NULL = replay still
   /// available, or the session never had one.
   replayPrunedAt   DateTime?
+  /// Native sessions only: the device clock minus the server clock at
+  /// /v1/mobile/start, in ms, when they disagreed by more than the tolerance
+  /// (NULL otherwise). startedAt is then the server's receive time, so lists,
+  /// date filters and retention run on a trustworthy clock, and
+  /// startedAt + clockSkewMs is the device's own start: the base for frame and
+  /// message timestamps, which stay on the device clock.
+  clockSkewMs      BigInt?
 
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt

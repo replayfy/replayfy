@@ -18,6 +18,7 @@
     "ch:migrate": "node apps/ingest-api/dist/migrate-ch.js",
     "seed": "node apps/ingest-api/dist/seed.js",
     "backfill:ch-sessions": "node apps/ingest-api/dist/backfill-ch-sessions.js",
+    "backfill:mobile-clock-skew": "node apps/ingest-api/dist/scripts/backfill-mobile-clock-skew.js",
     "backfill:session-devices": "node apps/ingest-api/dist/backfill-session-devices.js",
     "dev:api": "npm run build && node apps/ingest-api/dist/bootstrap.js",
     "dev:api:watch": "tsc-watch -b apps/ingest-api --onSuccess \"node apps/ingest-api/dist/bootstrap.js\"",

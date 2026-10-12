@@ -27,7 +27,10 @@ export interface MobileTokenPayload {
   sid: string; // session publicId
   snum: number; // session row id (numeric, for ClickHouse session_id)
   wid: number; // workspaceId
-  startedAt: number; // session start epoch-ms (frame ts → playhead offset)
+  startedAt: number; // session start epoch-ms ON THE DEVICE CLOCK (message/frame ts → offset)
+  /** Device clock minus server clock (ms) when /start corrected it, else 0.
+   *  Absent on tokens minted before the correction shipped (treat as 0). */
+  skew?: number;
 }
 
 export function signMobileToken(payload: MobileTokenPayload): string {

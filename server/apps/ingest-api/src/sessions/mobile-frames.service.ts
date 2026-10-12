@@ -31,7 +31,7 @@ export class MobileFramesService {
   } | null> {
     const session = await this.db.session.findFirst({
       where: { publicId, workspaceId },
-      select: { startedAt: true, nativeSnapshotCount: true },
+      select: { startedAt: true, clockSkewMs: true, nativeSnapshotCount: true },
     });
     if (!session) return null;
 
@@ -56,7 +56,9 @@ export class MobileFramesService {
     return {
       url: bustedUrl,
       count,
-      startedAt: session.startedAt.getTime(),
+      // Frame timestamps are on the device clock, so the player's base is the
+      // device's own start (startedAt is server time when the clock was off).
+      startedAt: session.startedAt.getTime() + Number(session.clockSkewMs ?? 0n),
       // SDK frames are JPEG (the reference format); the player decodes by
       // magic bytes anyway.
       fileFormat: "jpeg",

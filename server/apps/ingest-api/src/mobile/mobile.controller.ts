@@ -34,6 +34,9 @@ export class MobileController {
     @Req() req: Request,
     @Body() body: Record<string, unknown>,
   ) {
+    // Receive time first, before any await, so the device clock-skew estimate
+    // in createSession isn't biased by the lookups it does.
+    const recvMs = Date.now();
     // Same client-IP resolution the web ingest uses — geoip needs it to
     // derive country/city for the mobile session (the SDK can't see its
     // own egress IP, so geo is the server's job).
@@ -41,7 +44,7 @@ export class MobileController {
       forwardedFor?.split(",")[0]?.trim() ||
       ip ||
       (req.socket?.remoteAddress ?? undefined);
-    const result = await this.mobile.createSession(body as never, clientIp);
+    const result = await this.mobile.createSession(body as never, clientIp, recvMs);
     if (!result) throw new UnauthorizedException("invalid project key");
     return result;
   }

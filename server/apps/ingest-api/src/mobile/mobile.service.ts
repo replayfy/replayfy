@@ -59,6 +59,14 @@ interface StartParams {
   distinctId?: string;
 }
 
+/**
+ * How far the device clock may disagree with the server's at /v1/mobile/start
+ * before the session start is re-anchored to server time. Larger than the iOS
+ * transport's 60 s wait-for-connectivity, so a /start that sat in a queue on a
+ * correct clock is never "corrected".
+ */
+const CLOCK_SKEW_TOLERANCE_MS = 120_000;
+
 @Injectable()
 export class MobileService {
   private readonly db = getPostgresClient();
@@ -77,6 +85,7 @@ export class MobileService {
   async createSession(
     params: StartParams,
     clientIp?: string,
+    recvMs: number = Date.now(),
   ): Promise<{
     record: boolean;
     token: string;
@@ -152,10 +161,22 @@ export class MobileService {
     const rec = await this.settings.getRecording(workspaceId);
 
     const publicId = `ses_${randomBytes(8).toString("hex")}`;
-    const startedAt =
-      params.timestamp && params.timestamp > 0
-        ? new Date(params.timestamp)
-        : new Date();
+    // Device clock skew. The SDK stamps this /start and every message and frame
+    // with the device's wall clock, which can be hours off (a hand-set clock).
+    // Session.startedAt drives the recordings list (sort, "x min ago", date
+    // filters) and replay retention, so when the device disagrees with this
+    // request's receive time by more than the tolerance, the session starts at
+    // the receive time and the difference is kept. The token keeps the DEVICE
+    // start, so message and frame offsets (device minus device) are unchanged.
+    // The body is unvalidated JSON: coerce, and round so every value derived
+    // from it (the skew, the BigInt column, the token) is an integer.
+    const sentTs = Number(params.timestamp);
+    const deviceStartMs =
+      Number.isFinite(sentTs) && sentTs > 0 ? Math.round(sentTs) : recvMs;
+    const measuredSkewMs = deviceStartMs - recvMs;
+    const clockSkewMs =
+      Math.abs(measuredSkewMs) > CLOCK_SKEW_TOLERANCE_MS ? measuredSkewMs : 0;
+    const startedAt = new Date(deviceStartMs - clockSkewMs);
     const platform =
       (params.platform ?? "").toLowerCase() === "android" ? "android" : "ios";
 
@@ -230,6 +251,7 @@ export class MobileService {
         status: "LIVE",
         startedAt,
         endedAt: startedAt,
+        clockSkewMs: clockSkewMs ? BigInt(clockSkewMs) : null,
         platform,
         // Per-session device facts, promoted out of the $device blob onto real
         // columns so a user's devices are queryable (EndUser's copies are
@@ -275,7 +297,8 @@ export class MobileService {
       sid: session.publicId,
       snum: session.id,
       wid: workspaceId,
-      startedAt: session.startedAt.getTime(),
+      startedAt: session.startedAt.getTime() + clockSkewMs,
+      skew: clockSkewMs,
     };
 
     return {
@@ -967,7 +990,10 @@ export class MobileService {
       event_id: `${m.kind}-${m.timestamp}-${randomBytes(3).toString("hex")}`,
       event_type: m.kind,
       kind: "custom",
-      timestamp: m.timestamp,
+      // ClickHouse keeps absolute times on the server clock (the same clock as
+      // Session.startedAt), so time-bucketed analytics and partitions are right
+      // for a device whose clock is off. offset_ms stays device minus device.
+      timestamp: m.timestamp - (token.skew ?? 0),
       offset_ms: offsetMs,
       level: "",
       message: "",

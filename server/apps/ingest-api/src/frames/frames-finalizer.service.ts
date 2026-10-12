@@ -106,6 +106,7 @@ export class FramesFinalizerService {
           id: true,
           workspaceId: true,
           startedAt: true,
+          clockSkewMs: true,
           dataSizeBytes: true,
           durationMs: true,
         },
@@ -117,10 +118,11 @@ export class FramesFinalizerService {
         // and the event-driven duration the ingest path already maintains, so
         // finalize can only EXTEND the duration — a session whose events ran
         // longer than its last captured frame keeps the longer span.
+        // Frame timestamps are on the DEVICE clock; so is startedAt + clockSkewMs.
+        const deviceStartMs =
+          session.startedAt.getTime() + Number(session.clockSkewMs ?? 0n);
         const frameDurationMs =
-          totals.lastTs > session.startedAt.getTime()
-            ? totals.lastTs - session.startedAt.getTime()
-            : 0;
+          totals.lastTs > deviceStartMs ? totals.lastTs - deviceStartMs : 0;
         const durationMs = Math.max(
           Number(session.durationMs ?? 0),
           frameDurationMs,
