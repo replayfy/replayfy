@@ -105,17 +105,17 @@ export class ShareController {
   }
 
   // ── Mobile share routes ───────────────────────────────────────────
-  // The recording itself (frames archive) — same direct-R2 URL the authed
-  // route returns. Not panel-gated: it's the session, not a side panel.
+  // The recording itself (frames archive) — same direct-R2 URL and `pending`
+  // flag the authed route returns. Not panel-gated: it's the session, not a
+  // side panel.
   @Get(":token/frames")
   async frames(@Param("token") token: string) {
     const bundle = await this.sessions.resolveShare(token);
     if (!bundle) throw new NotFoundException();
-    const result = await this.mobileFrames.getFrames(
+    return this.mobileFrames.getFrames(
       bundle.workspaceId,
       bundle.session.publicId,
     );
-    return result ?? { url: null, count: 0, startedAt: 0, fileFormat: "jpeg" };
   }
 
   @Get(":token/taps")

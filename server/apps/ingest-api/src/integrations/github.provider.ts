@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface GithubTokens {
@@ -152,7 +153,7 @@ export class GithubProvider {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          title: input.title.slice(0, 250),
+          title: truncateWellFormed(input.title, 250),
           body: (input.body ?? "").slice(0, 60000),
           labels: (input.labels ?? []).slice(0, 20),
         }),

@@ -18,10 +18,21 @@ import { QueueService } from "../queue/queue.service";
 import { PresenceService } from "../presence/presence.service";
 import { isHostAllowed } from "./redactor";
 import { INT4_MAX } from "../common/int4";
+import { WORKSPACE_SCOPED_SESSION_PREFIX } from "../common/session-id";
 
 // Throttle lastUsedAt writes to once per minute per key — no UX value in
 // bumping the column on every single batch.
 const lastUsedCache = new Map<number, number>();
+
+/** Largest sessionId / segmentId the ingest accepts, in UTF-8 bytes. Far above
+ *  any real id (SDK ids are under 64 chars) and above anything Postgres' unique
+ *  btree accepted before, yet inside its ~2.7 KB index row limit. */
+const MAX_CLIENT_ID_BYTES = 2000;
+
+/** Characters Postgres (or a UTF-8 round trip) rejects in a text column: C0
+ *  controls (incl. NUL) and lone UTF-16 surrogates. */
+const INVALID_ID_CHARS =
+  /[\u0000-\u001F\u007F]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/;
 
 @Injectable()
 export class ReplayIngestService {
@@ -183,6 +194,33 @@ export class ReplayIngestService {
       throw new BadRequestException("sessionId is required");
     if (!envelope.segmentId)
       throw new BadRequestException("segmentId is required");
+    // Both ids are client-chosen and land in unique indexes (Session.publicId,
+    // the ReplayBatch + SessionSegment keys) and the queue job id. Reject what
+    // Postgres would refuse (oversized for the index, NUL / control chars, lone
+    // surrogates) here, instead of failing deep in the worker after the session
+    // counters were already bumped.
+    for (const [field, value] of [
+      ["sessionId", envelope.sessionId],
+      ["segmentId", envelope.segmentId],
+    ] as const) {
+      if (
+        typeof value !== "string" ||
+        Buffer.byteLength(value, "utf8") > MAX_CLIENT_ID_BYTES ||
+        INVALID_ID_CHARS.test(value)
+      ) {
+        throw new BadRequestException(
+          `${field} must be a string of at most ${MAX_CLIENT_ID_BYTES} bytes with no control characters`,
+        );
+      }
+    }
+    // Ids with this prefix are derived by the server for a workspace whose own
+    // session id was already taken by another workspace (see
+    // workspaceScopedSessionId). A client must never claim one.
+    if (envelope.sessionId.startsWith(WORKSPACE_SCOPED_SESSION_PREFIX)) {
+      throw new BadRequestException(
+        `sessionId must not start with the reserved prefix "${WORKSPACE_SCOPED_SESSION_PREFIX}"`,
+      );
+    }
     // Upper bound too: sequence lands in INT4 columns (SessionSegment.sequence,
     // ReplayBatch.sequence), and an out-of-range value used to fail only in the
     // worker, after the session counters had already been applied, on every

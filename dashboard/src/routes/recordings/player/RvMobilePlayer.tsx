@@ -8,11 +8,26 @@
    tick set a single <img>'s src to the most-recent frame's blob (decode-then-
    swap, warm window ±2). Tap ripples are drawn from the native tap stream that
    rides the SAME /events batches. Legacy sessions with no archive fall back to
-   a per-event imageRef, else a wireframe over the node tree.
+   a per-event imageRef, else a wireframe over the node tree. No archive YET
+   (/frames `pending`: the session is LIVE or its frames await finalize) shows
+   the reference "still being processed" state, not "No snapshots captured".
+   An archive that cannot be LOADED (download, gunzip or parse failure — a
+   retention-pruned archive 404s — or a /frames request that failed outright)
+   shows the reference tracker's load-error copy instead, chosen by the
+   session's age: still being processed, or not found.
 
    Playback is a self-driven rAF accumulator (mobile does NOT use rrweb's clock);
    the imperative handle exposes goto/setSpeed/getCurrentTime (play/pause are
    no-ops — the parent's `playing` prop gates the rAF).
+
+   The clock runs to the SESSION's duration, like the reference player — not to
+   the last frame. Frames only exist while the screen was captured, so past the
+   last one (app backgrounded, an excluded screen, a lost upload) the last frame
+   holds while the timeline's events keep playing, and a badge beside the
+   device says so: "In background" whenever the app was (the reference badge),
+   else "No screen recorded" for a frameless stretch. Those stretches and the
+   reference user-inactivity ranges feed "Skip inactivity" and the scrubber's
+   idle bands; the model lives in mobileTimeline.ts.
    ========================================================================== */
 import {
   forwardRef,
@@ -24,7 +39,23 @@ import {
   useRef,
   useState,
 } from "react";
-import { loadFramesArchive, frameIndexAt } from "./mobileFrames";
+import { loadFramesArchive } from "./mobileFrames";
+import {
+  backgroundMarks,
+  backgroundSpanAt,
+  frameIndexAt,
+  hasEventsBetween,
+  mobileDurationMs,
+  mobileSkipIntervals,
+  noFramesReason,
+  screenGapAt,
+  skipTargetAt,
+  timelineHorizonMs,
+  userActivityOffsets,
+  type Interval,
+  type TimelineMark,
+} from "./mobileTimeline";
+import { rvClock } from "../recordings.data";
 import {
   mapIphoneModel,
   shellScreenOffset,
@@ -57,6 +88,16 @@ const RECENT_TAP_MS = 1500;
    a suspension. */
 const MAX_TICK_MS = 250;
 
+/** `archive` state for a frames archive that could not be loaded: its download
+ *  failed (loadFramesArchive → null, or no frames where the descriptor counts
+ *  some), or the /frames request that would name it did. Kept apart from an
+ *  archive that parsed to zero frames: only that one has "No snapshots
+ *  captured" to say. */
+const ARCHIVE_FAILED = "failed";
+/** The frames of a failed archive: none. One shared array, so the effects keyed
+ *  on `frames` see a stable value. */
+const NO_FRAMES: MobileFrame[] = [];
+
 type RvMobilePlayerProps = {
   batches: ReplayBatch[] | undefined;
   framesInfo: FramesInfo | undefined;
@@ -67,7 +108,36 @@ type RvMobilePlayerProps = {
   /** The /frames descriptor is still in flight — `framesInfo` being undefined
    *  does not yet mean "this session has no archive". */
   framesPending?: boolean;
+  /** The /frames descriptor request FAILED (its retry spent): `framesInfo` is
+   *  undefined because there is no answer, not because there is no archive.
+   *  Gets the load-error copy, never "No snapshots captured". */
+  framesFailed?: boolean;
   onDuration?: (sec: number) => void;
+  /** The session's own duration (ms, from its metadata) — the reference
+   *  player's total length. The frames archive only covers the stretches the
+   *  screen was captured, so its last frame is NOT the session's end. */
+  sessionDurationMs?: number;
+  /** When the session started (epoch ms, server clock, from its metadata) —
+   *  dates the load-error copy, as the reference tracker dates it by the
+   *  session's start. Absent: the archive descriptor's `startedAt`, which is
+   *  on the device's clock. */
+  sessionStartedAtMs?: number;
+  /** The session's /timeline events (offsetMs-based, same base as the frames).
+   *  Taps / swipes / input drive skip-inactivity; "background" perf events say
+   *  when the app was in the background. Undefined when there is none to read
+   *  (still loading, or a share link without the Events panel). */
+  timeline?: ReadonlyArray<TimelineMark>;
+  /** "Skip inactivity" toggle (owned + persisted by the HUD). */
+  skipIdle?: boolean;
+  /** Reports the skip ranges as 0..1 fractions of the timeline so the
+   *  scrubber can paint them, the same contract as the web player. */
+  onIdleRegions?: (regions: { from: number; to: number }[]) => void;
+  /** Reports whether the stage shows the "still being processed" panel, or
+   *  the archive load-error panel ("still being processed" / "Session not
+   *  found.") — true when it appears, false when it goes or this player
+   *  unmounts. The reference shows those panels INSTEAD of a player, so the
+   *  host hides its transport (scrubber, play/pause) while one is up. */
+  onProcessing?: (processing: boolean) => void;
 };
 
 export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
@@ -80,7 +150,14 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
       platform,
       loading,
       framesPending,
+      framesFailed,
       onDuration,
+      sessionDurationMs,
+      sessionStartedAtMs,
+      timeline,
+      skipIdle,
+      onIdleRegions,
+      onProcessing,
     },
     ref,
   ) {
@@ -100,10 +177,28 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
 
     // ── Frames archive ──────────────────────────────────────────────
     // null = UNRESOLVED (descriptor in flight, or archive still downloading),
-    // [] = resolved with no archive frames, [..] = resolved with frames.
-    // The three states must stay distinct: `null` is what tells the duration
-    // below that the session's length is still unknown.
-    const [frames, setFrames] = useState<MobileFrame[] | null>(null);
+    // [] = resolved with no archive frames, [..] = resolved with frames,
+    // ARCHIVE_FAILED = the archive could not be loaded (or the descriptor
+    // naming it could not). The states must stay distinct: `null` is what
+    // tells the duration below that the session's length is still unknown,
+    // and a failure is not a session that captured nothing (see
+    // `archiveFailed`).
+    const [archive, setArchive] = useState<
+      MobileFrame[] | null | typeof ARCHIVE_FAILED
+    >(null);
+    // A failed archive has no frames: everything that paints or times reads
+    // it as resolved-empty; only the stage's panel tells the two apart.
+    const archiveFailed = archive === ARCHIVE_FAILED;
+    const frames = archive === ARCHIVE_FAILED ? NO_FRAMES : archive;
+    // What `frames` was last resolved against: undefined = nothing yet, null =
+    // a descriptor with no archive URL, else that URL. Tells an archive that
+    // has just APPEARED apart from a re-run for the same one.
+    const resolvedUrlRef = useRef<string | null | undefined>(undefined);
+    // The archive URL whose download last failed. The effect re-runs for the
+    // same URL when batches land (`startTs`), and downloading it again there
+    // is a retry, which the reference tracker never makes. A new answer from
+    // the descriptor (a re-ask, or one with no URL) clears it.
+    const failedUrlRef = useRef<string | null>(null);
     useEffect(() => {
       let cancelled = false;
       // "Descriptor still loading" is NOT "no archive". Collapsing the two (the
@@ -111,57 +206,125 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
       // resolved-empty while /frames was still in flight, which published the
       // event wall-clock span as if it were the real duration.
       if (framesPending) {
-        setFrames(null);
+        resolvedUrlRef.current = undefined;
+        failedUrlRef.current = null;
+        setArchive(null);
         return undefined;
       }
       if (!framesInfo?.url) {
-        // Resolved: this session has no archive (or /frames failed) — the
-        // legacy imageRef / wireframe path owns the screen and the event
-        // wall-clock span IS the duration.
-        setFrames([]);
+        // Resolved: this session has no archive yet (still processing — see
+        // `processing` below), none at all, or /frames failed — the legacy
+        // imageRef / wireframe path owns the screen and the duration is the
+        // session's own (or the event wall-clock span, if longer). A failed
+        // /frames is no answer at all: it gets the load-error copy, as an
+        // archive that fails to download does, not "No snapshots captured".
+        resolvedUrlRef.current = null;
+        failedUrlRef.current = null;
+        setArchive(framesFailed ? ARCHIVE_FAILED : []);
         return undefined;
       }
-      // No setFrames(null) here on purpose: `frames` is already null on the
-      // first pass (framesPending held it there), and blanking it on a later
-      // re-run — batches landing move `startTs` — would unmount a stage that is
-      // already painting and flash the loading spinner.
+      // An archive URL where the last answer had none, with no pending
+      // re-ask flagged in between (the dashboard and share wiring flag theirs
+      // through `framesPending`; this covers any caller that just swaps the
+      // descriptor). `frames` holds that answer's resolved-empty [], which
+      // reads as "no snapshots captured" for as long as the download takes —
+      // back to unresolved, so the spinner shows.
+      if (resolvedUrlRef.current === null) setArchive(null);
+      // Likewise a NEW archive URL (a re-finalize bumps its ?v=) after one
+      // that failed to load: the spinner while it downloads, not the old
+      // failure's panel. A loaded archive keeps painting until it is replaced.
+      else if (resolvedUrlRef.current !== framesInfo.url)
+        setArchive((prev) => (prev === ARCHIVE_FAILED ? null : prev));
+      resolvedUrlRef.current = framesInfo.url;
+      // Otherwise no setArchive(null), on purpose: `frames` is already null on
+      // the first pass (framesPending held it there), and blanking it on a
+      // later re-run — batches landing move `startTs` — would unmount a stage
+      // that is already painting and flash the loading spinner.
+      const url = framesInfo.url;
+      if (failedUrlRef.current === url) return undefined;
+      const countsFrames = framesInfo.count > 0;
       loadFramesArchive(
-        framesInfo.url,
+        url,
         framesInfo.startedAt || startTs,
         framesInfo.fileFormat || "jpeg",
       ).then((res) => {
-        if (!cancelled) setFrames(res?.frames?.length ? res.frames : []);
+        if (cancelled) return;
+        // null is a download, gunzip or parse FAILURE (a retention-pruned
+        // archive 404s), not an empty archive: it gets the reference
+        // tracker's load-error copy, never "No snapshots captured". So does
+        // an archive with no frames where the descriptor counts some — the
+        // server only names an archive once it holds that many, so an empty
+        // body (a partial upload) is a failed load, not "nothing captured".
+        // No retry and no polling: the reference tracker has neither.
+        const got = res?.frames ?? [];
+        if (!res || (got.length === 0 && countsFrames)) {
+          failedUrlRef.current = url;
+          // A loaded archive keeps painting: a re-load that fails (a new ?v=
+          // after a re-finalize, a transient R2 error) must not swap frames
+          // the user is watching for the error panel.
+          setArchive((prev) =>
+            Array.isArray(prev) && prev.length > 0 ? prev : ARCHIVE_FAILED,
+          );
+          return;
+        }
+        failedUrlRef.current = null;
+        setArchive(got);
       });
       return () => {
         cancelled = true;
       };
     }, [
       framesPending,
+      framesFailed,
       framesInfo?.url,
+      framesInfo?.count,
       framesInfo?.startedAt,
       framesInfo?.fileFormat,
       startTs,
     ]);
 
     const usingArchive = Array.isArray(frames) && frames.length > 0;
-    const framesDurationMs = usingArchive
-      ? frames![frames!.length - 1].time
-      : 0;
+    const hasContent = usingArchive || snapshots.length > 0;
+    // No archive YET is not no frames: the API flags a session that is still
+    // LIVE or whose frames are queued for finalize, and the reference player
+    // says it is still being processed (its copy, below) rather than claiming
+    // nothing was captured. One answer per open, no polling — the descriptor
+    // query never serves a pending answer from cache, nor re-asks it on
+    // focus / reconnect (FRAMES_QUERY_OPTS).
+    const processing = !!framesInfo && !framesInfo.url && !!framesInfo.pending;
+    // The archive (or the legacy fallback) has resolved — the screen can paint.
+    // Not while the stage only says "still being processed", or only shows
+    // the load-error copy of an archive that failed: the reference shows
+    // those panels INSTEAD of a player, so there is nothing to play. The
+    // length stays unpublished, the clock stays at 0 and no frameless band is
+    // reported — otherwise the clock ran to the end under the panel and
+    // RvStage's "ended" auto-advanced to the next recording. Legacy
+    // snapshot / wireframe content of a pending session still plays.
+    const mediaReady =
+      frames !== null && !((processing || archiveFailed) && !hasContent);
     const effStartTs = usingArchive
       ? framesInfo?.startedAt || startTs
       : startTs;
-    const durationMs = usingArchive
-      ? framesDurationMs
-      : Math.max(0, endTs - startTs);
+    // Total length = the session's own duration, grown to cover anything
+    // recorded past it (reference: endTime = session duration, extended by
+    // later messages). It used to be the LAST FRAME's time, so a 6:27 session
+    // whose capture stopped at 0:21 played as 0:21 while its events ran on to
+    // 6:27 — everything after the last frame was unreachable.
+    const durationMs = mobileDurationMs({
+      sessionMs: sessionDurationMs,
+      lastFrameMs: usingArchive ? frames![frames!.length - 1].time : 0,
+      eventSpanMs: endTs > 0 ? endTs - effStartTs : 0,
+    });
     // Whether `durationMs` is the REAL length or just the best guess so far.
-    // For an archive session the duration is the last frame's time; until the
-    // archive resolves, `endTs - startTs` above is a stand-in that can be far
-    // short of it (the /events stream is capped, so its span is a lower bound).
-    // Publishing that stand-in made RvStage's follower fire "ended" — pausing
+    // Until the archive resolves, a growing last frame could still extend it,
+    // and publishing a stand-in made RvStage's follower fire "ended" — pausing
     // playback and autoplaying the next recording — the moment the playhead
-    // passed it, and let Math.min() below clamp a seek target that sat beyond
-    // it back onto it. So we simply do not report a length we do not know yet.
-    const durationKnown = frames !== null;
+    // passed it, and let a seek beyond it clamp back onto it. Waiting also keeps
+    // the report out of this player's MOUNT commit: RvStage and Recordings
+    // zero their copy of the duration in their own per-session effects, which
+    // run after a child's mount effects and would wipe a report made there
+    // (`frames` is always null on mount, so this flips in a later commit).
+    const durationKnown = mediaReady;
 
     // Device pixel size, sniffed from the first decoded frame (the archive
     // carries no width/height). Probed off-DOM so it isn't gated by the <img>.
@@ -182,6 +345,10 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
 
     // ── Playhead (self-driven rAF accumulator) ──────────────────────
     const [posMs, setPosMs] = useState(0);
+    // The tick reads and writes the playhead through this ref (every posMs
+    // writer — the tick and goto — keeps it current), so the skip jump below
+    // is decided outside a setState updater, which must stay pure.
+    const posRef = useRef(0);
     const speedRef = useRef(speed);
     useEffect(() => {
       speedRef.current = speed;
@@ -192,11 +359,66 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
       onDuration?.(Math.max(0, durationMs) / 1000);
     }, [durationKnown, durationMs, onDuration]);
 
+    // ── Skip inactivity + frameless stretches (mobileTimeline.ts) ───
+    const frameTimes = useMemo(
+      () => (usingArchive ? frames!.map((f) => f.time) : []),
+      [usingArchive, frames],
+    );
+    const activity = useMemo(() => userActivityOffsets(timeline), [timeline]);
+    const bgMarks = useMemo(() => backgroundMarks(timeline), [timeline]);
+    // /timeline is capped at its first TIMELINE_ROW_CAP rows, so on a long
+    // session its taps and focus changes stop partway: past this point the
+    // list says nothing, and nothing (idle tail, background) is read into it.
+    const timelineKnownUntil = useMemo(
+      () => timelineHorizonMs(timeline),
+      [timeline],
+    );
+    // Only once the archive has resolved: until then "no frames yet" would
+    // read as one long frameless stretch.
+    const skipIntervals = useMemo(
+      () =>
+        mediaReady && durationMs > 0
+          ? mobileSkipIntervals({
+              activity,
+              frameTimes,
+              durationMs,
+              activityKnownUntilMs: timelineKnownUntil,
+            })
+          : [],
+      [mediaReady, durationMs, activity, frameTimes, timelineKnownUntil],
+    );
+    // Read by the tick through refs, so toggling never re-subscribes the rAF.
+    const skipIntervalsRef = useRef<Interval[]>([]);
+    const skipIdleRef = useRef(false);
+    // Set by goto(): the first tick after a seek or restart never skip-jumps,
+    // so RvStage's follower gets a frame to see the clock below the end before
+    // a range reaching the end could end playback again (same guard as the
+    // web player's).
+    const justSeekedRef = useRef(false);
     useEffect(() => {
-      // Nothing to play until we know how long the recording is: the tick
-      // clamps to `durationMs`, so running while it is still 0 just pins the
-      // playhead at 0 (and any seek that lands meanwhile is clamped away).
-      if (!playing || !durationKnown || durationMs <= 0) return undefined;
+      skipIntervalsRef.current = skipIntervals;
+    }, [skipIntervals]);
+    useEffect(() => {
+      skipIdleRef.current = !!skipIdle;
+    }, [skipIdle]);
+    useEffect(() => {
+      if (!onIdleRegions) return;
+      onIdleRegions(
+        durationMs > 0
+          ? skipIntervals.map((iv) => ({
+              from: iv.start / durationMs,
+              to: iv.end / durationMs,
+            }))
+          : [],
+      );
+    }, [skipIntervals, durationMs, onIdleRegions]);
+
+    useEffect(() => {
+      // Nothing to play until the screen can paint (the reference clock does
+      // not advance while it is loading either) and the length is known: the
+      // tick clamps to `durationMs`, so running while it is still 0 just pins
+      // the playhead at 0.
+      if (!playing || !mediaReady || durationMs <= 0) return undefined;
       let raf = 0;
       let last = performance.now();
       const tick = () => {
@@ -205,19 +427,37 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
         // playhead the whole gap and fast-forward it to the end.
         const delta = Math.min(now - last, MAX_TICK_MS);
         last = now;
-        setPosMs((p) => Math.min(p + delta * speedRef.current, durationMs));
+        let next = Math.min(
+          posRef.current + delta * speedRef.current,
+          durationMs,
+        );
+        // Skip inactivity: inside a range, jump to its end (reference
+        // Animator: `if (skip && interval.contains(time)) time = interval.end`).
+        if (justSeekedRef.current) {
+          justSeekedRef.current = false;
+        } else if (skipIdleRef.current) {
+          const iv = skipTargetAt(skipIntervalsRef.current, next);
+          if (iv) next = Math.min(iv.end, durationMs);
+        }
+        posRef.current = next;
+        setPosMs(next);
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);
-    }, [playing, durationKnown, durationMs]);
+    }, [playing, mediaReady, durationMs]);
 
     useImperativeHandle(
       ref,
       () => ({
         play: () => {},
         pause: () => {},
-        goto: (sec: number) => setPosMs(Math.max(0, sec * 1000)),
+        goto: (sec: number) => {
+          const ms = Math.max(0, sec * 1000);
+          justSeekedRef.current = true;
+          posRef.current = ms;
+          setPosMs(ms);
+        },
         setSpeed: (s: number) => {
           speedRef.current = s;
         },
@@ -363,6 +603,9 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
     );
 
     const [fitScale, setFitScale] = useState(0);
+    // Free width between the fitted phone and the stage's edge, where the
+    // screen-state badge sits (as in the reference) when it fits.
+    const [sideRoom, setSideRoom] = useState(0);
     useLayoutEffect(() => {
       const body = stageBodyRef.current;
       if (!body || !shellW || !shellH) return undefined;
@@ -408,7 +651,9 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
         // Scale the whole device shell to fit the stage, upscaling small
         // shells up to 3× — the reference fit behavior.
         const s = Math.min(availW / shellW, availH / shellH);
-        setFitScale(s > 0 ? Math.min(s, 3) : 0);
+        const scale = s > 0 ? Math.min(s, 3) : 0;
+        setFitScale(scale);
+        setSideRoom((target.clientWidth - padX - shellW * scale) / 2);
       };
       fit();
       const ro = new ResizeObserver(fit);
@@ -416,7 +661,6 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
       return () => ro.disconnect();
     }, [shellW, shellH]);
 
-    const hasContent = usingArchive || snapshots.length > 0;
     const fallbackSrc = !usingArchive ? current?.root?.imageRef || null : null;
     const ready = hasContent && dims.w > 0 && fitScale > 0;
     // Keep the loading state up through the async natural-size probe so we
@@ -428,16 +672,65 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
       !ready &&
       (frames === null || (usingArchive && dims.w === 0));
     const showLoading = framesLoading || (!!loading && !hasContent);
+    // The processing panel is what the stage shows (see `processing`).
+    const showProcessing = !showLoading && !hasContent && processing;
+    // Or the load-error panel: the archive (or the /frames descriptor naming
+    // it) could not be loaded, and nothing else (legacy snapshots /
+    // wireframe) can paint.
+    const showLoadError = !showLoading && !hasContent && archiveFailed;
+    // Tell the host while either shows: the reference panel stands in for the
+    // whole player, controls included, and a scrubber / play-pause left live
+    // over it moved the head and the time label (and showed "pause") over a
+    // stage that cannot play. Withdrawn by the cleanup — when the panel goes
+    // (the archive arrived) or this player unmounts (keyed per session, so a
+    // switch always hands the next session a visible HUD).
+    const showStandIn = showProcessing || showLoadError;
+    useEffect(() => {
+      if (!showStandIn || !onProcessing) return undefined;
+      onProcessing(true);
+      return () => onProcessing(false);
+    }, [showStandIn, onProcessing]);
 
     // Reference empty-state copy (mirrors MobilePlayerStage): distinguish a
     // session that ended before the first capture window from one where capture
-    // was disabled / predates periodic frame capture.
-    const emptyHint = useMemo(() => {
-      const totalSec = Math.max(0, (endTs - startTs) / 1000);
-      return totalSec < 2
+    // was disabled / predates periodic frame capture. Judged on the session's
+    // duration: a native session's /events stream is empty, so its span read
+    // 0 and every frameless session claimed it "ended before the first capture".
+    const emptyHint =
+      noFramesReason(durationMs) === "too-short"
         ? "Session ended before the first capture window. The SDK takes its first frame ~500 ms after foreground."
         : "Snapshot capture may be disabled, or the SDK predates periodic frame capture.";
-    }, [startTs, endTs]);
+
+    // What the stage cannot show at the playhead. The held frame stays
+    // (reference), with a badge beside the device that says why — a stale
+    // frame must not pass for the live screen while the events run on.
+    // Background wins, as the reference badge does, frames or not; its range
+    // is the background stretch itself, never the wider frameless one, which
+    // can start earlier (capture or upload loss) and must not be blamed on it.
+    const bgSpan = backgroundSpanAt(
+      bgMarks,
+      posMs,
+      durationMs,
+      timelineKnownUntil,
+    );
+    const screenGap = usingArchive
+      ? screenGapAt(frames!, posMs, durationMs)
+      : null;
+    const screenState: ScreenState | null = bgSpan
+      ? { kind: "background", ...bgSpan }
+      : screenGap
+        ? { kind: "no-screen", ...screenGap }
+        : null;
+    const stateStart = screenState?.start ?? 0;
+    const stateEnd = screenState
+      ? (screenState.end ?? Math.min(durationMs, timelineKnownUntil))
+      : 0;
+    // "Events still play" only where there are events to see: never on a share
+    // link without the Events panel, nor past where a capped list stops.
+    const eventsInState = useMemo(
+      () => hasEventsBetween(timeline, stateStart, stateEnd),
+      [timeline, stateStart, stateEnd],
+    );
 
     return (
       <div
@@ -473,115 +766,116 @@ export const RvMobilePlayer = forwardRef<RvPlayerHandle, RvMobilePlayerProps>(
             <div>Loading frames…</div>
           </div>
         )}
-        {!showLoading && !hasContent && (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "var(--sp-12)",
-              color: "var(--t3)",
-              textAlign: "center",
-              maxWidth: 380,
-              padding: "var(--sp-32)",
-              pointerEvents: "none",
-            }}
-          >
-            <PhoneGlyph />
-            <div
-              className="rv-mob-empty-title"
-              style={{ fontSize: "var(--text-md)", fontWeight: "var(--fw-semibold)", color: "var(--text)" }}
-            >
-              No snapshots captured
-            </div>
-            <div style={{ fontSize: "var(--text-sm)", opacity: 0.82, lineHeight: "var(--lh-normal)" }}>
-              {emptyHint}
-            </div>
-          </div>
+        {showProcessing && (
+          <MobileEmptyState
+            title={PROCESSING_COPY.title}
+            body={PROCESSING_COPY.body}
+          />
+        )}
+        {showLoadError && (
+          <MobileEmptyState
+            {...loadErrorCopy(sessionStartedAtMs || framesInfo?.startedAt || 0)}
+          />
+        )}
+        {!showLoading && !hasContent && !processing && !archiveFailed && (
+          <MobileEmptyState title="No snapshots captured" body={emptyHint} />
         )}
         {ready && (
-          <div
-            style={{
-              width: shellW * fitScale,
-              height: shellH * fitScale,
-              position: "relative",
-              flex: "0 0 auto",
-              // Soft ambient shadow under the phone — consistent with the web
-              // player's stage shadow.
-              filter: "drop-shadow(0 10px 24px rgba(0,0,0,0.18))",
-            }}
-          >
+          // Anchors the screen-state badge beside the device. The device box
+          // below carries the drop-shadow filter, which would also shadow the
+          // badge's text if the badge sat inside it.
+          <div style={{ position: "relative", flex: "0 0 auto" }}>
             <div
               style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: shellW,
-                height: shellH,
-                transform: `scale(${fitScale})`,
-                transformOrigin: "top left",
+                width: shellW * fitScale,
+                height: shellH * fitScale,
+                position: "relative",
+                flex: "0 0 auto",
+                // Soft ambient shadow under the phone — consistent with the web
+                // player's stage shadow.
+                filter: "drop-shadow(0 10px 24px rgba(0,0,0,0.18))",
               }}
             >
-              {/* Inner-screen rect: the frames paint here, offset to land in the
-                  shell cut-out. The shell body is overlaid ON TOP below, so its
-                  transparent screen area lets the frame show through while the
-                  notch / bezel draws over the edges. */}
               <div
-                style={{
-                  position: "absolute",
-                  top: screenOff.top,
-                  left: screenOff.left,
-                  width: screenW,
-                  height: screenH,
-                  overflow: "hidden",
-                  borderRadius: "var(--r-lg)",
-                  background: "#000",
-                }}
-              >
-                {(usingArchive || fallbackSrc) && (
-                  <img
-                    ref={setImg}
-                    src={fallbackSrc || undefined}
-                    alt=""
-                    draggable={false}
-                    style={{
-                      width: "100%",
-                      height: "100%",
-                      display: "block",
-                      objectFit: "fill",
-                    }}
-                  />
-                )}
-                {!usingArchive && !fallbackSrc && current?.root && (
-                  <WireframeRenderer
-                    node={current.root}
-                    sw={dims.w}
-                    sh={dims.h}
-                  />
-                )}
-                {recentTaps.map((tap) => (
-                  <TapRipple
-                    key={String(tap.id)}
-                    tap={tap}
-                    sw={dims.w}
-                    sh={dims.h}
-                    age={Math.max(0, effStartTs + posMs - tap.ts)}
-                  />
-                ))}
-              </div>
-              {/* Reference mobile device shell body (iPhone notch / Android
-                  bezel), overlaid on top of the painted screen. */}
-              <div
-                aria-hidden
                 style={{
                   position: "absolute",
                   top: 0,
                   left: 0,
-                  pointerEvents: "none",
+                  width: shellW,
+                  height: shellH,
+                  transform: `scale(${fitScale})`,
+                  transformOrigin: "top left",
                 }}
-                dangerouslySetInnerHTML={{ __html: device.svg }}
-              />
+              >
+                {/* Inner-screen rect: the frames paint here, offset to land in the
+                    shell cut-out. The shell body is overlaid ON TOP below, so its
+                    transparent screen area lets the frame show through while the
+                    notch / bezel draws over the edges. */}
+                <div
+                  style={{
+                    position: "absolute",
+                    top: screenOff.top,
+                    left: screenOff.left,
+                    width: screenW,
+                    height: screenH,
+                    overflow: "hidden",
+                    borderRadius: "var(--r-lg)",
+                    background: "#000",
+                  }}
+                >
+                  {(usingArchive || fallbackSrc) && (
+                    <img
+                      ref={setImg}
+                      src={fallbackSrc || undefined}
+                      alt=""
+                      draggable={false}
+                      style={{
+                        width: "100%",
+                        height: "100%",
+                        display: "block",
+                        objectFit: "fill",
+                      }}
+                    />
+                  )}
+                  {!usingArchive && !fallbackSrc && current?.root && (
+                    <WireframeRenderer
+                      node={current.root}
+                      sw={dims.w}
+                      sh={dims.h}
+                    />
+                  )}
+                  {recentTaps.map((tap) => (
+                    <TapRipple
+                      key={String(tap.id)}
+                      tap={tap}
+                      sw={dims.w}
+                      sh={dims.h}
+                      age={Math.max(0, effStartTs + posMs - tap.ts)}
+                    />
+                  ))}
+                </div>
+                {/* Reference mobile device shell body (iPhone notch / Android
+                    bezel), overlaid on top of the painted screen. */}
+                <div
+                  aria-hidden
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    pointerEvents: "none",
+                  }}
+                  dangerouslySetInnerHTML={{ __html: device.svg }}
+                />
+              </div>
             </div>
+            {screenState && (
+              <ScreenStateBadge
+                state={screenState}
+                eventsPlay={eventsInState}
+                skippable={!skipIdle && !!skipTargetAt(skipIntervals, posMs)}
+                beside={sideRoom >= BADGE_W + BADGE_GAP}
+              />
+            )}
           </div>
         )}
         {/* platform is surfaced by the frozen stagebar; kept as a reference. */}
@@ -808,6 +1102,192 @@ function useNativeEvents(batches: ReplayBatch[] | undefined): {
 function extractRoute(root: WireNode | null | undefined): string | null {
   if (!root) return null;
   return root.route || null;
+}
+
+/** What the stage cannot show at the playhead: the app in the background
+ *  (from its focus marks — `end` null when a capped timeline stops before it
+ *  came back), or a stretch with no captured frame. */
+type ScreenState = {
+  kind: "background" | "no-screen";
+  start: number;
+  end: number | null;
+};
+
+/** Width of the badge column beside the device, and its gap to the device
+ *  (the reference warnings column: 200 px wide, 20 px off the shell). */
+const BADGE_W = 200;
+const BADGE_GAP = 20;
+
+/** The reference player's "In Background" badge: a small light chip beside
+ *  the device rather than anything over the screen, so the held frame stays
+ *  readable. Ours also covers the frameless stretches and says for how long,
+ *  whether the timeline still has events to watch there, and how to jump on.
+ *  On a stage too narrow for the column (the phone fills it) the chip alone
+ *  sits over the bottom of the device instead of being clipped off-stage. */
+function ScreenStateBadge({
+  state,
+  eventsPlay,
+  skippable,
+  beside,
+}: {
+  state: ScreenState;
+  /** The timeline has events inside this stretch. */
+  eventsPlay: boolean;
+  /** The playhead is in a skip range and Skip inactivity is off. */
+  skippable: boolean;
+  /** There is room for the column beside the device. */
+  beside: boolean;
+}) {
+  const background = state.kind === "background";
+  const range =
+    state.end === null
+      ? `Since ${rvClock(state.start)}.`
+      : `${background ? "From" : "No frames from"} ${rvClock(state.start)} to ${rvClock(state.end)}.`;
+  return (
+    <div
+      role="status"
+      style={{
+        position: "absolute",
+        ...(beside
+          ? {
+              left: `calc(100% + ${BADGE_GAP}px)`,
+              top: "50%",
+              transform: "translateY(-50%)",
+              width: BADGE_W,
+            }
+          : { left: "50%", bottom: 24, transform: "translateX(-50%)" }),
+        display: "flex",
+        flexDirection: "column",
+        alignItems: beside ? "flex-start" : "center",
+        gap: "var(--sp-6)",
+        pointerEvents: "none",
+      }}
+    >
+      <span
+        className="rv-chip"
+        style={{ background: "var(--surface)", whiteSpace: "nowrap" }}
+        title={beside ? undefined : range}
+      >
+        {background ? <EyeOffGlyph /> : <NoScreenGlyph />}
+        {background ? "In background" : "No screen recorded"}
+      </span>
+      {beside && (
+        <div
+          style={{
+            fontSize: "var(--text-xs)",
+            color: "var(--t3)",
+            lineHeight: "var(--lh-normal)",
+          }}
+        >
+          {range}
+          {eventsPlay && " Events on the timeline still play."}
+          {skippable && " Skip inactivity jumps past it."}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Eye-slash, the reference background badge's icon. */
+function EyeOffGlyph() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M10.7 5.1A10.5 10.5 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-2.2 3.1" />
+      <path d="M6.6 6.6A16.8 16.8 0 0 0 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+      <path d="M2 2l20 20" />
+    </svg>
+  );
+}
+
+/** Phone with a slash: no screen captured. */
+function NoScreenGlyph() {
+  return (
+    <svg
+      width="13"
+      height="13"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="6" y="2.5" width="12" height="19" rx="2.5" />
+      <path d="M3 3l18 18" />
+    </svg>
+  );
+}
+
+type PanelCopy = { title: string; body: string };
+
+/** The reference tracker's "not ready yet" copy: /frames `pending`, and a
+ *  young session whose archive failed to load. */
+const PROCESSING_COPY: PanelCopy = {
+  title: "This session is still being processed.",
+  body: "Please check it again in a few minutes.",
+};
+/** The reference tracker's copy for an older session whose replay cannot be
+ *  loaded — most often one its retention policy has pruned. */
+const NOT_FOUND_COPY: PanelCopy = {
+  title: "Session not found.",
+  body: "Please check your data retention policy.",
+};
+/** Past this many whole days old (rounded to the nearest day, as the
+ *  reference tracker counts them — so from 2.5 days), a session whose archive
+ *  cannot be loaded reads as not found rather than still being processed. */
+const PROCESSING_MAX_DAYS = 2;
+const DAY_MS = 86_400_000;
+
+/** The reference tracker's load-error copy, chosen by the session's age:
+ *  still being processed while it is young, else not found. */
+function loadErrorCopy(startedAtMs: number, nowMs = Date.now()): PanelCopy {
+  const days = Math.round(Math.abs(nowMs - startedAtMs) / DAY_MS);
+  return days > PROCESSING_MAX_DAYS ? NOT_FOUND_COPY : PROCESSING_COPY;
+}
+
+/** The stage's no-screen panel: the frameless empty state ("No snapshots
+ *  captured"), the still-processing state and the load-error state share one
+ *  markup, so they read as the same surface in both the dashboard and
+ *  theatre styling. */
+function MobileEmptyState({ title, body }: { title: string; body: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: "var(--sp-12)",
+        color: "var(--t3)",
+        textAlign: "center",
+        maxWidth: 380,
+        padding: "var(--sp-32)",
+        pointerEvents: "none",
+      }}
+    >
+      <PhoneGlyph />
+      <div
+        className="rv-mob-empty-title"
+        style={{ fontSize: "var(--text-md)", fontWeight: "var(--fw-semibold)", color: "var(--text)" }}
+      >
+        {title}
+      </div>
+      <div style={{ fontSize: "var(--text-sm)", opacity: 0.82, lineHeight: "var(--lh-normal)" }}>
+        {body}
+      </div>
+    </div>
+  );
 }
 
 /** Muted phone glyph for the frameless empty state (reference `.mobile-empty`). */

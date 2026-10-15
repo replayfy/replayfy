@@ -118,8 +118,17 @@ export class SessionReaperService {
    */
   private async eraseBatch(
     workspaceId: number,
-    targets: ReapTarget[],
+    allTargets: ReapTarget[],
   ): Promise<void> {
+    // Only ever erase sessions of the workspace this erase is for: every store
+    // below is filtered by it, and a mismatched target would otherwise be
+    // half-erased (its Postgres row, not its Mongo/ClickHouse data).
+    const targets = allTargets.filter((t) => t.workspaceId === workspaceId);
+    if (targets.length < allTargets.length) {
+      this.logger.warn(
+        `erase ws=${workspaceId}: skipped ${allTargets.length - targets.length} session(s) of another workspace`,
+      );
+    }
     if (targets.length === 0) return;
     const publicIds = targets.map((t) => t.publicId);
     const ids = targets.map((t) => t.id);
@@ -182,7 +191,7 @@ export class SessionReaperService {
       >(
         Prisma.sql`DELETE FROM "Session" WHERE "id" IN (${Prisma.join(
           ids,
-        )}) RETURNING "status", "dataSizeBytes"`,
+        )}) AND "workspaceId" = ${workspaceId} RETURNING "status", "dataSizeBytes"`,
       );
     } catch (e) {
       this.logger.warn(

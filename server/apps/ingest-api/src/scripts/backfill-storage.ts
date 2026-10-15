@@ -12,6 +12,7 @@ import "reflect-metadata";
 import { config as loadEnv } from "dotenv";
 import { getPostgresClient } from "@replay/db-postgres";
 import { getMongoClient } from "@replay/db-mongo";
+import { loadScopedBatches } from "./scoped-replay-batches";
 
 loadEnv();
 loadEnv({ path: ".env.local", override: true });
@@ -22,7 +23,7 @@ async function main() {
 
   // Pull in pages so we don't load the whole table into memory if the
   // workspace has tens of thousands of recordings.
-  const PAGE = 200;
+  const PAGE = 50;
   let cursor: number | undefined;
   let touched = 0;
   let totalBytes = 0n;
@@ -33,17 +34,18 @@ async function main() {
         dataSizeBytes: 0n,
         ...(cursor !== undefined ? { id: { lt: cursor } } : {}),
       },
-      select: { id: true, publicId: true },
+      select: { id: true, publicId: true, workspaceId: true },
       orderBy: { id: "desc" },
       take: PAGE,
     });
     if (rows.length === 0) break;
 
+    // One workspace-scoped Mongo read for the whole page (loadScopedBatches),
+    // and one Postgres transaction for the page's updates.
+    const batchesBySession = await loadScopedBatches(mongo, rows);
+    const updates: Array<ReturnType<typeof pg.session.update>> = [];
     for (const s of rows) {
-      const batches = await mongo.replayBatch.findMany({
-        where: { sessionId: s.publicId },
-        select: { events: true },
-      });
+      const batches = batchesBySession.get(s.id) ?? [];
       if (batches.length === 0) continue;
       let bytes = 0n;
       for (const b of batches) {
@@ -52,14 +54,17 @@ async function main() {
         );
       }
       if (bytes === 0n) continue;
-      await pg.session.update({
-        where: { id: s.id },
-        data: { dataSizeBytes: bytes },
-      });
+      updates.push(
+        pg.session.update({
+          where: { id: s.id },
+          data: { dataSizeBytes: bytes },
+        }),
+      );
       touched += 1;
       totalBytes += bytes;
     }
 
+    if (updates.length > 0) await pg.$transaction(updates);
     cursor = rows[rows.length - 1].id;
     if (rows.length < PAGE) break;
   }

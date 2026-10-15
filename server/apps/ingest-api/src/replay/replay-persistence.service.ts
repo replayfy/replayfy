@@ -34,8 +34,13 @@ import { webDeviceFacts } from "../common/device-facts";
 import { mergeSessionCustomProps } from "../common/session-props";
 import { INT4_MAX, toInt4, toSafeInt } from "../common/int4";
 import { truncateWellFormed, wellFormed } from "../common/well-formed";
+import { workspaceScopedSessionId } from "../common/session-id";
 
 const LIVE_THRESHOLD_MS = 30_000;
+
+/** What persist() did: stored the batch, or skipped a resend of a batch that
+ *  was already fully persisted. */
+export type PersistOutcome = "persisted" | "duplicate";
 
 @Injectable()
 export class ReplayPersistenceService {
@@ -51,7 +56,12 @@ export class ReplayPersistenceService {
     private readonly signals: SignalsService,
   ) {}
 
-  async persist(job: ReplayBatchJob): Promise<void> {
+  /**
+   * Persist one replay batch. Returns "duplicate" (and writes nothing) when a
+   * batch with the same (workspace, session, segment, sequence) key was already
+   * fully persisted — see priorDelivery.
+   */
+  async persist(job: ReplayBatchJob): Promise<PersistOutcome> {
     const { workspaceId, envelope, identify, ip, fingerprint, geoCountry } = job;
 
     if (!this.schemaReady) {
@@ -62,7 +72,38 @@ export class ReplayPersistenceService {
       });
     }
 
-    const sessionPublicId = envelope.sessionId;
+    // Resolve the Session row FIRST: the Mongo batch, the Session row and the
+    // ClickHouse rows must all use the id THIS workspace owns (see
+    // resolveSessionTarget) — never another workspace's session. In parallel,
+    // and before ANY side effect: was this exact batch already fully persisted?
+    // That lookup assumes the raw id, which the session is stored under unless
+    // another workspace owns it; only then does it need a second lookup.
+    const [target, priorUnderRawId] = await Promise.all([
+      this.resolveSessionTarget(workspaceId, envelope.sessionId),
+      this.priorDelivery(workspaceId, envelope.sessionId, envelope),
+    ]);
+    const prior =
+      target.publicId === envelope.sessionId
+        ? priorUnderRawId
+        : await this.priorDelivery(workspaceId, target.publicId, envelope);
+    if (prior?.persistedAt) {
+      // First write wins. With segment-keyed batches the same key only comes
+      // back as a RESEND of the same batch (pagehide re-delivery, failed-batch
+      // retry, next-page outbox, mobile retries), whose events are already in
+      // the replay and counted. Skipping it saves rewriting its blob and every
+      // other write (and keeps an earlier page's resend out of the session's
+      // page list, see upsertPaths). Replacing only the Mongo copy would leave
+      // the replay out of step with the counts and ClickHouse rows of the first
+      // copy, which are never added twice (applyBatchCounts). A same-key batch
+      // with different events means a broken SDK: logged, not applied.
+      if (prior.eventCount !== envelope.events.length) {
+        process.stderr.write(
+          `replay batch ${workspaceId}:${target.publicId}:${envelope.segmentId}:${envelope.sequence} ` +
+            `re-sent with ${envelope.events.length} events (stored: ${prior.eventCount}); kept the stored copy\n`,
+        );
+      }
+      return "duplicate";
+    }
     const startedAt = envelope.events[0]?.ts ?? envelope.sentAt;
     const endedAt =
       envelope.events[envelope.events.length - 1]?.ts ?? envelope.sentAt;
@@ -71,9 +112,11 @@ export class ReplayPersistenceService {
     // it concurrently with endUser→session instead of blocking on it first.
     const mongoP = this.writeMongoBatch(
       envelope,
+      target.publicId,
       startedAt,
       endedAt,
       workspaceId,
+      prior?.id ?? null,
     );
     // Attach a no-op rejection handler AT CREATION so a Mongo failure during the
     // endUser/session awaits below (or before pgTail reaches `await mongoP`)
@@ -99,7 +142,9 @@ export class ReplayPersistenceService {
     );
     const sessionRow = await this.upsertSession({
       workspaceId,
-      sessionPublicId,
+      rawSessionId: envelope.sessionId,
+      sessionPublicId: target.publicId,
+      existing: target.existing,
       endUserId,
       envelope,
       startedAt,
@@ -109,6 +154,35 @@ export class ReplayPersistenceService {
       geoCountry,
       hasRealIdentity,
     });
+    // `finalize` = this batch flipped the session to COMPLETED. The projection
+    // stays on the fast BATCHED path even for finalize: a per-finalize
+    // synchronous wait-for-flush insert would turn a worker that has fallen
+    // behind (sessions aging into COMPLETED before they're processed) into a
+    // self-amplifying finalize storm. The responsive derive below reads CH
+    // best-effort instead — the session's earlier events are already queryable
+    // and only its last ~1s batch may lag; the nightly backfill reconciles.
+    const finalize = sessionRow.status === "COMPLETED";
+    // The ClickHouse projection hits a different store, so start it now and run
+    // it CONCURRENTLY with the Postgres tail. Whether the job WAITS for it is
+    // gated below on the insert-batcher flag — see the await at the end.
+    //
+    // Only the attempt that applied this batch's counts to the Session
+    // (sessionRow.applied, see applyBatchCounts) projects its events, and it
+    // starts them here, before any later write can fail: a Bull retry of a
+    // batch whose counts an earlier attempt already applied must not insert
+    // its ClickHouse rows a second time (session_events is a plain MergeTree,
+    // so duplicates are never merged away).
+    const chProjection = sessionRow.applied
+      ? this.projectToClickhouse(
+          workspaceId,
+          sessionRow.id,
+          sessionRow.publicId,
+          envelope,
+        )
+      : Promise.resolve();
+    // Observed below (logged or awaited); this only keeps a rejection while
+    // the awaits in between run from being UNHANDLED (see mongoP above).
+    void chProjection.catch(() => undefined);
     // When THIS batch is the one that first associates a real identity with the
     // session (the first identified batch, or the anon→identified flip
     // mid-session), retroactively claim the user's EARLIER anonymous sessions on
@@ -123,23 +197,6 @@ export class ReplayPersistenceService {
         endUserId,
       );
     }
-    // `finalize` = this batch flipped the session to COMPLETED. The projection
-    // stays on the fast BATCHED path even for finalize: a per-finalize
-    // synchronous wait-for-flush insert would turn a worker that has fallen
-    // behind (sessions aging into COMPLETED before they're processed) into a
-    // self-amplifying finalize storm. The responsive derive below reads CH
-    // best-effort instead — the session's earlier events are already queryable
-    // and only its last ~1s batch may lag; the nightly backfill reconciles.
-    const finalize = sessionRow.status === "COMPLETED";
-    // The ClickHouse projection hits a different store, so start it now and run
-    // it CONCURRENTLY with the Postgres tail. Whether the job WAITS for it is
-    // gated below on the insert-batcher flag — see the await at the end.
-    const chProjection = this.projectToClickhouse(
-      workspaceId,
-      sessionRow.id,
-      sessionPublicId,
-      envelope,
-    );
     // The Postgres tail IS always awaited — it holds the authoritative session
     // records. It keeps the two same-Session-row UPDATEs (customProps +
     // pageCount) serial (avoids row-lock contention / lost updates) and joins
@@ -154,12 +211,25 @@ export class ReplayPersistenceService {
       if (identify?.customProps) {
         await mergeSessionCustomProps(
           this.db,
+          workspaceId,
           sessionRow.id,
           identify.customProps as Record<string, unknown>,
         );
       }
-      await this.upsertPaths(sessionRow.id, envelope);
+      await this.upsertPaths(workspaceId, sessionRow.id, envelope);
       const mongoBatchId = await mongoP;
+      // A create race with another workspace over the same raw id moved this
+      // session to its workspace-scoped id after the Mongo write had started
+      // under the raw one: re-file the batch so the player (which reads by the
+      // session's publicId) finds it. Only on that race; a point update by _id
+      // (select: Prisma would otherwise read the whole events blob back).
+      if (sessionRow.publicId !== target.publicId) {
+        await this.mongo.replayBatch.update({
+          where: { id: mongoBatchId },
+          data: { sessionId: sessionRow.publicId },
+          select: { id: true },
+        });
+      }
       await this.upsertSegment(
         sessionRow.id,
         envelope,
@@ -167,6 +237,7 @@ export class ReplayPersistenceService {
         endedAt,
         mongoBatchId,
       );
+      return mongoBatchId;
     })();
 
     // CH-completion policy, gated on the app-level insert batcher:
@@ -179,17 +250,35 @@ export class ReplayPersistenceService {
     //    projection rows coalesce + flush in the background (guarded so a build-
     //    phase throw can't become an unhandled rejection).
     //  - Batcher OFF (CLICKHOUSE_BATCH_INSERT=0): CH is awaited alongside the
-    //    tail so the job doesn't complete until the insert has run.
+    //    tail so the job doesn't complete until the insert has run. A failed
+    //    insert still fails the job, but its retry does not insert the rows
+    //    again (the counts were applied, see chProjection above): they are lost
+    //    rather than risked twice.
+    let mongoBatchId: string;
     if ((process.env.CLICKHOUSE_BATCH_INSERT ?? "1") === "1") {
       void chProjection.catch((e) => {
         process.stderr.write(
           `ch projection failed for session ${sessionRow.id}: ${(e as Error).message}\n`,
         );
       });
-      await pgTail;
+      mongoBatchId = await pgTail;
     } else {
-      await Promise.all([chProjection, pgTail]);
+      [, mongoBatchId] = await Promise.all([chProjection, pgTail]);
     }
+
+    // Every awaited write succeeded: only now record the batch as persisted, so
+    // a later delivery of it stops at priorDelivery above. A failure anywhere
+    // above rejected the job before this line, and Bull's retry runs the batch
+    // again: the Mongo copy and segment row are rewritten in place, a page the
+    // first attempt already recorded is not recorded again (upsertPaths), and
+    // the counts and ClickHouse rows are not applied twice (applyBatchCounts).
+    // (upsertPaths dedupes against the session's LATEST page only: an
+    // unmarked delivery of an earlier page's batch that arrives after the
+    // session moved on, i.e. a resend of a batch stored before this marker
+    // existed or whose marker write failed, records that page once more.)
+    // Set BEFORE the fire-and-forget follow-ups below, so a resend never
+    // re-runs the perf-daily bump either.
+    await this.markBatchPersisted(mongoBatchId);
 
     // AUTO cohort membership is now maintained WITHOUT an inline per-session
     // eval: upsertEndUser marks the user "dirty" (O(1) Redis SADD) only when a
@@ -246,28 +335,102 @@ export class ReplayPersistenceService {
     if (finalize && process.env.INGEST_RESPONSIVE_EVAL !== "0") {
       void this.signals.deriveForSession(sessionRow.id).catch(() => undefined);
     }
+    return "persisted";
+  }
+
+  /**
+   * An earlier delivery of THIS batch, if one was stored. The key is the
+   * [projectId, sessionId, sequence, segmentId] unique index:
+   *  - projectId (= this workspace): a colliding sessionId from ANOTHER
+   *    workspace can never be found (and overwritten or skipped) here.
+   *  - segmentId: a reload or same-tab navigation resumes the session id in a
+   *    new segment whose sequence restarts at 1. Without it, the new page
+   *    load's batch N matched the previous load's batch N (its snapshot and
+   *    events overwritten in the replay).
+   *
+   * Why the dedupe marker lives on this Mongo document (persistedAt) and not in
+   * Redis: the Mongo write already looked this key up on every batch (the
+   * lookup moved here, it was not added), so reading the marker costs no extra
+   * query and setting it one single-op update (markBatchPersisted); the field
+   * is a few bytes on a document that exists anyway, and it lasts exactly as
+   * long as the batch. A Redis key per batch would sit in the queue's Redis,
+   * which runs noeviction: roughly 170 bytes for every batch of the last N
+   * days, growing with traffic, and a resend arriving after the TTL (a
+   * next-page outbox flushed days later) would still be counted twice.
+   *
+   * The marker is the cheap early exit for a COMPLETE batch. It is not what
+   * keeps the counts single: a batch whose earlier attempt failed part-way is
+   * unmarked and runs again, and applyBatchCounts makes that rerun add nothing
+   * the earlier attempt already added.
+   *
+   * Access pattern: one point read on that unique index, narrowed to three
+   * small fields (the old lookup fetched the whole events blob), so it is O(1)
+   * per batch at any collection size. A second read only when the session is
+   * stored under its workspace-scoped id.
+   */
+  private async priorDelivery(
+    workspaceId: number,
+    sessionPublicId: string,
+    envelope: ReplayBatchEnvelope,
+  ): Promise<{ id: string; persistedAt: Date | null; eventCount: number } | null> {
+    return this.mongo.replayBatch.findFirst({
+      where: {
+        projectId: String(workspaceId),
+        sessionId: sessionPublicId,
+        sequence: envelope.sequence,
+        segmentId: envelope.segmentId,
+      },
+      select: { id: true, persistedAt: true, eventCount: true },
+    });
+  }
+
+  /**
+   * Record that every side effect of this batch succeeded (see priorDelivery).
+   *
+   * Access pattern: ONE Mongo update command, a point match on _id, run on
+   * every persisted batch. A raw command because the Prisma calls cost more on
+   * this hot path: `replayBatch.update` issues three operations (an aggregate
+   * to find the id, the update, then an aggregate that reads the WHOLE
+   * document back, events blob included), and `updateMany` two.
+   *
+   * Best-effort on purpose: failing the job here would make Bull re-run a
+   * batch that is already complete (wasted work, nothing counted twice).
+   * Logging it instead leaves the batch unmarked, so a later resend runs again
+   * and applyBatchCounts adds nothing.
+   */
+  private async markBatchPersisted(mongoBatchId: string): Promise<void> {
+    try {
+      await this.mongo.$runCommandRaw({
+        update: "ReplayBatch",
+        updates: [
+          {
+            q: { _id: { $oid: mongoBatchId } },
+            u: { $set: { persistedAt: { $date: new Date().toISOString() } } },
+          },
+        ],
+      });
+    } catch (e) {
+      process.stderr.write(
+        `could not mark replay batch ${mongoBatchId} persisted: ${(e as Error).message}\n`,
+      );
+    }
   }
 
   private async writeMongoBatch(
     envelope: ReplayBatchEnvelope,
+    sessionPublicId: string,
     startedAt: number,
     endedAt: number,
     workspaceId: number,
+    /** An earlier, not yet fully persisted delivery of this batch (a Bull
+     *  retry after a partial failure): updated in place, never duplicated. */
+    existingId: string | null,
   ) {
-    // Scope the existing-check by projectId (= this workspace) so a colliding
-    // sessionId+sequence from ANOTHER workspace can never be found and
-    // overwritten here — each workspace keeps its own batch. (Matches the
-    // [projectId, sessionId, sequence] unique key.)
-    const existing = await this.mongo.replayBatch.findFirst({
-      where: {
-        projectId: String(workspaceId),
-        sessionId: envelope.sessionId,
-        sequence: envelope.sequence,
-      },
-    });
-    if (existing) {
+    // Both writes select only the id: without it Prisma reads the whole
+    // document back, events blob included, just to return it.
+    if (existingId) {
       const updated = await this.mongo.replayBatch.update({
-        where: { id: existing.id },
+        where: { id: existingId },
         data: {
           events: envelope.events as unknown as object,
           sentAt: BigInt(envelope.sentAt),
@@ -278,13 +441,14 @@ export class ReplayPersistenceService {
           page: envelope.page as unknown as object,
           projectId: String(workspaceId),
         },
+        select: { id: true },
       });
       return updated.id;
     }
     const created = await this.mongo.replayBatch.create({
       data: {
         projectId: String(workspaceId),
-        sessionId: envelope.sessionId,
+        sessionId: sessionPublicId,
         segmentId: envelope.segmentId,
         sequence: envelope.sequence,
         sentAt: BigInt(envelope.sentAt),
@@ -295,6 +459,7 @@ export class ReplayPersistenceService {
         page: envelope.page as unknown as object,
         events: envelope.events as unknown as object,
       },
+      select: { id: true },
     });
     return created.id;
   }
@@ -504,9 +669,47 @@ export class ReplayPersistenceService {
     return v === null ? null : wellFormed(v);
   }
 
+  /**
+   * Which Session row this batch belongs to. Session.publicId is the SDK's
+   * client-chosen id and is globally unique, so it can already belong to
+   * ANOTHER workspace: host-supplied ids that collide, or a workspace sending a
+   * session id copied from someone else's share link. Writing into that row let
+   * one workspace change another's session (counters, owner, custom props,
+   * paths, segments). A session whose id is taken elsewhere is stored under a
+   * server-derived id unique to this workspace instead (workspaceScopedSessionId).
+   *
+   * Access pattern: one point lookup on the Session.publicId unique btree (the
+   * read upsertSession always did); a second one only on a collision.
+   */
+  private async resolveSessionTarget(
+    workspaceId: number,
+    rawSessionId: string,
+  ): Promise<{ publicId: string; existing: Session | null }> {
+    const byRawId = await this.db.session.findUnique({
+      where: { publicId: rawSessionId },
+    });
+    if (!byRawId || byRawId.workspaceId === workspaceId) {
+      return { publicId: rawSessionId, existing: byRawId };
+    }
+    const publicId = workspaceScopedSessionId(workspaceId, rawSessionId);
+    const existing = await this.db.session.findUnique({ where: { publicId } });
+    if (existing && existing.workspaceId !== workspaceId) {
+      // Only possible on a sha256 prefix collision: refuse rather than write
+      // into another workspace's session.
+      throw new Error(`Session ${publicId} belongs to another workspace`);
+    }
+    return { publicId, existing };
+  }
+
   private async upsertSession(args: {
     workspaceId: number;
+    /** The SDK's session id, as sent. */
+    rawSessionId: string;
+    /** The id this workspace's session is stored under (resolveSessionTarget):
+     *  the raw id, or its workspace-scoped form when another workspace owns it. */
     sessionPublicId: string;
+    /** That session's row, already read by resolveSessionTarget (null: new). */
+    existing: Session | null;
     endUserId: number | null;
     envelope: ReplayBatchEnvelope;
     startedAt: number;
@@ -528,7 +731,15 @@ export class ReplayPersistenceService {
      *  from the anonymous ghost to the identified user, and signals the caller to
      *  run the one-time retroactive claim. */
     hasRealIdentity: boolean;
-  }, retriedOnConflict = false): Promise<Session & { claimAnonymous: boolean }> {
+  }, retriedOnConflict = false): Promise<
+    Session & {
+      claimAnonymous: boolean;
+      /** True when THIS call added the batch's counts to the session; false
+       *  when an earlier attempt at the same batch already had (see
+       *  applyBatchCounts). The caller projects ClickHouse rows only when true. */
+      applied: boolean;
+    }
+  > {
     const counts = ReplayPersistenceService.countEvents(args.envelope.events);
     const status: SessionStatus =
       Date.now() - args.endedAt < LIVE_THRESHOLD_MS ? "LIVE" : "COMPLETED";
@@ -537,9 +748,7 @@ export class ReplayPersistenceService {
     const dataSize = BigInt(
       Buffer.byteLength(JSON.stringify(args.envelope.events), "utf8"),
     );
-    const existing = await this.db.session.findUnique({
-      where: { publicId: args.sessionPublicId },
-    });
+    const existing = args.existing;
     // Fire the one-time retroactive claim only when a real identity FIRST lands
     // on this session: on create (no existing row) with an identity, or on the
     // batch that flips an already-anonymous session onto the identified user.
@@ -588,7 +797,7 @@ export class ReplayPersistenceService {
         perfUpdate.worstTtfb = Math.max(existing.worstTtfb ?? 0, counts.perf.ttfb);
       }
       if (counts.perf.longTaskCount > 0) {
-        perfUpdate.longTaskCount = { increment: counts.perf.longTaskCount };
+        // (longTaskCount itself is a count: added in applyBatchCounts.)
         perfUpdate.longTaskSlowestMs = Math.max(
           existing.longTaskSlowestMs ?? 0,
           counts.perf.longTaskSlowestMs,
@@ -649,45 +858,33 @@ export class ReplayPersistenceService {
           np.batteryDrainPctX100,
         );
       }
-      // Bump workspace storage + (if the session is transitioning from
-      // LIVE to COMPLETED, decrement live counter). Counters update
-      // out-of-band so a failure here can't undo the session update.
-      const liveDelta =
-        existing.status === "LIVE" && status === "COMPLETED" ? -1 : 0;
-      this.stats
-        .bump(args.workspaceId, {
-          storageBytes: dataSize,
-          liveSessions: liveDelta,
-        })
-        .catch(() => {});
       // setMetadata() traits → session properties (only when present, so no
       // extra write on ordinary batches).
       if (Object.keys(counts.sessionProps).length > 0) {
-        await mergeSessionCustomProps(this.db, existing.id, counts.sessionProps);
+        await mergeSessionCustomProps(
+          this.db,
+          args.workspaceId,
+          existing.id,
+          counts.sessionProps,
+        );
       }
+      // Everything in this update is idempotent (a set, a max, a set-union), so
+      // a Bull retry may run it again. The batch's COUNTS are not: they are
+      // added by applyBatchCounts below, exactly once per batch.
       const updatedRow = await this.db.session.update({
-        where: { id: existing.id },
+        // workspaceId too: a backstop so a session can only ever be updated by
+        // its own workspace's batches (resolveSessionTarget already ensures it).
+        where: { id: existing.id, workspaceId: args.workspaceId },
         data: {
           endedAt: new Date(args.endedAt),
           // Clamped: the span comes from SDK timestamps, and a client clock jump
           // past ~24.8 days would otherwise overflow the INT4 and fail the write.
           durationMs: toInt4(args.endedAt - existing.startedAt.getTime()),
-          clickCount: { increment: counts.click },
-          rageCount: { increment: counts.rage },
-          errorCount: { increment: counts.error },
-          deadCount: { increment: counts.dead },
-          consoleCount: { increment: counts.console },
-          consoleErrorCount: { increment: counts.consoleError },
-          networkCount: { increment: counts.network },
-          tapCount: { increment: counts.tap },
-          nativeSnapshotCount: { increment: counts.nativeSnapshot },
-          frameCount: { increment: counts.frames },
           // A session becomes playable once ANY batch carried a full snapshot;
           // once true it stays true (never flip back on a later frame-less batch).
           ...(counts.fullSnapshot && !existing.hasFullSnapshot
             ? { hasFullSnapshot: true }
             : {}),
-          dataSizeBytes: { increment: dataSize },
           status,
           // Upgrade the session onto the identified user the moment identify()
           // lands (hasRealIdentity) instead of staying pinned to whatever its
@@ -704,22 +901,40 @@ export class ReplayPersistenceService {
           ...perfUpdate,
         },
       });
-      // Client-derived running totals saturate at the INT4 maximum instead of
-      // overflowing: a plain increment past it makes Postgres reject the whole
-      // session update, for this batch and every later one of the session.
-      // Atomic (two batches of one session can run at once). Access pattern:
-      // one primary-key UPDATE, only on batches that carry these metrics.
-      const longTaskMs =
-        counts.perf.longTaskCount > 0 ? counts.perf.longTaskTotalMs : 0;
-      if (longTaskMs > 0 || np.frozenFrameCount > 0 || np.anrCount > 0) {
-        await this.db.$executeRaw`
-          UPDATE "Session" SET
-            "longTaskTotalMs"  = LEAST("longTaskTotalMs"::bigint  + ${longTaskMs}, ${INT4_MAX})::int,
-            "frozenFrameCount" = LEAST("frozenFrameCount"::bigint + ${np.frozenFrameCount}, ${INT4_MAX})::int,
-            "anrCount"         = LEAST("anrCount"::bigint         + ${np.anrCount}, ${INT4_MAX})::int
-          WHERE id = ${existing.id}`;
+      // LAST, so nothing between it and the caller's ClickHouse projection can
+      // fail: see `applied` above.
+      const added = await this.applyBatchCounts(
+        existing.id,
+        args.workspaceId,
+        args.envelope,
+        counts,
+        dataSize,
+        args.startedAt,
+        args.endedAt,
+      );
+      // Bump workspace storage (only when this call added the batch) and, if
+      // the session is transitioning from LIVE to COMPLETED, decrement the live
+      // counter. Out-of-band, so a failure here can't undo the session update.
+      const liveDelta =
+        existing.status === "LIVE" && status === "COMPLETED" ? -1 : 0;
+      if (added || liveDelta !== 0) {
+        this.stats
+          .bump(args.workspaceId, {
+            storageBytes: added ? dataSize : 0n,
+            liveSessions: liveDelta,
+          })
+          .catch(() => {});
       }
-      return { ...updatedRow, claimAnonymous };
+      // The row's other counters are from before applyBatchCounts; the caller
+      // reads none of them. It does read longTaskTotalMs (the perf-daily bump),
+      // which is the session's total WITH this batch, as it was before the
+      // INT4 fix moved that increment out of the update above.
+      return {
+        ...updatedRow,
+        ...(added ? { longTaskTotalMs: added.longTaskTotalMs } : {}),
+        claimAnonymous,
+        applied: added !== null,
+      };
     }
     // First batch for this publicId → a new Session row.
     // Device facts for THIS session, from its first batch. The same values also
@@ -761,18 +976,12 @@ export class ReplayPersistenceService {
           endedAt: new Date(args.endedAt),
           durationMs: toInt4(args.endedAt - args.startedAt),
           pageCount: 1,
-          clickCount: counts.click,
-          rageCount: counts.rage,
-          errorCount: counts.error,
-          deadCount: counts.dead,
-          consoleCount: counts.console,
-          consoleErrorCount: counts.consoleError,
-          networkCount: counts.network,
-          tapCount: counts.tap,
-          nativeSnapshotCount: counts.nativeSnapshot,
+          // The batch's COUNTS (clicks, errors, frames, data size, long tasks,
+          // frozen frames, ANRs) are not set here: the row starts at the
+          // schema's zeros and applyBatchCounts adds them below, exactly once
+          // (a Bull retry after this insert finds the session and goes through
+          // the update path, which must not find the counts already in).
           hasFullSnapshot: counts.fullSnapshot,
-          frameCount: counts.frames,
-          dataSizeBytes: dataSize,
           eventNames: counts.trackNames,
           startUrl: args.envelope.page.url,
           // Entry referrer + UTM campaign tags, captured from the landing page
@@ -800,8 +1009,6 @@ export class ReplayPersistenceService {
           worstInp: counts.perf.inp,
           worstFcp: counts.perf.fcp,
           worstTtfb: counts.perf.ttfb,
-          longTaskCount: counts.perf.longTaskCount,
-          longTaskTotalMs: counts.perf.longTaskTotalMs,
           longTaskSlowestMs: counts.perf.longTaskSlowestMs,
           peakHeapBytes: BigInt(counts.perf.peakHeapBytes),
           // Native vitals — null/0 for web sessions, populated for
@@ -811,8 +1018,6 @@ export class ReplayPersistenceService {
           worstTapResponseMs: counts.nativePerf.tapResponseMs,
           firstNetworkTtfbMs: counts.nativePerf.firstNetworkTtfbMs,
           worstFrameDropPct: counts.nativePerf.frameDropPctX100,
-          frozenFrameCount: counts.nativePerf.frozenFrameCount,
-          anrCount: counts.nativePerf.anrCount,
           worstMemoryRssMb: counts.nativePerf.memoryRssMb,
           worstThermalState: counts.nativePerf.thermalState,
           batteryDrainPctPerMin: counts.nativePerf.batteryDrainPctX100,
@@ -820,37 +1025,65 @@ export class ReplayPersistenceService {
       });
     } catch (e) {
       // Concurrency race lost: another batch created this publicId between our
-      // findUnique and this create. Re-run ONCE — the retry finds the row and
-      // takes the update path. The guard stops a genuine repeated failure (or a
-      // different unique violation) from looping.
+      // lookup and this create. Re-run ONCE through the resolver — the winner
+      // may be this workspace (→ update path) or another one (→ this session
+      // moves to its workspace-scoped id). The guard stops a genuine repeated
+      // failure (or a different unique violation) from looping.
       if (
         !retriedOnConflict &&
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002"
       ) {
-        return this.upsertSession(args, true);
+        const again = await this.resolveSessionTarget(
+          args.workspaceId,
+          args.rawSessionId,
+        );
+        return this.upsertSession(
+          { ...args, sessionPublicId: again.publicId, existing: again.existing },
+          true,
+        );
       }
       throw e;
     }
     // Create WON the race → bump the workspace counters now, so a lost create
-    // race never over-counts sessionsTotal (the winner bumps its own; update-path
-    // batches bump storage separately, above).
+    // race never over-counts sessionsTotal (the winner bumps its own). Storage
+    // is bumped with the batch's counts, below.
     this.stats
       .bump(args.workspaceId, {
         sessionsTotal: 1,
         liveSessions: status === "LIVE" ? 1 : 0,
-        storageBytes: dataSize,
       })
       .catch(() => {});
     // setMetadata() traits present on the FIRST batch (create) — merge them too.
     if (Object.keys(counts.sessionProps).length > 0) {
       await mergeSessionCustomProps(
         this.db,
+        args.workspaceId,
         createdRow.id,
         counts.sessionProps,
       );
     }
-    return { ...createdRow, claimAnonymous };
+    // LAST, as on the update path.
+    const added = await this.applyBatchCounts(
+      createdRow.id,
+      args.workspaceId,
+      args.envelope,
+      counts,
+      dataSize,
+      args.startedAt,
+      args.endedAt,
+    );
+    if (added) {
+      this.stats
+        .bump(args.workspaceId, { storageBytes: dataSize })
+        .catch(() => {});
+    }
+    return {
+      ...createdRow,
+      ...(added ? { longTaskTotalMs: added.longTaskTotalMs } : {}),
+      claimAnonymous,
+      applied: added !== null,
+    };
   }
 
   /**
@@ -914,6 +1147,102 @@ export class ReplayPersistenceService {
     }
   }
 
+  /**
+   * Add one batch's counts to its Session EXACTLY ONCE, however often the
+   * batch is processed: a Bull retry after a write failed part-way, a stalled
+   * job re-run after a worker restart (every deploy's reload), or a resend
+   * whose first delivery never got its persistedAt marker. Returns the
+   * session's long-task total after adding them, or null when an earlier
+   * attempt already had.
+   *
+   * One statement, so the claim and the counts commit together or not at all:
+   * the CTE inserts this batch's SessionSegment row (the per-batch record that
+   * its counts are in), and the UPDATE adds the counts only if that insert
+   * claimed the row. upsertSegment later fills in the row's mongoBatchId.
+   *
+   * `ON CONFLICT DO NOTHING` names no index on purpose: until the follow-up
+   * migration drops the deprecated (sessionId, sequence) unique, a later page
+   * load's batch N conflicts with the previous load's batch N there, and so
+   * claims nothing. The NOT EXISTS tells the two conflicts apart: it reads the
+   * statement's snapshot (it never sees the claim's own insert), so it is true
+   * exactly when no row for THIS (session, sequence, segment) existed before.
+   * Such a batch gets its counts like before this method existed; only a retry
+   * of it is not protected, and only until that index is gone.
+   *
+   * Access pattern: one INSERT and one primary-key UPDATE, both through unique
+   * indexes ((sessionId, sequence, segmentPublicId) for the claim and the NOT
+   * EXISTS probe, the Session pkey for the update), O(1) per batch at any
+   * table size. It replaces the increments the session UPDATE carried (or the
+   * counts the session INSERT carried) and the separate saturating UPDATE of
+   * the perf totals, so it adds at most one statement per batch. Two batches
+   * of one session serialize on the Session row lock, as their updates always
+   * did; the segment insert's foreign-key check takes only a KEY SHARE lock on
+   * that row, which does not conflict with the update's lock, so the two
+   * batches cannot deadlock.
+   *
+   * The perf running totals saturate at the INT4 maximum instead of
+   * overflowing (a plain increment past it makes Postgres reject this and
+   * every later batch of the session). The per-batch counts are bounded by a
+   * batch's event count, as with the Prisma increments they replace.
+   */
+  private async applyBatchCounts(
+    sessionId: number,
+    workspaceId: number,
+    envelope: ReplayBatchEnvelope,
+    counts: ReturnType<typeof ReplayPersistenceService.countEvents>,
+    dataSize: bigint,
+    startedAt: number,
+    endedAt: number,
+  ): Promise<{ longTaskTotalMs: number } | null> {
+    const np = counts.nativePerf;
+    const longTaskCount = counts.perf.longTaskCount;
+    const longTaskMs = longTaskCount > 0 ? counts.perf.longTaskTotalMs : 0;
+    // Timestamps go in as ISO text cast to the column type, so the stored wall
+    // time is UTC like every Prisma write, whatever the server's TimeZone.
+    const rows = await this.db.$queryRaw<Array<{ longTaskTotalMs: number }>>`
+      WITH claim AS (
+        INSERT INTO "SessionSegment"
+          ("sessionId", "segmentPublicId", "sequence", "eventCount", "startedAt", "endedAt")
+        VALUES (
+          ${sessionId}, ${envelope.segmentId}, ${envelope.sequence},
+          ${envelope.events.length},
+          ${new Date(startedAt).toISOString()}::timestamp(3),
+          ${new Date(endedAt).toISOString()}::timestamp(3)
+        )
+        ON CONFLICT DO NOTHING
+        RETURNING 1
+      )
+      UPDATE "Session" SET
+        "clickCount"          = "clickCount" + ${counts.click},
+        "rageCount"           = "rageCount" + ${counts.rage},
+        "errorCount"          = "errorCount" + ${counts.error},
+        "deadCount"           = "deadCount" + ${counts.dead},
+        "consoleCount"        = "consoleCount" + ${counts.console},
+        "consoleErrorCount"   = "consoleErrorCount" + ${counts.consoleError},
+        "networkCount"        = "networkCount" + ${counts.network},
+        "tapCount"            = "tapCount" + ${counts.tap},
+        "nativeSnapshotCount" = "nativeSnapshotCount" + ${counts.nativeSnapshot},
+        "frameCount"          = "frameCount" + ${counts.frames},
+        "dataSizeBytes"       = "dataSizeBytes" + ${dataSize},
+        "longTaskCount"       = "longTaskCount" + ${longTaskCount},
+        "longTaskTotalMs"     = LEAST("longTaskTotalMs"::bigint  + ${longTaskMs}, ${INT4_MAX})::int,
+        "frozenFrameCount"    = LEAST("frozenFrameCount"::bigint + ${np.frozenFrameCount}, ${INT4_MAX})::int,
+        "anrCount"            = LEAST("anrCount"::bigint         + ${np.anrCount}, ${INT4_MAX})::int
+      WHERE id = ${sessionId}
+        AND "workspaceId" = ${workspaceId}
+        AND (
+          EXISTS (SELECT 1 FROM claim)
+          OR NOT EXISTS (
+            SELECT 1 FROM "SessionSegment"
+            WHERE "sessionId" = ${sessionId}
+              AND "sequence" = ${envelope.sequence}
+              AND "segmentPublicId" = ${envelope.segmentId}
+          )
+        )
+      RETURNING "longTaskTotalMs"`;
+    return rows[0] ?? null;
+  }
+
   private async upsertSegment(
     sessionId: number,
     envelope: ReplayBatchEnvelope,
@@ -921,26 +1250,61 @@ export class ReplayPersistenceService {
     endedAt: number,
     mongoBatchId: string,
   ) {
-    await this.db.sessionSegment.upsert({
-      where: { sessionId_sequence: { sessionId, sequence: envelope.sequence } },
-      create: {
-        sessionId,
-        segmentPublicId: envelope.segmentId,
-        sequence: envelope.sequence,
-        eventCount: envelope.events.length,
-        startedAt: new Date(startedAt),
-        endedAt: new Date(endedAt),
-        mongoBatchId,
-      },
-      update: {
-        endedAt: new Date(endedAt),
-        eventCount: envelope.events.length,
-        mongoBatchId,
-      },
-    });
+    // Keyed per segment, like the Mongo batch: a new page load's batch N is its
+    // own row, not an overwrite of the previous load's batch N. One upsert on
+    // the (sessionId, sequence, segmentPublicId) unique index.
+    try {
+      await this.db.sessionSegment.upsert({
+        where: {
+          sessionId_sequence_segmentPublicId: {
+            sessionId,
+            sequence: envelope.sequence,
+            segmentPublicId: envelope.segmentId,
+          },
+        },
+        create: {
+          sessionId,
+          segmentPublicId: envelope.segmentId,
+          sequence: envelope.sequence,
+          eventCount: envelope.events.length,
+          startedAt: new Date(startedAt),
+          endedAt: new Date(endedAt),
+          mongoBatchId,
+        },
+        update: {
+          endedAt: new Date(endedAt),
+          eventCount: envelope.events.length,
+          mongoBatchId,
+        },
+      });
+    } catch (e) {
+      // Transition only: until the follow-up migration drops the old
+      // (sessionId, sequence) unique index, a later page load's batch N
+      // collides with it. Skip that one row rather than fail the job: the
+      // replay itself is already stored in Mongo, and nothing reads
+      // SessionSegment to load a recording. Matches ONLY that index's
+      // violation (Prisma reports its columns as the target). Remove with the
+      // follow-up migration.
+      const target = (e as Prisma.PrismaClientKnownRequestError).meta?.target;
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        Array.isArray(target) &&
+        target.length === 2 &&
+        target[0] === "sessionId" &&
+        target[1] === "sequence"
+      ) {
+        return;
+      }
+      throw e;
+    }
   }
 
-  private async upsertPaths(sessionId: number, envelope: ReplayBatchEnvelope) {
+  private async upsertPaths(
+    workspaceId: number,
+    sessionId: number,
+    envelope: ReplayBatchEnvelope,
+  ) {
     if (!envelope.page.url) return;
     const max = await this.db.sessionPath.findFirst({
       where: { sessionId },
@@ -955,8 +1319,12 @@ export class ReplayPersistenceService {
         url: envelope.page.url,
       },
     });
+    // The session row is created with pageCount 1 for its landing page, which
+    // is also the first path recorded here; counting it again made every web
+    // session report one page more than it visited. Only a later page counts.
+    if (!max) return;
     await this.db.session.update({
-      where: { id: sessionId },
+      where: { id: sessionId, workspaceId },
       data: { pageCount: { increment: 1 } },
     });
   }

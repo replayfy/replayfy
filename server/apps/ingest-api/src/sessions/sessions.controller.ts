@@ -321,18 +321,22 @@ export class SessionsController {
    * epoch-ms; the player subtracts start to get playhead offsets)
    * and the image format.
    *
-   * Built lazily on first request from the session's native_snapshot
-   * images + cached in object storage. Returns `{ url: null }` when
-   * the session has no captured frames so the player shows its
-   * empty-state.
+   * The archive is built by the frames finalizer when the session
+   * ends (idleMs after its last frames batch, or on /late), in the
+   * same step that marks it COMPLETED; this only resolves its URL.
+   * `url` is null until then, and for a session with no captured
+   * frames: `pending` tells the two apart — true while the session
+   * is LIVE or a frames finalize is still to come, or is overdue and
+   * the session is less than 2.5 days old (a retry can still store
+   * the archive), so the player can show "processing" (and ask
+   * again) instead of its empty-state.
    */
   @Get(":publicId/frames")
-  async frames(
+  frames(
     @CurrentWorkspaceId() workspaceId: number,
     @Param("publicId") publicId: string,
   ) {
-    const result = await this.mobileFrames.getFrames(workspaceId, publicId);
-    return result ?? { url: null, count: 0, startedAt: 0, fileFormat: "png" };
+    return this.mobileFrames.getFrames(workspaceId, publicId);
   }
 
   /**

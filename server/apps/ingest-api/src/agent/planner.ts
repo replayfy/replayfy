@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable } from "@nestjs/common";
 import { LlmService } from "../llm/llm.service";
 import type { AgentContext } from "./capability";
@@ -327,13 +328,13 @@ export class Planner {
       typeof rawClarify.question === "string" &&
       rawClarify.question.trim()
         ? {
-            question: rawClarify.question.trim().slice(0, 300),
+            question: truncateWellFormed(rawClarify.question.trim(), 300),
             rememberAs: String(rawClarify.rememberAs ?? "")
               .trim()
               .slice(0, 80),
             candidatesFor:
               typeof rawClarify.candidatesFor === "string"
-                ? rawClarify.candidatesFor.trim().slice(0, 40)
+                ? truncateWellFormed(rawClarify.candidatesFor.trim(), 40)
                 : undefined,
           }
         : undefined;

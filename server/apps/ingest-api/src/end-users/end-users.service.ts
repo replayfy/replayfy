@@ -9,6 +9,7 @@ import {
   parseLimit,
 } from "../common/cursor";
 import { paginated } from "../common/api-response";
+import { NATIVE_PLAYABLE_FILTER } from "../common/native-playable";
 import { CohortsService } from "../cohorts/cohorts.service";
 import { SessionReaperService } from "../billing/session-reaper.service";
 
@@ -315,10 +316,27 @@ export class EndUsersService {
       where: { workspaceId, id },
     });
     if (!user) throw new NotFoundException("End user not found");
-    const [sessionCount, recent, cohortRows] = await Promise.all([
-      this.db.session.count({ where: { endUserId: id } }),
+    const [totals, recent, cohortRows] = await Promise.all([
+      // The header's session count and average duration, over the same
+      // sessions listSessions shows (NATIVE_PLAYABLE_FILTER), so both figures
+      // describe the list under them: a native session still recording would
+      // otherwise pull the average down with its partial duration. One
+      // aggregate serves both (it was a COUNT plus a separate AVG query).
+      // workspaceId on the session reads: a session only ever counts toward a
+      // user of its own workspace, whatever its endUserId says. Access pattern:
+      // the (workspaceId, endUserId) index bounds it to this one user's
+      // sessions; the native-playable predicate is a residual on those rows
+      // only, so it never widens the scan.
+      this.db.session.aggregate({
+        where: { workspaceId, endUserId: id, AND: [NATIVE_PLAYABLE_FILTER] },
+        _count: { _all: true },
+        _avg: { durationMs: true },
+      }),
+      // lastSession: the newest session that list shows, by the same
+      // predicate. Access pattern: this one user's sessions newest-first,
+      // take 1; the residual only skips LIVE native rows (a transient few).
       this.db.session.findMany({
-        where: { endUserId: id },
+        where: { workspaceId, endUserId: id, AND: [NATIVE_PLAYABLE_FILTER] },
         orderBy: { id: "desc" },
         select: { publicId: true, startedAt: true },
         take: 1,
@@ -335,14 +353,10 @@ export class EndUsersService {
         select: USER_COHORT_SELECT,
       }),
     ]);
-    const avgDuration = await this.db.session.aggregate({
-      where: { endUserId: id },
-      _avg: { durationMs: true },
-    });
     return {
       ...this.toSummary(user),
-      sessions: sessionCount,
-      avgDurationMs: Math.round(avgDuration._avg.durationMs ?? 0),
+      sessions: totals._count._all,
+      avgDurationMs: Math.round(totals._avg.durationMs ?? 0),
       lastSession: recent[0]
         ? {
             publicId: recent[0].publicId,
@@ -374,11 +388,20 @@ export class EndUsersService {
   ) {
     const take = parseLimit(limit, 25, 100);
     const cursorId = decodeCursor(cursor);
+    // Like the Recordings list, a user's sessions hide a native session until
+    // it is playable (NATIVE_PLAYABLE_FILTER): the reference tracker's user
+    // session lists hold ended sessions only.
+    //
+    // Access pattern: unchanged — @@index([workspaceId, endUserId]) bounds the
+    // scan to one user's sessions and the id keyset to one page; the
+    // native-playable predicate is a residual on those rows only (a LIVE native
+    // row is transient), so it never widens the scan.
     const rows = await this.db.session.findMany({
       where: {
         workspaceId,
         endUserId,
         ...(cursorId !== undefined ? { id: { lt: cursorId } } : {}),
+        AND: [NATIVE_PLAYABLE_FILTER],
       },
       orderBy: { id: "desc" },
       select: USER_SESSION_SELECT,
@@ -476,11 +499,19 @@ export class EndUsersService {
   ) {
     const take = parseLimit(limit, 20, 100);
     const cursorId = decodeCursor(cursor);
+    // Each row opens the session's replay, so the feed hides the same
+    // unfinished native sessions as the user's session list
+    // (NATIVE_PLAYABLE_FILTER).
+    //
+    // Access pattern: as listSessions — @@index([workspaceId, endUserId])
+    // bounds the scan to one user's sessions and the id keyset to one page;
+    // the native-playable predicate is a residual on those rows only.
     const sessions = await this.db.session.findMany({
       where: {
         workspaceId,
         endUserId,
         ...(cursorId !== undefined ? { id: { lt: cursorId } } : {}),
+        AND: [NATIVE_PLAYABLE_FILTER],
       },
       orderBy: { id: "desc" },
       select: USER_ACTIVITY_SELECT,

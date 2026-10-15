@@ -84,10 +84,11 @@ export class SetRecordingDto {
 }
 
 /**
- * PATCH /v1/settings/masking — partial update of MaskingConfig. Selector /
- * pattern / host lists are arbitrary user-supplied strings, kept permissive
- * (generous per-element MaxLength, never rejected on content). Assignable to
- * `Partial<MaskingConfig>`.
+ * PATCH /v1/settings/masking — partial update of MaskingConfig. Lists are
+ * user-supplied strings with a generous per-element MaxLength. Selector and
+ * redact-pattern content is checked in SettingsService.setMasking (it must
+ * know which rules the workspace already has); host and query-param lists are
+ * not checked on content. Assignable to `Partial<MaskingConfig>`.
  */
 export class SetMaskingDto {
   @IsOptional()

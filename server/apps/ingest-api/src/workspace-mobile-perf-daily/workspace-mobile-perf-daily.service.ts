@@ -1,3 +1,4 @@
+import { toInt4 } from "../common/int4";
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { getPostgresClient, Prisma } from "@replay/db-postgres";
@@ -118,12 +119,14 @@ export class WorkspaceMobilePerfDailyService {
     await Promise.all(
       rows.map((r) => {
         const day = WorkspaceMobilePerfDailyService.dayFloor(new Date(r.day));
+        // Per-session counts are INT4-clamped already, but a day's SUM over
+        // many sessions can still pass the INT4 columns' limit; saturate it.
         const data = {
-          mobileSessions: Number(r.mobile_sessions),
-          anrSessions: Number(r.anr_sessions),
-          frozenSessions: Number(r.frozen_sessions),
-          anrSum: Number(r.anr_sum),
-          frozenSum: Number(r.frozen_sum),
+          mobileSessions: toInt4(Number(r.mobile_sessions)),
+          anrSessions: toInt4(Number(r.anr_sessions)),
+          frozenSessions: toInt4(Number(r.frozen_sessions)),
+          anrSum: toInt4(Number(r.anr_sum)),
+          frozenSum: toInt4(Number(r.frozen_sum)),
         };
         return this.db.workspaceMobilePerfDaily.upsert({
           where: { workspaceId_day: { workspaceId: r.workspaceId, day } },

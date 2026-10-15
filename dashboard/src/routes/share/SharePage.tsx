@@ -72,7 +72,7 @@ export function SharePage() {
   const [tab, setTab] = useState("events");
   // "Skip inactivity" toggle — persisted like the reference player (localStorage,
   // shared key with the dashboard HUD). Idle ranges (0..1 fractions) come up from
-  // the web player via onIdleRegions so the scrubber can dim them.
+  // the web or mobile player via onIdleRegions so the scrubber can dim them.
   const [skipIdle, setSkipIdle] = useState(
     () => localStorage.getItem("rv:skipIdle") === "1",
   );
@@ -80,6 +80,11 @@ export function SharePage() {
     { from: number; to: number }[]
   >([]);
   const toggleSkipIdle = useCallback(() => setSkipIdle((v) => !v), []);
+  // The mobile player shows the "still being processed" panel (or the archive
+  // load-error panel), which in the reference stands in for the whole player:
+  // the HUD is hidden while it is up (nothing to scrub or play). Same rule as
+  // the dashboard RvStage.
+  const [processing, setProcessing] = useState(false);
   // Persist as a side-effect of the state change — not inside the setState
   // updater (updaters must be pure; a write there double-fires under StrictMode).
   useEffect(() => {
@@ -294,9 +299,24 @@ export function SharePage() {
                     // descriptor — otherwise the player reads "descriptor absent"
                     // as "no archive" and flashes "No snapshots captured" before
                     // the frames land (mirrors the dashboard RvPlayer wiring).
-                    loading={!share.batches || share.framesPending}
+                    // In flight, not merely absent: without the Events panel
+                    // /events 404s and the batches never come, and waiting on
+                    // them held the spinner up for good.
+                    loading={share.batchesPending || share.framesPending}
                     framesPending={share.framesPending}
+                    framesFailed={share.framesFailed}
                     onDuration={onDuration}
+                    // The session's own length — the clock runs to it, not to
+                    // the last captured frame (the HUD total already reads it).
+                    sessionDurationMs={bundle?.session.durationMs}
+                    // Dates the copy for an archive that fails to load.
+                    sessionStartedAtMs={s.startedAtMs}
+                    // Only present when the sharer enabled the Events panel;
+                    // without it the frameless stretches still drive skipping.
+                    timeline={share.timeline?.events}
+                    skipIdle={skipIdle}
+                    onIdleRegions={setIdleRegions}
+                    onProcessing={setProcessing}
                   />
                 ) : (
                   <RvWebPlayer
@@ -319,18 +339,22 @@ export function SharePage() {
               </div>
             </div>
 
-            {/* Always-visible HUD (frozen markup + the `.show` opt-in). */}
-            <div className="rv-hud show">
+            {/* Always-visible HUD (frozen markup + the `.show` opt-in) —
+                except behind the processing or load-error panel, where it
+                is hidden. */}
+            <div
+              className="rv-hud show"
+              style={processing ? { display: "none" } : undefined}
+            >
               <div
                 className="rv-scrub"
                 ref={scrubRef}
                 onMouseDown={onScrubDown}
               >
                 <div className="rv-scrub-track" />
-                {/* Inactive stretches the "Skip inactivity" toggle collapses.
-                    Web only — mobile share never reports regions. */}
-                {!isMobile &&
-                  idleRegions.map((r, i) => (
+                {/* Inactive stretches the "Skip inactivity" toggle collapses —
+                    on mobile also the stretches with no captured screen. */}
+                {idleRegions.map((r, i) => (
                   <div
                     key={`idle${i}`}
                     className={`rv-scrub-idle ${skipIdle ? "on" : ""}`}
@@ -452,28 +476,27 @@ export function SharePage() {
                   </div>
                   {/* Skip inactivity — fast-forwards over the frameless idle
                       stretches a page leaves when it goes quiet but keeps
-                      polling. Web only; mobile frames use a different model. */}
-                  {!isMobile && (
-                    <button
-                      className={`rv-hud-btn ${skipIdle ? "on" : ""}`}
-                      data-tip={
-                        skipIdle ? "Skip inactivity · On" : "Skip inactivity"
-                      }
-                      aria-pressed={skipIdle}
-                      onClick={toggleSkipIdle}
-                    >
-                      <svg width="13" height="13" viewBox="0 0 14 14">
-                        <path
-                          d="M2.5 3 8 7l-5.5 4zM9 3v8"
-                          stroke="currentColor"
-                          strokeWidth="1.4"
-                          fill="none"
-                          strokeLinejoin="round"
-                          strokeLinecap="round"
-                        />
-                      </svg>
-                    </button>
-                  )}
+                      polling, or a mobile session's stretches with no
+                      interaction or no captured screen. */}
+                  <button
+                    className={`rv-hud-btn ${skipIdle ? "on" : ""}`}
+                    data-tip={
+                      skipIdle ? "Skip inactivity · On" : "Skip inactivity"
+                    }
+                    aria-pressed={skipIdle}
+                    onClick={toggleSkipIdle}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 14 14">
+                      <path
+                        d="M2.5 3 8 7l-5.5 4zM9 3v8"
+                        stroke="currentColor"
+                        strokeWidth="1.4"
+                        fill="none"
+                        strokeLinejoin="round"
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  </button>
                 </div>
               </div>
             </div>

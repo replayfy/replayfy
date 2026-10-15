@@ -23,6 +23,7 @@ import type {
   ReplayBatch,
   FramesInfo,
 } from "@/routes/recordings/player/playerTypes";
+import { FRAMES_QUERY_OPTS } from "@/routes/recordings/player/mobileFrames";
 
 /** Shape returned by GET /v1/share/:token — the session summary the reference
  *  ShareController resolves the token to, plus the key→boolean panel map the
@@ -53,12 +54,20 @@ export type ShareData = {
   panels: Record<string, boolean>;
   // Playback streams (players consume these directly).
   batches: ReplayBatch[] | undefined;
+  /** The /events request is still in flight. `batches` being undefined does
+   *  not say that by itself: the server answers 404 when the sharer left the
+   *  Events panel off, and a failed request never fills it in. */
+  batchesPending: boolean;
   framesInfo: FramesInfo | undefined;
   /** The mobile /frames descriptor is still in flight — `framesInfo` being
    *  undefined does NOT yet mean "no archive". Mirrors the dashboard RvPlayer so
    *  RvMobilePlayer keeps showing the spinner (not the empty state) while frames
    *  resolve. Always false for web sessions (the frames query stays disabled). */
   framesPending: boolean;
+  /** The mobile /frames descriptor request itself failed (its retry spent):
+   *  there is no answer, which is not "this session has no archive". Mirrors
+   *  the dashboard RvPlayer. */
+  framesFailed: boolean;
   // Panel streams — only populated for enabled panels (else undefined).
   timeline: ApiTimeline | undefined;
   console: ApiLog[] | undefined;
@@ -93,21 +102,43 @@ export function useShareBundle(token: string): ShareData {
   // Playback: the replay batches drive BOTH players (web rrweb events; mobile
   // native snapshots + tap overlays ride the same batches). Mobile additionally
   // needs the frames archive descriptor.
-  const { data: batches } = useApi<ReplayBatch[]>(
+  const { data: batches, loading: batchesLoading } = useApi<ReplayBatch[]>(
     () => Share.events<ReplayBatch[]>(token),
     [token],
     { enabled: !!bundle },
   );
-  const { data: framesInfo, loading: framesInfoLoading } = useApi<FramesInfo>(
+  // In flight only while the request is enabled: `loading` is isPending,
+  // which a disabled query never leaves. It settles false on an error too, so
+  // a link without the Events panel (its /events 404s) stops waiting here.
+  const batchesPending = !!bundle && batchesLoading;
+  // One fetch per open, never polled; a `pending` descriptor ("still being
+  // processed") is never served from cache, so reopening the link re-asks.
+  const {
+    data: framesData,
+    loading: framesInfoLoading,
+    syncing: framesSyncing,
+    error: framesError,
+  } = useApi<FramesInfo>(
     () => Share.frames<FramesInfo>(token),
     [token],
-    { enabled: !!bundle && isMobile },
+    { enabled: !!bundle && isMobile, ...FRAMES_QUERY_OPTS },
   );
+  // A cached pending descriptor being re-asked (a reopened link) is not an
+  // answer yet — unresolved, so the spinner shows rather than the cached
+  // "still being processed" (same rule as the dashboard RvPlayer).
+  const framesReasking = !!framesData?.pending && framesSyncing;
+  const framesInfo = framesReasking ? undefined : framesData;
   // Only "pending" once the request is genuinely enabled and in flight — a web
   // session (query disabled) must read as NOT pending so its player never waits
   // on a descriptor that will never load. `loading` is isPending, which settles
-  // false on both success and error, so the spinner can't hang.
-  const framesPending = isMobile && !!bundle && framesInfoLoading;
+  // false on both success and error, so the spinner can't hang (nor can the
+  // re-ask: `syncing` clears when it settles either way).
+  const framesPending =
+    isMobile && !!bundle && (framesInfoLoading || framesReasking);
+  // Settled with an error and no answer at all. A re-ask after it (focus /
+  // reconnect) is pending again, so the spinner shows while it is in flight.
+  const framesFailed =
+    isMobile && !!bundle && !framesPending && !framesData && !!framesError;
 
   // Structured activity log (events tab).
   const { data: timeline } = useApi<ApiTimeline>(
@@ -155,8 +186,10 @@ export function useShareBundle(token: string): ShareData {
     isMobile,
     panels,
     batches,
+    batchesPending,
     framesInfo,
     framesPending,
+    framesFailed,
     timeline,
     console: consoleRows,
     network: networkRows,

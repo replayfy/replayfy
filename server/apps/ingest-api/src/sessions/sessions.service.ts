@@ -29,6 +29,7 @@ import {
 } from "../common/incident-scope";
 import { SessionReaperService } from "../billing/session-reaper.service";
 import { paginated, type PaginatedTotal } from "../common/api-response";
+import { NATIVE_PLAYABLE_FILTER } from "../common/native-playable";
 import { PresenceService } from "../presence/presence.service";
 import { NotificationsService } from "../notifications/notifications.service";
 import { WorkspaceStatsService } from "../workspace-stats/workspace-stats.service";
@@ -318,6 +319,7 @@ const SHARE_SELECT = {
   paths: { select: { sequence: true, url: true } },
   segments: {
     select: {
+      segmentPublicId: true,
       sequence: true,
       eventCount: true,
       startedAt: true,
@@ -923,32 +925,22 @@ export class SessionsService {
       ];
     }
 
-    // Hide unplayable mobile recordings. A native session (iOS/Android — incl.
-    // Flutter & React Native, which keep the ios/android platform) can't be
-    // replayed until its frame archive is gzip-streamed to R2, which happens at
-    // session end (status flips LIVE→COMPLETED). Web sessions replay immediately
-    // from the rrweb DOM stream, so any status is fine. So: show everything
-    // EXCEPT a still-LIVE native session.
+    // Hide unplayable mobile recordings: show everything EXCEPT a still-LIVE
+    // native session, whose frames archive may not exist yet (see
+    // NATIVE_PLAYABLE_FILTER, which a user's session list shares).
     //
     // One AND-ed predicate on the SAME workspace-scoped, keyset-paginated query
     // — no second round-trip. Scales: workspaceId + the `id < cursor` keyset
     // (id-desc) already bound the scan to one page; this residual only skips
-    // LIVE native rows — a tiny, transient set (the per-minute retention sweep
-    // flips LIVE→COMPLETED within minutes) — so it never scans past the page.
-    // NULL-safe: legacy / unknown-platform rows are treated as web-like (shown).
-    const playableFilter: Prisma.SessionWhereInput = {
-      OR: [
-        { platform: { notIn: ["ios", "android"] } },
-        { platform: null },
-        { status: "COMPLETED" },
-      ],
-    };
+    // LIVE native rows — a small, transient set (recording now, or ended within
+    // the last few minutes and not yet finalized) — so it never scans past the
+    // page.
     where.AND = where.AND
       ? [
           ...(Array.isArray(where.AND) ? where.AND : [where.AND]),
-          playableFilter,
+          NATIVE_PLAYABLE_FILTER,
         ]
-      : playableFilter;
+      : NATIVE_PLAYABLE_FILTER;
 
     return where;
   }
@@ -1429,8 +1421,9 @@ export class SessionsService {
       include: { segments: { orderBy: { sequence: "asc" } } },
     });
     if (!session) throw new NotFoundException("Session not found");
-    return session.segments.map((s) => ({
+    return this.orderSegments(session.segments).map((s) => ({
       id: s.id,
+      segmentId: s.segmentPublicId,
       sequence: s.sequence,
       eventCount: s.eventCount,
       startedAt: s.startedAt.toISOString(),
@@ -1447,8 +1440,8 @@ export class SessionsService {
    * The event *tab* is a SEPARATE, structured, paginated log served by
    * `listTimeline` (/timeline) — nothing but the player reads this endpoint, so
    * returning the full stream here is safe. A session's batch set is bounded by
-   * its length and ordered by sequence. (Streaming the tail of very long
-   * sessions, rather than one big response, is a future optimization.)
+   * its length and in timeline order (orderBatches). (Streaming the tail of very
+   * long sessions, rather than one big response, is a future optimization.)
    */
   async listEvents(workspaceId: number, publicId: string) {
     const session = await this.db.session.findFirst({
@@ -1459,10 +1452,14 @@ export class SessionsService {
     // within a workspace, so fetching by sessionId alone could return another
     // workspace's replay when ids collide. The session was already verified in
     // this workspace above, so this just guarantees the batches are ours.
-    const batches = await this.mongo.replayBatch.findMany({
-      where: { sessionId: publicId, projectId: String(workspaceId) },
-      orderBy: { sequence: "asc" },
-    });
+    // Index-served: (projectId, sessionId) is the prefix of the unique key and
+    // sequence its next column, so this reads one session's batches in order.
+    const batches = this.orderBatches(
+      await this.mongo.replayBatch.findMany({
+        where: { sessionId: publicId, projectId: String(workspaceId) },
+        orderBy: { sequence: "asc" },
+      }),
+    );
     return paginated(
       batches.map((b) => ({
         sequence: b.sequence,
@@ -1767,12 +1764,18 @@ export class SessionsService {
     }
     // Scope by projectId (= workspaceId): never read another workspace's batches
     // if a client sessionId collides across workspaces.
-    const batches = await this.mongo.replayBatch.findMany({
-      where: { sessionId: publicId, projectId: String(workspaceId) },
-      orderBy: { sequence: "asc" },
-      take: 1000,
-      select: { events: true },
-    });
+    // The vitals below are "latest wins", so the cap keeps the session's MOST
+    // RECENT 1000 batches by time (sequence can't pick them: page loads on SDKs
+    // up to 0.1.16 restart it at 1), then puts them back in timeline order.
+    // Index-served: [projectId, sessionId, startedAt], walked backwards.
+    const batches = this.orderBatches(
+      await this.mongo.replayBatch.findMany({
+        where: { sessionId: publicId, projectId: String(workspaceId) },
+        orderBy: { startedAt: "desc" },
+        take: 1000,
+        select: { events: true, segmentId: true, sequence: true, startedAt: true },
+      }),
+    );
 
     type Sample = { ts: number; bytes: number };
     type Vital = { value: number; unit: string; rating?: string };
@@ -2365,7 +2368,8 @@ export class SessionsService {
         : null,
     }),
     paths: s.paths.map((p) => ({ sequence: p.sequence, url: p.url })),
-    segments: s.segments.map((seg) => ({
+    segments: this.orderSegments(s.segments).map((seg) => ({
+      segmentId: seg.segmentPublicId,
       sequence: seg.sequence,
       eventCount: seg.eventCount,
       startedAt: seg.startedAt.toISOString(),
@@ -2567,7 +2571,8 @@ export class SessionsService {
       (s.endUser?.customProps as Record<string, unknown> | null) ??
       null,
     paths: s.paths.map((p) => ({ sequence: p.sequence, url: p.url })),
-    segments: s.segments.map((seg) => ({
+    segments: this.orderSegments(s.segments).map((seg) => ({
+      segmentId: seg.segmentPublicId,
       sequence: seg.sequence,
       eventCount: seg.eventCount,
       startedAt: seg.startedAt.toISOString(),
@@ -2575,6 +2580,47 @@ export class SessionsService {
       mongoBatchId: seg.mongoBatchId,
     })),
   });
+
+  /**
+   * One session's replay batches in timeline order. In-memory over rows the
+   * caller already fetched; no query.
+   *
+   * A session with ONE segment (one page load) keeps `sequence` order: the SDK
+   * numbers batches in the order it cuts them. With several segments (reloads,
+   * same-tab navigations, a restored back/forward-cache page, mixed SDK
+   * versions) sequence can't order them: SDKs up to 0.1.16 restart it at 1 in
+   * each page load, so it would interleave the loads (A1, B1, A2, B2, …). Those
+   * go by each batch's first-event time, then sequence, then segment, so ties
+   * (e.g. a Meta and FullSnapshot split across unload chunks) stay in SDK order.
+   */
+  private orderBatches<
+    T extends { segmentId: string; sequence: number; startedAt: bigint | number },
+  >(batches: T[]): T[] {
+    const byTime = batches.some((b) => b.segmentId !== batches[0].segmentId);
+    return [...batches].sort((a, b) => {
+      if (byTime) {
+        const t = Number(a.startedAt) - Number(b.startedAt);
+        if (t !== 0) return t;
+      }
+      if (a.sequence !== b.sequence) return a.sequence - b.sequence;
+      if (a.segmentId === b.segmentId) return 0;
+      return a.segmentId < b.segmentId ? -1 : 1;
+    });
+  }
+
+  /** orderBatches for a session's SessionSegment rows. */
+  private orderSegments<
+    T extends { segmentPublicId: string; sequence: number; startedAt: Date },
+  >(segments: T[]): T[] {
+    return this.orderBatches(
+      segments.map((seg) => ({
+        seg,
+        segmentId: seg.segmentPublicId,
+        sequence: seg.sequence,
+        startedAt: seg.startedAt.getTime(),
+      })),
+    ).map(({ seg }) => seg);
+  }
 
   // ClickHouse stores headers as a JSON string; surface it as an object
   // for the dashboard. Silently swallows parse failures so a malformed

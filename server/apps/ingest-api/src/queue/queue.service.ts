@@ -37,7 +37,15 @@ export class QueueService {
 
   async enqueueBatch(job: ReplayBatchJob): Promise<void> {
     await this.replayQueue.add(REPLAY_JOB_PROCESS_BATCH, job, {
-      jobId: `${job.envelope.sessionId}:${job.envelope.sequence}`,
+      // Dedupes a RE-SEND of the same envelope (SDK retry, keepalive→beacon
+      // fallback) while its job is still in Redis. segmentId is part of the key
+      // because a reload or same-tab navigation resumes the session id in a NEW
+      // segment whose sequence restarts at 1: keyed on (sessionId, sequence)
+      // alone, Bull silently dropped that page load's first batches as
+      // "duplicates" of the previous load's (snapshot included) while ingest
+      // still answered accepted:true. workspaceId scopes the dedupe to the
+      // sending workspace, like the Mongo batch key (projectId).
+      jobId: `${job.workspaceId}:${job.envelope.sessionId}:${job.envelope.segmentId}:${job.envelope.sequence}`,
       // Resilience budget for a store outage. The circuit breaker
       // (queue-breaker.service.ts) is the primary defense — it pauses the queue
       // so jobs WAIT rather than fail — but these are the backstop for the few

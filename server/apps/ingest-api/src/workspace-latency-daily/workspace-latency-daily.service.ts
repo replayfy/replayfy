@@ -1,3 +1,4 @@
+import { toInt4 } from "../common/int4";
 import { Injectable, Logger } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { getPostgresClient } from "@replay/db-postgres";
@@ -115,13 +116,15 @@ export class WorkspaceLatencyDailyService {
     if (rows.length === 0) return 0;
     await Promise.all(
       rows.map((r: LatencyDailyRow) => {
+        // Durations are SDK-reported (untrusted): one absurd value would make
+        // Postgres refuse the INT4 columns and lose the workspace's whole day.
         const data = {
-          calls: r.calls,
-          p95Ms: r.p95_ms,
-          avgMs: r.avg_ms,
-          maxMs: r.max_ms,
-          slowCalls: r.slow_calls,
-          samples: (r.samples ?? []).slice(0, SAMPLE_CAP),
+          calls: toInt4(Number(r.calls)),
+          p95Ms: toInt4(Number(r.p95_ms)),
+          avgMs: toInt4(Number(r.avg_ms)),
+          maxMs: toInt4(Number(r.max_ms)),
+          slowCalls: toInt4(Number(r.slow_calls)),
+          samples: (r.samples ?? []).slice(0, SAMPLE_CAP).map((v) => toInt4(Number(v))),
         };
         return this.db.workspaceLatencyDaily.upsert({
           where: {

@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import type { Redis } from "ioredis";
 import { getPostgresClient, KnowledgeSource } from "@replay/db-postgres";
@@ -88,7 +89,7 @@ export class WorkspaceKnowledgeService {
     } = {},
   ) {
     const k = this.normKey(key);
-    const v = String(value).trim().slice(0, WorkspaceKnowledgeService.MAX_VALUE);
+    const v = truncateWellFormed(String(value).trim(), WorkspaceKnowledgeService.MAX_VALUE);
     const source = opts.source ?? "USER_PROVIDED";
     const confidence = Math.min(
       100,

@@ -1,5 +1,5 @@
 import { Inject, Injectable, Optional } from "@nestjs/common";
-import { makeWellFormedInPlace } from "../common/well-formed";
+import { truncateWellFormed, makeWellFormedInPlace } from "../common/well-formed";
 import { createHash, randomBytes } from "crypto";
 import { gunzipSync } from "zlib";
 import { getPostgresClient } from "@replay/db-postgres";
@@ -13,6 +13,7 @@ import { mergeSessionCustomProps } from "../common/session-props";
 import { toInt4 } from "../common/int4";
 import { resolveGeo, deviceGeoFallback } from "../replay/geo";
 import { FramesStreamService } from "../frames/frames-stream.service";
+import type { AppState } from "../frames/frames.constants";
 import { PresenceService } from "../presence/presence.service";
 import { SettingsService } from "../settings/settings.service";
 import { BILLING_SERVICE, type BillingPort } from "../billing/billing.port";
@@ -105,6 +106,11 @@ export class MobileService {
     captureNetwork: boolean;
     captureNetworkHeaders: boolean;
     captureNetworkBodies: boolean;
+    // The dashboard's "always mask input values" force (masking.maskAllInputs).
+    // A native SDK that reads it ORs it with the app's own occludeAllTextFields,
+    // so it can only add masking, and re-reads it on every /start. Sent on every
+    // shape so it is never missing. Additive: older SDKs ignore unknown keys.
+    privacy: { occludeAllTextFields: boolean };
   } | null> {
     const workspaceId = await this.resolveWorkspace(params.projectKey);
     if (workspaceId == null) return null;
@@ -131,8 +137,18 @@ export class MobileService {
         captureNetwork: false,
         captureNetworkHeaders: false,
         captureNetworkBodies: false,
+        privacy: { occludeAllTextFields: false },
       };
     }
+
+    // Dashboard-controlled settings in ONE Workspace primary-key read (see
+    // getMobileStartSettings): the sampling gate below, the capture toggles the
+    // web SDK also reads via /v1/sdk/config, and the input-masking force.
+    const {
+      sampling,
+      recording: rec,
+      masking,
+    } = await this.settings.getMobileStartSettings(workspaceId);
 
     // Sampling gate — mirror the web SDK's session-start roll so the dashboard
     // sampling rate affects mobile too. Decided once here; if sampled out we
@@ -140,7 +156,6 @@ export class MobileService {
     // `record:false` so both SDKs decode it cleanly). alwaysRecordIdentified
     // keeps the session when the host already knows the user (distinctId sent
     // at start). alwaysRecordErrors can't apply at start (no errors yet).
-    const sampling = await this.settings.getSampling(workspaceId);
     const isIdentified = !!params.distinctId?.trim();
     const sampledIn =
       (sampling.alwaysRecordIdentified && isIdentified) ||
@@ -159,12 +174,9 @@ export class MobileService {
         captureNetwork: false,
         captureNetworkHeaders: false,
         captureNetworkBodies: false,
+        privacy: { occludeAllTextFields: false },
       };
     }
-
-    // Dashboard-controlled capture settings (same source the web SDK reads
-    // via /v1/sdk/config) so the mobile SDK honours console/network toggles.
-    const rec = await this.settings.getRecording(workspaceId);
 
     const publicId = `ses_${randomBytes(8).toString("hex")}`;
     // The /start body is unvalidated JSON; its strings go to Postgres
@@ -330,6 +342,7 @@ export class MobileService {
       captureNetwork: rec.captureNetwork,
       captureNetworkHeaders: rec.captureNetworkHeaders,
       captureNetworkBodies: rec.captureNetworkBodies,
+      privacy: { occludeAllTextFields: masking.maskAllInputs },
     };
   }
 
@@ -344,19 +357,38 @@ export class MobileService {
   /**
    * Decode a (gzipped) binary message batch and persist each message
    * as a ClickHouse projection row, then bump the session aggregates.
-   * `gzipped` is false for the /late endpoint.
+   * `gzipped` is false for the /late endpoint — the SDK's session-end batch,
+   * which may arrive long after the session's last activity (the SDK ends the
+   * old session when the user returns from a long background).
    */
   async ingestMessages(
     token: MobileTokenPayload,
     body: Buffer,
     gzipped: boolean,
   ): Promise<{ count: number }> {
+    const late = !gzipped;
     const raw = gzipped ? gunzipSync(body) : body;
     const { messages } = decodeMobileBatch(raw);
     if (messages.length === 0) return { count: 0 };
     // Decoded strings can carry NUL, which Postgres text and jsonb reject
     // (identify traits, metadata → EndUser / Session.customProps).
     makeWellFormedInPlace(messages);
+
+    // App state + keepAlive, in one Redis round-trip (trackMessageBatch); the
+    // state from before this batch is what tells its performance samples
+    // apart (see lastActivityTs). keepAlive: a recording whose frames are
+    // paused (an excluded screen, pauseRecording, a capture opt-out) while its
+    // user keeps interacting must not idle out of the frames pipeline and get
+    // finalized mid-use — never from /late, which ends the session.
+    // Best-effort: a Redis error leaves the state unknown, which only keeps
+    // this batch's samples from counting, and a missed extension only means an
+    // early finalize, which a later frames batch merges onto.
+    const priorAppState = await this.frames
+      .trackMessageBatch(token.sid, Date.now(), {
+        appState: this.appStateAfter(messages),
+        keepAlive: !late && messages.some((m) => this.isForegroundInput(m)),
+      })
+      .catch(() => null);
 
     // Resolve this session's release once (marketing appVersion preferred, then
     // revId, then the appBuild build number). Stamped onto every CH row below so
@@ -368,12 +400,16 @@ export class MobileService {
         revId: true,
         appBuild: true,
         durationMs: true,
+        endedAt: true,
       },
     });
     const release =
       sessRow?.appVersion || sessRow?.revId || sessRow?.appBuild || "";
 
-    // Session duration = the furthest message offset seen (message ts − session
+    // The batch's latest ACTIVITY (device clock), 0 = none — see
+    // lastActivityTs for what counts.
+    const lastActivityTs = this.lastActivityTs(messages, priorAppState);
+    // Session duration = the furthest activity offset seen (message ts − session
     // start, BOTH client-clock, so device clock skew cancels — unlike
     // endedAt−startedAt, which mixes the client startedAt with the server-side
     // endedAt). This is the ONLY duration a frameless mobile session gets: with
@@ -381,10 +417,19 @@ export class MobileService {
     // AND look like a sub-threshold throwaway to the billing reaper. Monotonic:
     // GREATEST with the stored value so an out-of-order/retried batch can't
     // shrink it.
-    const maxOffsetMs = messages.reduce(
-      (mx, m) => Math.max(mx, m.timestamp - token.startedAt),
-      0,
-    );
+    const maxOffsetMs = Math.max(0, lastActivityTs - token.startedAt);
+    // /i keeps stamping the receive time: it's the liveness heartbeat the LIVE
+    // sweep and billing's settle window read — but only for a batch with
+    // activity. A batch of nothing but samples from a backgrounded app (an
+    // Android app's timers run on) would otherwise keep the session from ever
+    // settling, and carry its end to the moment the user came back. /late gets
+    // the batch's own last activity instead (see lateEndedAt), so ending a
+    // session that idled out long ago doesn't stretch it either.
+    const endedAt = late
+      ? this.lateEndedAt(token, lastActivityTs, sessRow?.endedAt)
+      : lastActivityTs > 0
+        ? new Date()
+        : undefined;
 
     const rows: ProjectionRow[] = [];
     let currentRoute = "";
@@ -625,7 +670,7 @@ export class MobileService {
                 ...base,
                 kind: "console",
                 level: p.level || "log",
-                message: (p.message ?? "").slice(0, 4000),
+                message: truncateWellFormed(p.message ?? "", 4000),
                 route: currentRoute,
               });
             } else {
@@ -634,7 +679,7 @@ export class MobileService {
                 ...base,
                 kind: "error",
                 error: p.fatal ? "crash" : "exception",
-                message: (p.message ?? "").slice(0, 400),
+                message: truncateWellFormed(p.message ?? "", 400),
                 stack: p.stack ?? "",
                 route: currentRoute,
               });
@@ -697,7 +742,7 @@ export class MobileService {
         // Count the message-batch bytes toward storage too (frames are the
         // bulk; this keeps the message stream accounted for as well).
         dataSizeBytes: { increment: BigInt(raw.length) },
-        endedAt: new Date(),
+        ...(endedAt ? { endedAt } : {}),
         // Grow the duration to the furthest activity offset in this batch; never
         // shrink it (Math.max vs the value read above). Serial per session, so
         // this read-modify-write can't lose ground. Clamped: the offsets come
@@ -735,10 +780,110 @@ export class MobileService {
       void plan;
       void email;
       void name;
-      await mergeSessionCustomProps(this.db, token.snum, rest);
+      await mergeSessionCustomProps(this.db, token.wid, token.snum, rest);
     }
 
     return { count: rows.length };
+  }
+
+  /**
+   * Direct user input, or a screen coming into view: only an app in the
+   * foreground produces them. They show the app is in the foreground, and
+   * hold a frame-paused session open. Logs, network calls and custom events
+   * are left out: apps emit them from background work too, and holding a
+   * backgrounded session open would keep it unfinished (unplayable) for as
+   * long as that work runs.
+   */
+  private isForegroundInput(m: DecodedMobileMessage): boolean {
+    switch (m.kind) {
+      case "click":
+      case "swipe":
+      case "gesture":
+      case "input":
+        return true;
+      case "viewComponent":
+        return m.visible;
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * What one message shows about where the app is, or null if nothing. The
+   * SDKs send performance("background", 1) as the app leaves the foreground,
+   * and ("background", 0) when it returns to the same session.
+   */
+  private appStateOf(m: DecodedMobileMessage): AppState | null {
+    if (m.kind === "performance" && m.name === "background") {
+      return m.value ? "background" : "foreground";
+    }
+    return this.isForegroundInput(m) ? "foreground" : null;
+  }
+
+  /** Where a batch leaves the app, by its own messages alone (the last one
+   *  that shows it); null when none does, so the stored state stands. */
+  private appStateAfter(messages: DecodedMobileMessage[]): AppState | null {
+    let state: AppState | null = null;
+    for (const m of messages) state = this.appStateOf(m) ?? state;
+    return state;
+  }
+
+  /**
+   * The batch's latest ACTIVITY timestamp (device clock), 0 if none: what the
+   * session's duration and end follow. Two kinds of message are not activity:
+   *   • batchMeta — stamped when the batch is SENT, which on /late is the
+   *     moment the user came back;
+   *   • performance samples taken while the app isn't known to be in the
+   *     foreground. They come from a 5 s timer that runs on in the background
+   *     on Android, and catches up when a frozen app thaws, so after a long
+   *     background they carry the return time too. In the foreground (where
+   *     iOS's timers, which stop with the app, always are) they are the one
+   *     heartbeat a frameless session gets while its user reads without
+   *     touching anything, so there they count.
+   * `prior` is where the app was before this batch (null: unknown); the
+   * batch's own "background" markers and input update it as it is read.
+   */
+  private lastActivityTs(
+    messages: DecodedMobileMessage[],
+    prior: AppState | null,
+  ): number {
+    let state = prior;
+    let last = 0;
+    for (const m of messages) {
+      state = this.appStateOf(m) ?? state;
+      if (m.kind === "batchMeta") continue;
+      if (
+        m.kind === "performance" &&
+        m.name !== "background" &&
+        state !== "foreground"
+      ) {
+        continue;
+      }
+      if (m.timestamp > last) last = m.timestamp;
+    }
+    return last;
+  }
+
+  /**
+   * endedAt for a /late batch: its last activity moved onto the server clock
+   * (device ts − the session's clock skew), capped at now, or undefined to
+   * leave the stored value. Never earlier than what is stored: that is at
+   * least the last /i receive time or the frames finalize time, and pulling it
+   * back could carry a not-yet-settled session out of billing's settle window
+   * (endedAt 3–10 min ago) before it is judged.
+   */
+  private lateEndedAt(
+    token: MobileTokenPayload,
+    lastActivityTs: number,
+    stored: Date | undefined,
+  ): Date | undefined {
+    if (lastActivityTs <= 0) return undefined; // no activity in the batch
+    const activityMs = Math.min(
+      Date.now(),
+      lastActivityTs - (token.skew ?? 0),
+    );
+    if (stored && stored.getTime() >= activityMs) return undefined;
+    return new Date(activityMs);
   }
 
   /** Ensure an anonymous "ghost" EndUser exists for a native install, keyed on

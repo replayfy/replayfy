@@ -195,6 +195,51 @@ export class StorageService {
     }
   }
 
+  /**
+   * Stream an object's bytes. Unlike download(), only a MISSING object reads
+   * as null (and a disabled store); every other failure throws. The frames
+   * finalizer merges new frames into a session's existing archive and then
+   * overwrites it, so it must never mistake an R2 outage for "no archive yet"
+   * — that would replace the recording with just the newest frames.
+   */
+  async openReadStream(key: string): Promise<Readable | null> {
+    if (!this.enabled || !this.client) return null;
+    try {
+      const resp = await this.client.send(
+        new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+      );
+      if (!resp.Body) throw new Error(`GetObject ${key}: empty body`);
+      return resp.Body as Readable;
+    } catch (err) {
+      const e = err as {
+        name?: string;
+        Code?: string;
+        $metadata?: { httpStatusCode?: number };
+      };
+      if (
+        e?.name === "NoSuchKey" ||
+        e?.Code === "NoSuchKey" ||
+        e?.$metadata?.httpStatusCode === 404
+      ) {
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Delete one object, THROWING if the delete fails (a missing object is not a
+   * failure: S3 DELETE is idempotent). Unlike remove(), for a caller that must
+   * not carry on as if the object were gone — the frames finalizer discarding
+   * a cancelled recording, which retries instead.
+   */
+  async removeOrThrow(key: string): Promise<void> {
+    if (!this.enabled || !this.client) return;
+    await this.client.send(
+      new DeleteObjectCommand({ Bucket: this.bucket, Key: key }),
+    );
+  }
+
   /** Best-effort delete. Used by the workspace-delete pipeline. */
   async remove(key: string): Promise<void> {
     if (!this.enabled || !this.client) return;

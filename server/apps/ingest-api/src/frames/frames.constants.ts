@@ -7,12 +7,17 @@
  *                           session's raw `[ts][size][jpeg]` batches. Replaces
  *                           the old on-disk `{sid}.frames` file. Retained until
  *                           finalize, so finalization can always rebuild the
- *                           archive from scratch after a worker crash.
+ *                           archive from scratch after a worker crash; then
+ *                           kept for streamRetainMs on a TTL that every new
+ *                           batch clears (PERSIST) — so a stream WITHOUT a TTL
+ *                           may hold frames no archive has yet.
  *   session:expiry          Sorted set — score = epoch-ms the session is
  *                           considered idle/ended. score > now ⇒ ACTIVE (the
  *                           stream worker drains it); score ≤ now ⇒ ENDED (it
  *                           gets finalized). This one ZSET is the active-session
- *                           registry AND the expiry queue.
+ *                           registry AND the expiry queue. A member means a
+ *                           frames finalize is still to come, so the LIVE sweep
+ *                           and GET /frames read it too (pendingFinalize).
  *   frames:mp:{sid}         Hash — multipart-upload state mirrored from the
  *                           owning worker (uploadId, parts JSON, lastId,
  *                           running count/bytes/lastTs) so the finalizer and a
@@ -21,7 +26,14 @@
  *                           worker (NX + renew), giving per-session ordering +
  *                           single-writer multipart + horizontal scaling.
  *   finalize:{sid}          String w/ TTL — NX idempotency lock so a session is
- *                           finalized exactly once (owner OR orphan finalizer).
+ *                           finalized exactly once (owner OR orphan finalizer);
+ *                           see FINALIZE_LOCK_TTL_MS.
+ *   frames:cancel:{sid}     String w/ TTL — set by POST /v1/mobile/cancel: the
+ *                           finalizer discards this session's recording,
+ *                           including an archive an earlier finalize stored.
+ *   mobile:app:{sid}        String w/ TTL — whether the app was last seen in
+ *                           the foreground or the background (AppState), from
+ *                           the message batches; see APP_STATE_TTL_MS.
  */
 export const framesStreamKey = (sid: string): string => `frames:${sid}`;
 
@@ -47,7 +59,29 @@ export const nextStreamId = (id: string): string => {
 export const framesMpKey = (sid: string): string => `frames:mp:${sid}`;
 export const framesOwnerKey = (sid: string): string => `frames:owner:${sid}`;
 export const finalizeLockKey = (sid: string): string => `finalize:${sid}`;
+export const framesCancelKey = (sid: string): string => `frames:cancel:${sid}`;
+export const appStateKey = (sid: string): string => `mobile:app:${sid}`;
 export const SESSION_EXPIRY_ZSET = "session:expiry";
+
+/**
+ * How long a cancel outlives the request: past the finalize that discards the
+ * session, so a frames batch still in flight at cancel time is discarded too,
+ * and past the retries of a finalize that keeps failing (the lock's 5-min
+ * backoff each). One short key per cancelled session.
+ */
+export const CANCEL_RETAIN_MS = 24 * 60 * 60_000;
+
+/** Where the app was, as the SDK's message batches last showed it. */
+export type AppState = "foreground" | "background";
+
+/**
+ * The app state is kept this long past the last message batch that read it.
+ * It only has to bridge the gap between two batches of a running app (the SDKs
+ * flush every 5 s). A longer gap means the app was frozen or suspended in the
+ * background; once the key expires the state is unknown, which the message
+ * path treats like the background.
+ */
+export const APP_STATE_TTL_MS = 30 * 60_000;
 
 /** The served archive object key — UNCHANGED from the legacy disk pipeline,
  *  so the player/SDK contract (and the `?v=` cache-bust) is identical. */
@@ -63,21 +97,61 @@ export const FRAMES_CONSUMER_GROUP = "frames-workers";
  */
 export const idleMs = (): number => Number(process.env.FRAMES_IDLE_MS) || 150_000;
 
+/**
+ * A NATIVE session stays LIVE (unlisted: the Recordings list hides LIVE native
+ * rows) for at least this long past its last activity (endedAt), even with no
+ * frames finalize pending. Frames reach the server in their own /images
+ * batches, so the last /i can land before the frames that arm the session's
+ * expiry score; idleMs plus a margin covers that gap, the same 150 s end
+ * timeout the reference backend lists a mobile session after. The cost:
+ * a frameless (event-only) native session is listed about 2 min later than a
+ * web one (180 s after its last activity instead of 60 s).
+ */
+export const nativeSweepGraceMs = (): number => idleMs() + 30_000;
+
+/**
+ * TTL of the finalize:{sid} lock. A finalize that throws leaves its lock in
+ * place, so this is also the backoff before the orphan poll retries it.
+ */
+export const FINALIZE_LOCK_TTL_MS = 300_000;
+
+/**
+ * How long an ENDED session (expiry score in the past) may wait for its frames
+ * finalize before the LIVE sweep stops holding it and completes it without
+ * its archive (the retried finalize records the archive later). The finalizer
+ * polls every few seconds, but a finalize can still start or finish well after
+ * the score passes: the orphan poll works through ended sessions one at a time
+ * (a backlog after a restart), a rebuild or merge of a long recording takes a
+ * while, and a finalize that failed once is retried only when its lock expires
+ * (FINALIZE_LOCK_TTL_MS). So the cap is that backoff plus 3 min: one failed
+ * attempt still gets its retry before the session is listed. The finalize
+ * lock itself is no signal: it is held the same way while a finalize runs
+ * and while a failed one backs off.
+ *
+ * Billing does not bound this. A held row's endedAt can be far older than its
+ * score (/i stamps endedAt only for batches with activity, /images never), so
+ * when the sweep completes an overdue row it stamps endedAt with the time it
+ * completes it, as the finalizer's record() does; the row then settles 3 to
+ * 10 min later like any other (BillingService.SETTLED).
+ */
+export const FINALIZE_OVERDUE_MAX_MS = FINALIZE_LOCK_TTL_MS + 3 * 60_000;
+
 /** R2/S3 minimum non-final part size (5 MiB). Gzip output is buffered to this
  *  before a part is flushed mid-session; the last part has no minimum. */
 export const PART_MIN_BYTES =
   Number(process.env.FRAMES_PART_MIN_BYTES) || 5 * 1024 * 1024;
 
 /**
- * After finalize, the stream is KEPT (not deleted) for this long, so a session
+ * After finalize, the stream is KEPT (not deleted) for this long: a session
  * that RESUMES the same id (SDK backgrounds → foregrounds after the idle
- * timeout) accumulates onto its earlier frames instead of overwriting them: the
- * resumed batches XADD onto the retained stream, the worker rebuilds from the
- * FULL stream, and the absolute count/size SET makes the archive cumulative.
+ * timeout) XADDs onto the retained stream, and the re-finalize merges it into
+ * the existing archive, deduping the frames both already hold.
  *
  * Trade-off (no disk ⇒ this retention costs Redis RAM): bounds memory to
- * recently-ended sessions, not all of them. A resume AFTER this window expires
- * starts a fresh archive. Set ≥ the SDK's session-resume timeout.
+ * recently-ended sessions, not all of them. Correctness doesn't depend on it:
+ * a resume AFTER this window expires, or a /late with nothing new, still merges
+ * into (or leaves untouched) the archive, never overwrites it — see
+ * FramesFinalizerService.finalize.
  */
 export const streamRetainMs = (): number =>
   Number(process.env.FRAMES_STREAM_TTL_MS) || 30 * 60_000;

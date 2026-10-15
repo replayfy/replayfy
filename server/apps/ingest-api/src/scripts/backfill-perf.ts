@@ -16,6 +16,7 @@ import "reflect-metadata";
 import { config as loadEnv } from "dotenv";
 import { getPostgresClient } from "@replay/db-postgres";
 import { getMongoClient } from "@replay/db-mongo";
+import { loadScopedBatches } from "./scoped-replay-batches";
 
 loadEnv();
 loadEnv({ path: ".env.local", override: true });
@@ -24,7 +25,7 @@ async function main() {
   const pg = getPostgresClient();
   const mongo = getMongoClient();
 
-  const PAGE = 100;
+  const PAGE = 50;
   let cursor: number | undefined;
   let touched = 0;
   let withPerf = 0;
@@ -39,15 +40,16 @@ async function main() {
       },
       orderBy: { id: "asc" },
       take: PAGE,
-      select: { id: true, publicId: true },
+      select: { id: true, publicId: true, workspaceId: true },
     });
     if (rows.length === 0) break;
 
+    // One workspace-scoped Mongo read for the whole page (loadScopedBatches),
+    // and one Postgres transaction for the page's updates.
+    const batchesBySession = await loadScopedBatches(mongo, rows);
+    const updates: Array<ReturnType<typeof pg.session.update>> = [];
     for (const s of rows) {
-      const batches = await mongo.replayBatch.findMany({
-        where: { sessionId: s.publicId },
-        select: { events: true },
-      });
+      const batches = batchesBySession.get(s.id) ?? [];
 
       let lcp = 0,
         clsX1000 = 0,
@@ -93,7 +95,7 @@ async function main() {
       const hasAny =
         lcp > 0 || clsX1000 > 0 || fid > 0 || ltCount > 0 || peakHeap > 0;
       if (hasAny) {
-        await pg.session.update({
+        updates.push(pg.session.update({
           where: { id: s.id },
           data: {
             worstLcp: lcp > 0 ? Math.round(lcp) : null,
@@ -104,7 +106,7 @@ async function main() {
             longTaskSlowestMs: Math.round(ltSlowest),
             peakHeapBytes: BigInt(Math.round(peakHeap)),
           },
-        });
+        }));
         withPerf += 1;
       }
       touched += 1;
@@ -114,6 +116,7 @@ async function main() {
         );
       }
     }
+    if (updates.length > 0) await pg.$transaction(updates);
     cursor = rows[rows.length - 1].id;
   }
 

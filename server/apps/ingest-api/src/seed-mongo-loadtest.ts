@@ -8,7 +8,9 @@
  * sessionId = publicId). Everything else still lists/facets/funnels at full scale
  * via PG+CH.
  *
- * Reversible: synthetic sessionId is `lt_<id>` → cleanup is deleteMany(/^lt_/).
+ * Reversible: synthetic sessionId is `lt_<id>` → cleanup is a deleteMany scoped
+ * to the seeded workspace: { projectId: "<workspaceId>", sessionId: /^lt_/ }
+ * (never by prefix alone: another workspace may use ids starting with lt_).
  * seedId of a synthetic id = floor((id - 1e8) / 1e6)  (inverse of the id formula).
  *
  *   SEED_WS=1,2 SEED_MONGO_RECENT=5000 node apps/ingest-api/dist/seed-mongo-loadtest.js
@@ -51,13 +53,16 @@ async function seedWorkspace(
 
   let docs = 0;
   for (const [seedId, list] of bySeed) {
-    const seed = await db.session.findUnique({
-      where: { id: seedId },
+    // The seed must be this workspace's own session, and its batches are read
+    // from this workspace only (session ids can collide across workspaces).
+    // Access pattern: PK lookup + the [projectId, sessionId, …] index.
+    const seed = await db.session.findFirst({
+      where: { id: seedId, workspaceId },
       select: { publicId: true },
     });
     if (!seed) continue;
     const seedBatches = await mongo.replayBatch.findMany({
-      where: { sessionId: seed.publicId },
+      where: { projectId: String(workspaceId), sessionId: seed.publicId },
       orderBy: { sequence: "asc" },
     });
     if (seedBatches.length === 0) continue;
@@ -66,7 +71,7 @@ async function seedWorkspace(
     for (const t of list) {
       for (const b of seedBatches) {
         buf.push({
-          projectId: b.projectId,
+          projectId: String(workspaceId),
           sessionId: t.publicId,
           segmentId: b.segmentId,
           sequence: b.sequence,

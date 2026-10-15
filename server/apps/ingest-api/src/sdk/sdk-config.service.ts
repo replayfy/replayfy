@@ -36,6 +36,9 @@ export interface SdkConfigResponse {
     trigger: "always" | "identified" | "sample";
   };
   privacy: {
+    /** Dashboard force: true makes the SDK mask every input even where the app
+     *  opts out in code; false defers to the SDK's own default (web: mask every
+     *  input). It never unmasks. Web SDKs before 0.1.20 apply it remote-wins. */
     maskAllInputs: boolean;
     maskSelectors: string[];
     /** Input types the SDK should always mask via rrweb's maskInputOptions,

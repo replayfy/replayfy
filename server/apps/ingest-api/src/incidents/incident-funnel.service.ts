@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 import { getPostgresClient } from "@replay/db-postgres";
 import { topTrackEvents } from "@replay/db-clickhouse";
@@ -174,13 +175,13 @@ export class IncidentFunnelService {
       `${incident.title} funnel`;
 
     const funnel = await this.funnels.create(workspaceId, userId, {
-      name: name.slice(0, 120),
+      name: truncateWellFormed(name, 120),
       steps,
     });
     return {
       created: true,
       funnelId: (funnel as { id: number }).id,
-      name: name.slice(0, 120),
+      name: truncateWellFormed(name, 120),
       steps,
     };
   }
@@ -220,7 +221,7 @@ export class IncidentFunnelService {
         continue;
       }
       out.push({
-        name: (name || value).slice(0, 80),
+        name: truncateWellFormed(name || value, 80),
         kind: kind as FunnelStepKind,
         matchType: matchType as FunnelStepMatch,
         value: value.slice(0, 200),

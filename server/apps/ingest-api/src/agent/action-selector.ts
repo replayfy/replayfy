@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable } from "@nestjs/common";
 import type { AgentContext } from "./capability";
 import type { SuggestedAction } from "./agent-contract";
@@ -122,7 +123,7 @@ export class ActionSelector {
       seen.add(sel.id);
       const reason =
         typeof sel.reason === "string" && sel.reason.trim()
-          ? sel.reason.trim().slice(0, ActionSelector.MAX_REASON)
+          ? truncateWellFormed(sel.reason.trim(), ActionSelector.MAX_REASON)
           : undefined;
       out.push({ ...action, ...(reason ? { reason } : {}) });
     }

@@ -12,15 +12,16 @@
    the bezel never blanks and we never fall back to a fabricated mock screen.
    NO fabrication — real events/frames only.
 
-   Data is fetched here (web: /events; mobile: /events + /frames) and the
-   imperative ref is forwarded to whichever concrete player is active.
+   Data is fetched here (web: /events; mobile: /events + /frames + /timeline)
+   and the imperative ref is forwarded to whichever concrete player is active.
    ========================================================================== */
 import { forwardRef } from "react";
 import { Sessions } from "@/api/endpoints";
 import { useApi } from "@/api/useApi";
-import type { RvSession } from "../recordings.data";
+import type { ApiTimeline, RvSession } from "../recordings.data";
 import { RvWebPlayer } from "./RvWebPlayer";
 import { RvMobilePlayer } from "./RvMobilePlayer";
+import { FRAMES_QUERY_OPTS } from "./mobileFrames";
 import type { FramesInfo, ReplayBatch, RvPlayerHandle } from "./playerTypes";
 
 type RvPlayerProps = {
@@ -30,16 +31,30 @@ type RvPlayerProps = {
   playing: boolean;
   speed: number;
   onDuration?: (sec: number) => void;
-  /** "Skip inactivity" toggle — forwarded to the web player's master clock.
-   *  (Mobile frames use a separate idle model; not wired yet.) */
+  /** "Skip inactivity" toggle — forwarded to whichever player owns the clock.
+   *  Web skips rrweb idle; mobile skips user inactivity + frameless stretches. */
   skipIdle?: boolean;
   /** Idle ranges (0..1 fractions) reported up so the scrubber can dim them. */
   onIdleRegions?: (regions: { from: number; to: number }[]) => void;
+  /** Mobile only: the stage shows the "still being processed" panel (or the
+   *  archive load-error panel) in place of a player (see RvMobilePlayer
+   *  `onProcessing`). */
+  onProcessing?: (processing: boolean) => void;
 };
 
 export const RvPlayer = forwardRef<RvPlayerHandle, RvPlayerProps>(
   function RvPlayer(
-    { s, isMobile, focus, playing, speed, onDuration, skipIdle, onIdleRegions },
+    {
+      s,
+      isMobile,
+      focus,
+      playing,
+      speed,
+      onDuration,
+      skipIdle,
+      onIdleRegions,
+      onProcessing,
+    },
     ref,
   ) {
     const publicId = s.id;
@@ -53,14 +68,29 @@ export const RvPlayer = forwardRef<RvPlayerHandle, RvPlayerProps>(
       [publicId],
     );
     // Mobile frames archive descriptor — only fetched for native sessions.
+    // One fetch per open, never polled (the reference player's model); a
+    // `pending` answer is just never served from cache, so reopening the
+    // session re-asks instead of sticking on "still being processed".
     const {
       data: framesData,
       loading: framesInfoLoading,
       stale: framesStale,
+      syncing: framesSyncing,
+      error: framesError,
     } = useApi<FramesInfo>(
       () => Sessions.frames<FramesInfo>(publicId),
       [publicId],
-      { enabled: isMobile },
+      { enabled: isMobile, ...FRAMES_QUERY_OPTS },
+    );
+    // Mobile only: the session's timeline — its taps / input drive the
+    // reference skip-inactivity ranges and its "background" perf events say
+    // when the app was in the background. Same `session-timeline:<id>` key +
+    // dep as the scrubber ticks and the Events panel, so React Query serves
+    // all three from ONE /timeline request; this adds no network round-trip.
+    const { data: timelineData, stale: timelineStale } = useApi<ApiTimeline>(
+      () => Sessions.timeline<ApiTimeline>(publicId),
+      [publicId],
+      { enabled: isMobile && !!publicId, key: `session-timeline:${publicId}` },
     );
 
     /* Never hand a player the PREVIOUS session's payload. useApi keeps the old
@@ -70,7 +100,20 @@ export const RvPlayer = forwardRef<RvPlayerHandle, RvPlayerProps>(
        carried the old archive URL, so the loader's deps never changed. Treat
        stale as "not loaded yet" and let the loading state own the screen. */
     const batches = batchesStale ? undefined : batchesData;
-    const framesInfo = framesStale ? undefined : framesData;
+    /* Likewise a cached PENDING descriptor whose re-ask is in flight (this
+       open's refetch-on-mount): it is the question being checked again, not
+       the answer. Shown as one, the stage said "still being processed" — and
+       let the clock run — for a session that may be finalized by now, until
+       the re-ask landed. Unresolved instead: the spinner owns the screen. */
+    const framesReasking = !!framesData?.pending && framesSyncing;
+    const framesUnresolved = framesInfoLoading || framesStale || framesReasking;
+    const framesInfo = framesUnresolved ? undefined : framesData;
+    /* The descriptor request itself failed (its retry spent): no answer at
+       all, which is not "this session has no archive". The player gives it
+       the archive load-error copy, not "No snapshots captured". A focus /
+       reconnect re-ask is pending again (unresolved) while in flight. */
+    const framesFailed = !framesUnresolved && !framesData && !!framesError;
+    const timeline = timelineStale ? undefined : timelineData?.events;
     const loading = batchesLoading || batchesStale;
 
     if (isMobile) {
@@ -88,13 +131,23 @@ export const RvPlayer = forwardRef<RvPlayerHandle, RvPlayerProps>(
           playing={playing}
           speed={speed}
           platform={s.plat}
-          loading={loading || framesInfoLoading || framesStale}
+          loading={loading || framesUnresolved}
           /* Distinct from `loading`: this says the ARCHIVE DESCRIPTOR itself is
              still unresolved, so `framesInfo === undefined` must not be read as
              "this session has no archive" — the player would then publish the
              event wall-clock span as the session's duration. */
-          framesPending={framesInfoLoading || framesStale}
+          framesPending={framesUnresolved}
+          framesFailed={framesFailed}
           onDuration={onDuration}
+          /* The session's own length: the clock runs to it, not to the last
+             captured frame (see RvMobilePlayer). */
+          sessionDurationMs={s.durationMs}
+          /* Dates the copy for an archive that fails to load. */
+          sessionStartedAtMs={s.startedAtMs}
+          timeline={timeline}
+          skipIdle={skipIdle}
+          onIdleRegions={onIdleRegions}
+          onProcessing={onProcessing}
         />
       );
     }

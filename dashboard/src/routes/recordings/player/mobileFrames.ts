@@ -11,9 +11,58 @@
    created blob URL so we only allocate object URLs for frames we display.
    ========================================================================== */
 import { gunzipSync } from "fflate";
-import type { MobileFrame } from "./playerTypes";
+import { DEFAULT_STALE_MS } from "@/api/queryClient";
+import type { FramesInfo, MobileFrame } from "./playerTypes";
 
 type FramesResult = { frames: MobileFrame[]; count: number };
+
+/** How long a PENDING /frames descriptor (`pending: true` — the session is
+ *  LIVE or its frames are queued for finalize) may be served from cache: not
+ *  at all. A finalized descriptor is immutable and keeps the client default.
+ *
+ *  The reference player fetches the descriptor once per open and never polls;
+ *  this keeps that. It only stops a cached "not ready yet" from sticking — at
+ *  the default 30 s staleTime (and a 7-day gcTime), reopening the session soon
+ *  after got the cached null URL straight back, so the player kept saying it
+ *  had no frames after the archive existed. Stale only means the NEXT open
+ *  re-asks (framesRefetchOnReturn keeps focus / reconnect from re-asking a
+ *  pending answer); nothing refetches on a timer, and an open that overlaps
+ *  a request in flight shares it. */
+export const FRAMES_PENDING_STALE_MS = 0;
+
+/** staleTime for a cached /frames descriptor, from the descriptor itself
+ *  (useApi `staleTime`; used by the dashboard player and the share page). */
+export function framesStaleTime(info: FramesInfo | undefined): number {
+  return info?.pending ? FRAMES_PENDING_STALE_MS : DEFAULT_STALE_MS;
+}
+
+/** Whether the tab regaining focus / the network coming back may re-ask a
+ *  stale /frames descriptor, from the descriptor cached at that moment.
+ *
+ *  Not a PENDING one: it is stale at once (above), so the client defaults
+ *  would re-ask it on every focus — the reference asks once per open, and
+ *  the processing copy asks the user to check again, which is a reopen (each
+ *  focus re-ask would also swap the panel for the spinner while in flight).
+ *
+ *  Everything else keeps the client default. With no descriptor cached the
+ *  ask FAILED (retry spent): turning focus off for it too left a transient
+ *  502's "No snapshots captured" up until the user switched sessions or
+ *  reloaded — the share page has no other way back. A finalized descriptor
+ *  is only re-asked once past the default staleTime, as before, and comes
+ *  back with the same URL. */
+export function framesRefetchOnReturn(info: FramesInfo | undefined): boolean {
+  return !info?.pending;
+}
+
+/** useApi options for the /frames descriptor query, shared by the dashboard
+ *  player and the share page: ONE request per open for a pending answer, as
+ *  the reference player — never served from cache (the next open re-asks),
+ *  never on a timer, focus or reconnect. */
+export const FRAMES_QUERY_OPTS = {
+  staleTime: framesStaleTime,
+  refetchOnWindowFocus: framesRefetchOnReturn,
+  refetchOnReconnect: framesRefetchOnReturn,
+} as const;
 
 /** Decompress a frames archive. Detects gzip (the format our backend emits)
  *  by magic bytes; passes through uncompressed input unchanged. */
@@ -25,7 +74,13 @@ function unpack(bytes: Uint8Array): Uint8Array {
 
 /** Parse the decompressed `[ts][size][data]` stream into frames sorted by time.
  *  `time` is the offset from sessionStart (ms) — the player's playhead is also
- *  offset-based, so they line up directly. */
+ *  offset-based, so they line up directly.
+ *
+ *  A record whose size runs past the end stops the parse, so a truncated
+ *  archive still plays the frames before the cut. Bytes that hold no whole
+ *  record at all are not an archive — an HTML / XML error page served with a
+ *  200, or a body cut inside its first frame — and throw: that is a failed
+ *  load, not a session that captured nothing. An empty body is zero frames. */
 function parseFrames(
   buffer: Uint8Array | ArrayBuffer,
   sessionStart: number,
@@ -78,6 +133,8 @@ function parseFrames(
     offset += size;
   }
 
+  if (frames.length === 0 && backing.byteLength > 0)
+    throw new Error("not a frames archive: no whole frame in the body");
   if (!sorted) frames.sort((a, b) => a.time - b.time);
   return { frames, count: frames.length };
 }
@@ -138,7 +195,12 @@ function decompressInWorker(url: string): Promise<ArrayBuffer | null> {
 }
 
 /** Fetch + decompress + parse a frames archive URL. Returns { frames, count }
- *  or null on any failure (caller falls back to the per-event imageRef path).
+ *  or null on any failure — a non-2xx (a retention-pruned archive 404s), a
+ *  gunzip error, or a body that is not an archive (parseFrames). The caller
+ *  keeps the two apart: null gets the reference tracker's load-error copy
+ *  (unless per-event imageRef / wireframe content can paint), and so do zero
+ *  frames from a descriptor that counts some; zero frames from one that
+ *  counts none get "No snapshots captured".
  *  `url` is the archive's direct R2 URL (edge-served, cached — the API is never
  *  in the data path); requires an open CORS policy on the R2 bucket. */
 export async function loadFramesArchive(
@@ -154,19 +216,4 @@ export async function loadFramesArchive(
     console.warn("[mobileFrames] failed to load frames archive", e);
     return null;
   }
-}
-
-/** Walk frames to the most-recent one whose `time` ≤ playhead. A linear scan is
- *  fine for the few-hundred-frame sessions mobile produces. Returns the frame
- *  index (or -1 before the first frame). */
-export function frameIndexAt(
-  frames: MobileFrame[],
-  playheadMs: number,
-): number {
-  let idx = -1;
-  for (let i = 0; i < frames.length; i++) {
-    if (frames[i].time <= playheadMs) idx = i;
-    else break;
-  }
-  return idx;
 }

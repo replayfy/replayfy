@@ -19,6 +19,7 @@ import "reflect-metadata";
 import { config as loadEnv } from "dotenv";
 import { getPostgresClient } from "@replay/db-postgres";
 import { getMongoClient } from "@replay/db-mongo";
+import { loadScopedBatches } from "./scoped-replay-batches";
 
 loadEnv();
 loadEnv({ path: ".env.local", override: true });
@@ -28,7 +29,7 @@ async function main() {
   const mongo = getMongoClient();
 
   // Page through sessions to avoid loading the whole table into memory.
-  const PAGE = 100;
+  const PAGE = 50;
   let cursor: number | undefined;
   let scanned = 0;
   let updated = 0;
@@ -46,15 +47,16 @@ async function main() {
       },
       orderBy: { id: "asc" },
       take: PAGE,
-      select: { id: true, publicId: true },
+      select: { id: true, publicId: true, workspaceId: true },
     });
     if (rows.length === 0) break;
 
+    // One workspace-scoped Mongo read for the whole page (loadScopedBatches),
+    // and one Postgres transaction for the page's updates.
+    const batchesBySession = await loadScopedBatches(mongo, rows);
+    const updates: Array<ReturnType<typeof pg.session.update>> = [];
     for (const s of rows) {
-      const batches = await mongo.replayBatch.findMany({
-        where: { sessionId: s.publicId },
-        select: { events: true },
-      });
+      const batches = batchesBySession.get(s.id) ?? [];
 
       let consoleCount = 0;
       let consoleErrorCount = 0;
@@ -76,10 +78,12 @@ async function main() {
       }
 
       if (consoleCount > 0 || networkCount > 0) {
-        await pg.session.update({
-          where: { id: s.id },
-          data: { consoleCount, consoleErrorCount, networkCount },
-        });
+        updates.push(
+          pg.session.update({
+            where: { id: s.id },
+            data: { consoleCount, consoleErrorCount, networkCount },
+          }),
+        );
         updated += 1;
       }
       scanned += 1;
@@ -89,6 +93,7 @@ async function main() {
         );
       }
     }
+    if (updates.length > 0) await pg.$transaction(updates);
     cursor = rows[rows.length - 1].id;
   }
 

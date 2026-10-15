@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface LinearTokens {
@@ -139,8 +140,8 @@ export class LinearProvider {
        }`,
       {
         input: {
-          title: input.title.slice(0, 250),
-          description: (input.description ?? "").slice(0, 20000),
+          title: truncateWellFormed(input.title, 250),
+          description: truncateWellFormed(input.description ?? "", 20000),
           teamId,
         },
       },

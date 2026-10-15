@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface LarkTokens {
@@ -107,7 +108,7 @@ export class LarkProvider {
           receive_id: chatId,
           msg_type: "text",
           content: JSON.stringify({
-            text: `${input.title}\n${input.text}`.slice(0, 4000),
+            text: truncateWellFormed(`${input.title}\n${input.text}`, 4000),
           }),
         }),
       },

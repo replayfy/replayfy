@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface JiraTokens {
@@ -133,7 +134,7 @@ export class JiraProvider {
         body: JSON.stringify({
           fields: {
             project: { key: projectKey },
-            summary: input.title.slice(0, 250),
+            summary: truncateWellFormed(input.title, 250),
             issuetype: { name: "Task" },
             description: this.adf(input.description ?? ""),
           },
@@ -158,7 +159,7 @@ export class JiraProvider {
       content: [
         {
           type: "paragraph",
-          content: [{ type: "text", text: text.slice(0, 30000) || " " }],
+          content: [{ type: "text", text: truncateWellFormed(text, 30000) || " " }],
         },
       ],
     };

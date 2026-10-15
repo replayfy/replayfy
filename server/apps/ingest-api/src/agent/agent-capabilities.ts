@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, OnModuleInit } from "@nestjs/common";
 import { getPostgresClient, PlaylistKind } from "@replay/db-postgres";
 import {
@@ -267,7 +268,7 @@ export class AgentCapabilities implements OnModuleInit {
     description: string;
   } {
     return {
-      title: String(input.title ?? "").slice(0, 250),
+      title: truncateWellFormed(String(input.title ?? ""), 250),
       description: buildIssueBody(input),
     };
   }
@@ -282,7 +283,7 @@ export class AgentCapabilities implements OnModuleInit {
       ? (input.labels.filter((x) => typeof x === "string") as string[])
       : [];
     return {
-      title: String(input.title ?? "").slice(0, 250),
+      title: truncateWellFormed(String(input.title ?? ""), 250),
       body: buildIssueBody(input),
       labels: labels.length ? labels.slice(0, 20) : ["replayfy"],
     };
@@ -309,7 +310,7 @@ export class AgentCapabilities implements OnModuleInit {
         ? (v.filter((x) => typeof x === "string") as string[])
         : [];
     return {
-      title: String(input.title ?? "").slice(0, 150),
+      title: truncateWellFormed(String(input.title ?? ""), 150),
       summary: s(input.summary),
       impact: s(input.impact),
       confidence: s(input.confidence),
@@ -997,7 +998,7 @@ export class AgentCapabilities implements OnModuleInit {
         required: ["query"],
       },
       executor: async (input, ctx: AgentContext) => {
-        const q = String(input.query).slice(0, 200);
+        const q = truncateWellFormed(String(input.query), 200);
         const rows = await this.db.endUser.findMany({
           where: {
             workspaceId: ctx.workspaceId,
@@ -1375,7 +1376,7 @@ export class AgentCapabilities implements OnModuleInit {
           filter = norm;
         }
         const cohort = await this.cohorts.create(ctx.workspaceId, ctx.userId, {
-          name: String(input.name).slice(0, 120),
+          name: truncateWellFormed(String(input.name), 120),
           kind: filter ? "AUTO" : "MANUAL",
           filter,
           // Stamp provenance so the Cohorts UI badges it "Created with Replayfy AI".
@@ -1404,7 +1405,7 @@ export class AgentCapabilities implements OnModuleInit {
       },
       executor: async (input, ctx: AgentContext) => {
         const f = await this.funnels.create(ctx.workspaceId, ctx.userId, {
-          name: String(input.name).slice(0, 120),
+          name: truncateWellFormed(String(input.name), 120),
           steps: (Array.isArray(input.steps) ? input.steps : []) as never,
           // Stamp provenance so the Funnels UI badges it "Created with Replayfy AI".
           createdByAi: true,
@@ -1450,7 +1451,7 @@ export class AgentCapabilities implements OnModuleInit {
         const playlist = await this.db.playlist.create({
           data: {
             workspaceId: ctx.workspaceId,
-            title: String(input.title).slice(0, 120),
+            title: truncateWellFormed(String(input.title), 120),
             kind: PlaylistKind.MANUAL,
             itemCount: sessions.length,
           },
@@ -1505,7 +1506,7 @@ export class AgentCapabilities implements OnModuleInit {
       executor: async (input, ctx: AgentContext) => {
         const body: Parameters<FunnelsService["update"]>[2] = {};
         if (typeof input.name === "string")
-          body.name = input.name.slice(0, 120);
+          body.name = truncateWellFormed(input.name, 120);
         if (Array.isArray(input.steps)) body.steps = input.steps as never;
         if (typeof input.pinned === "boolean") body.pinned = input.pinned;
         if (Number.isFinite(Number(input.windowDays)))
@@ -1549,7 +1550,7 @@ export class AgentCapabilities implements OnModuleInit {
       executor: async (input, ctx: AgentContext) => {
         const body: Parameters<CohortsService["update"]>[2] = {};
         if (typeof input.name === "string")
-          body.name = input.name.slice(0, 120);
+          body.name = truncateWellFormed(input.name, 120);
         if (typeof input.description === "string")
           body.description = input.description;
         if (input.filter !== undefined) body.filter = input.filter;
@@ -1592,7 +1593,7 @@ export class AgentCapabilities implements OnModuleInit {
       executor: async (input, ctx: AgentContext) => {
         const body: Parameters<PlaylistsService["update"]>[2] = {};
         if (typeof input.title === "string")
-          body.title = input.title.slice(0, 120);
+          body.title = truncateWellFormed(input.title, 120);
         if (typeof input.description === "string")
           body.description = input.description;
         if (typeof input.pinned === "boolean") body.pinned = input.pinned;

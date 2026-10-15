@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger, BadRequestException } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import {
@@ -217,7 +218,7 @@ export class AlertsService {
       destinations?: unknown;
     },
   ) {
-    const name = (body.name ?? "").trim().slice(0, 120);
+    const name = truncateWellFormed((body.name ?? "").trim(), 120);
     if (!name) {
       throw new BadRequestException("Alert name is required.");
     }
@@ -298,7 +299,7 @@ export class AlertsService {
         ? Math.max(1, Math.min(90, Math.floor(Number(body.windowDays))))
         : null;
     const name =
-      (body.name ?? "").trim().slice(0, 120) || `${funnel.name} conversion`;
+      truncateWellFormed((body.name ?? "").trim(), 120) || `${funnel.name} conversion`;
     // Email-only. Recipients are stored comma-joined in emailTo; an empty list
     // stores null and falls back to the creator's account email at send time.
     const emailTo = this.normalizeRecipients(body.recipients);
@@ -514,7 +515,7 @@ export class AlertsService {
     },
   ) {
     const data: Prisma.AlertUpdateManyMutationInput = {};
-    if (body.name !== undefined) data.name = String(body.name).slice(0, 120);
+    if (body.name !== undefined) data.name = truncateWellFormed(String(body.name), 120);
     if (body.threshold !== undefined && Number.isFinite(Number(body.threshold))) {
       data.threshold = Number(body.threshold);
     }
@@ -645,7 +646,7 @@ export class AlertsService {
         createdById: userId,
         kind: "ISSUE_RECURRENCE",
         issueId,
-        name: (name?.trim() || `Recurrence: ${issue.title}`).slice(0, 120),
+        name: truncateWellFormed(name?.trim() || `Recurrence: ${issue.title}`, 120),
         emailEnabled,
       },
       select: { id: true, name: true, issueId: true, active: true, createdAt: true },
@@ -681,7 +682,7 @@ export class AlertsService {
         createdById: userId,
         kind: "INCIDENT_RECURRENCE",
         incidentId,
-        name: (name?.trim() || `Signal: ${incident.title}`).slice(0, 120),
+        name: truncateWellFormed(name?.trim() || `Signal: ${incident.title}`, 120),
         emailEnabled,
         // Baseline the cooldown at the incident's current activity so the first
         // notification requires NEW activity after this alert was set.

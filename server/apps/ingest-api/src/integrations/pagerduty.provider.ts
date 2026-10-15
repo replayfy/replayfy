@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 
 export interface PagerDutyEvent {
@@ -40,7 +41,7 @@ export class PagerDutyProvider {
       event_action: "trigger",
       ...(ev.dedupKey ? { dedup_key: ev.dedupKey } : {}),
       payload: {
-        summary: ev.summary.slice(0, 1024),
+        summary: truncateWellFormed(ev.summary, 1024),
         source: ev.source || "Replayfy",
         severity: ev.severity || "warning",
         ...(ev.customDetails ? { custom_details: ev.customDetails } : {}),

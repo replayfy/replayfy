@@ -193,7 +193,7 @@ export const PANEL_DESC: Record<string, string> = {
   general: "Workspace name, slug, plan and danger zone.",
   recording: "Configure what gets captured. Changes reach the SDK within 60s.",
   masking:
-    "Control what's captured from the DOM. Block drops content, mask replaces text with ●.",
+    "Control what's captured from the DOM. Block replaces an element with an empty box of the same size; mask replaces its text with * of the same length.",
   retention: "How long recordings are kept before being deleted.",
   sampling: "Record a representative subset to control volume.",
   ai: "Powers the Overview likely-cause and Ask Replayfy. Optional.",
@@ -253,17 +253,180 @@ export type ApiMasking = {
   allowedQueryParams: string[];
   allowedHosts: string[];
 };
+/* Mirrors the server's DEFAULT_MASKING (injest-api settings.service.ts), i.e.
+   what a workspace that never touched this panel really has. The panel only
+   shows it while the real config loads and locks every control meanwhile, so
+   these values are never sent back. maskAllInputs false = "don't force"; it
+   does not unmask anything on current SDKs. */
 export const MASKING_FALLBACK: ApiMasking = {
-  maskAllInputs: true,
-  maskSelectors: [".user-email"],
-  blockSelectors: ['input[type="password"]', "[data-private]"],
+  maskAllInputs: false,
+  maskSelectors: ["[data-private]", ".sensitive"],
+  blockSelectors: [".no-replay"],
   redactUrlPatterns: ["token=", "api_key="],
-  blockCreditCardText: false,
+  blockCreditCardText: true,
   stripQueryParams: false,
-  allowedQueryParams: ["utm_source", "utm_campaign", "ref"],
+  allowedQueryParams: ["utm_source", "utm_medium", "utm_campaign"],
   allowedHosts: [],
 };
+/* Panel copy that makes privacy promises. Each claim names the SDK versions it
+   holds for (settings.data.test.ts pins the risky ones): web SDK 0.1.20 masks
+   inputs by default and the switch can only force masking on, while 0.1.19
+   and older follow the switch as-is; Android/iOS honour it from 0.0.7 and
+   React Native from 0.0.8 (the first release that bundles those engines); and
+   Flutter / Jetpack Compose text fields are never masked automatically. The
+   force only arrives with the SDK config fetch, and mobile reads it at
+   session start, hence the "once ... loaded" qualifier. */
+export const MASKING_COPY = {
+  maskInputsLabel: "Always mask input values",
+  maskInputsHelp: [
+    "On: once an SDK has loaded this workspace's settings, web SDKs mask every input value even where an app's code opts out (maskAllInputs: false), and mobile SDKs hide native text fields in screen recordings: Android EditText from Android SDK 0.0.7, iOS UITextField and UITextView from iOS SDK 0.0.7, React Native TextInput from React Native SDK 0.0.8. Mobile apps pick up a change at their next session start.",
+    "Off leaves masking to each SDK: web SDK 0.1.20+ masks every input unless the code opts out, while web SDK 0.1.19 and older record what users type. Passwords stay masked on web, in Android password EditTexts and in iOS secure text fields.",
+    "Flutter and Jetpack Compose text fields, password fields included, are not masked automatically. Wrap them in ReplayMask or Modifier.replayOcclude.",
+  ],
+  // blockCreditCardText only reaches the web SDK's network capture, which
+  // Luhn-checks 13–19 digit runs in each request URL; page text, page URLs
+  // and request/response bodies are untouched.
+  cardTextHelp:
+    "Web: replaces card numbers (13–19 digits that pass the Luhn check) in captured network request URLs.",
+  // Same reach as blockCreditCardText: network request URLs only.
+  stripQueryHelp:
+    "Web: removes query strings from captured network request URLs, except the allowed params below. Page URLs keep theirs.",
+  // The allowlist is only read while stripQueryParams is on.
+  allowedParamsHelp:
+    "Comma-separated. While stripping is on, these params are kept and every other one is removed.",
+  // Only the web SDK applies these, to network request and resource URLs, as
+  // case-insensitive RegExps. From 0.1.20 every match is replaced and a match
+  // ending in "=" takes its value too; older SDKs replace only the first match
+  // and keep the value, hence coverParamValue on add.
+  urlPatternsHelp:
+    "Web: each pattern is a case-insensitive regular expression. Every match in each captured network request and resource URL is replaced with [REDACTED] (web SDK 0.1.19 and older replace only the first). A pattern that ends in = also covers the value after it, so email= is saved as email=[^&#]*.",
+  loadError:
+    "Couldn't load this workspace's privacy settings. Editing is off until they load.",
+  invalidDraft: "Not a valid CSS selector, so it wasn't added.",
+  newSelectorDraft:
+    "Uses :has(), & nesting or :nth-child(… of …), which older browsers can't read, so it wasn't added.",
+  invalidRule: (mode: string) =>
+    `Not a valid CSS selector. Remove it: it can stop the other ${mode} rules from applying.`,
+  newSelectorRule: (mode: string) =>
+    `Older browsers can't read :has(), & nesting or :nth-child(… of …). Remove it: in those browsers it can stop the other ${mode} rules from applying.`,
+  invalidRulesBlock: "Remove the flagged rules before adding more.",
+  invalidDraftPattern: "Not a valid regular expression, so it wasn't added.",
+  newPatternDraft:
+    "Uses lookbehind or inline flags, which older browsers can't compile, so it wasn't added.",
+  // The web SDK compiles every pattern while applying the dashboard config; a
+  // throw there aborts the apply, and on a fast config fetch that is before
+  // the recorder starts, so the page records no replay at all.
+  invalidPattern:
+    "Not a valid regular expression. Remove it: while it is listed, web SDKs can record no replay or ignore this workspace's dashboard settings.",
+  newPattern:
+    "Older browsers can't compile lookbehind or inline flags. Remove it: while it is listed, web SDKs in those browsers can record no replay or ignore this workspace's dashboard settings.",
+  invalidPatternsBlock: "Remove the flagged patterns before adding more.",
+};
 export type MaskRule = { s: string; m: string };
+/** Why a rule can't be saved: "invalid" fails to parse here, "newSyntax"
+ *  parses here but not in browsers some end users still run. The admin's
+ *  browser is the only one checked, while every end user's browser applies
+ *  the rule, so syntax newer engines added is refused as well. */
+export type RuleIssue = "invalid" | "newSyntax";
+/* Selector syntax that is a SyntaxError in engines still in use: :has()
+   before Firefox 121 (ESR 115 included), & nesting before Chrome 112 /
+   Firefox 117, :nth-child(… of S) before Chrome 111 / Firefox 113. */
+const NEW_SELECTOR_SYNTAX = [
+  /:has\(/i,
+  /&/,
+  /:nth-(?:last-)?child\([^)]*\bof\b/i,
+];
+/** Whether the recorders can use `sel` as one rule. It must parse as a CSS
+ *  selector list in this browser (checked on a detached fragment, so nothing
+ *  in the page is touched) AND stand on its own: the web SDK joins every rule
+ *  of a mode with ", ", and browsers auto-close an unterminated string,
+ *  bracket or paren — or a trailing comment / escape — at the end of a
+ *  selector, so `[name="x` would swallow every rule joined after it while
+ *  still parsing fine alone. One that only newer browsers parse does the
+ *  same to the others in older ones. */
+export function selectorIssue(sel: string): RuleIssue | null {
+  const s = sel.trim();
+  const bare = s ? selectorSkeleton(s) : null;
+  if (bare == null) return "invalid";
+  try {
+    document.createDocumentFragment().querySelector(s);
+  } catch {
+    return "invalid";
+  }
+  return NEW_SELECTOR_SYNTAX.some((rx) => rx.test(bare)) ? "newSyntax" : null;
+}
+export const isValidSelector = (sel: string): boolean =>
+  selectorIssue(sel) === null;
+/** `s` with escapes and the insides of quoted strings blanked out, so syntax
+ *  checks only see selector syntax; null unless every quote, [ and ( is
+ *  closed and no comment or escape runs off the end. */
+function selectorSkeleton(s: string): string | null {
+  const open: string[] = [];
+  let quote = "";
+  let out = "";
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (c === "\\") {
+      if (++i >= s.length) return null;
+      if (!quote) out += "_";
+      continue;
+    }
+    if (quote) {
+      if (c === quote) {
+        quote = "";
+        out += c;
+      }
+      continue;
+    }
+    if (c === '"' || c === "'") quote = c;
+    else if (c === "/" && s[i + 1] === "*") return null;
+    else if (c === "[") open.push("]");
+    else if (c === "(") open.push(")");
+    else if ((c === "]" || c === ")") && open.pop() !== c) return null;
+    out += c;
+  }
+  return !quote && open.length === 0 ? out : null;
+}
+/** Whether the web SDK can compile `p` — it builds `new RegExp(p, "i")` from
+ *  every redact URL pattern, and one that throws stops the whole dashboard
+ *  config from applying. Lookbehind (Safari before 16.4) and inline flags
+ *  such as (?i:…) (2024+ engines) compile here but throw in older browsers. */
+export function urlPatternIssue(p: string): RuleIssue | null {
+  if (!p.trim()) return "invalid";
+  try {
+    new RegExp(p, "i");
+  } catch {
+    return "invalid";
+  }
+  return usesNewRegexSyntax(p) ? "newSyntax" : null;
+}
+export const isValidUrlPattern = (p: string): boolean =>
+  urlPatternIssue(p) === null;
+/** A `(?<=` / `(?<!` lookbehind or `(?i:` / `(?-i:` group outside a class. */
+function usesNewRegexSyntax(p: string): boolean {
+  let inClass = false;
+  for (let i = 0; i < p.length; i++) {
+    const c = p[i];
+    if (c === "\\") i++;
+    else if (inClass) inClass = c !== "]";
+    else if (c === "[") inClass = true;
+    else if (
+      c === "(" &&
+      p[i + 1] === "?" &&
+      /^(?:<[=!]|[ims-]+:)/.test(p.slice(i + 2))
+    )
+      return true;
+  }
+  return false;
+}
+/** The web SDK replaces only the text a pattern matches, so a `key=` pattern
+ *  on its own would store `?email=jane@acme.com` as `?[REDACTED]jane@acme.com`.
+ *  A pattern that ends in "=" is extended through the value (up to the next
+ *  & or #) before it is saved. */
+export function coverParamValue(p: string): string {
+  const s = p.trim();
+  return s.endsWith("=") ? `${s}[^&#]*` : s;
+}
 /** block+mask selector arrays → the panel's flat [{selector, mode}] rows. */
 export function maskingToRules(m: ApiMasking): MaskRule[] {
   return [

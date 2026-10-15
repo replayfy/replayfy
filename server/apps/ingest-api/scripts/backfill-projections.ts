@@ -11,11 +11,19 @@
  * Perf) come up empty for those sessions even though the data is
  * sitting in Mongo.
  *
- * This script re-runs the projection logic for every Mongo batch,
- * deduplicating against rows already in ClickHouse via the
- * `(session_id, sequence, event_id)` key — safe to re-run.
+ * This script re-runs the projection logic for every session's Mongo batches,
+ * one page of sessions at a time, tenant-scoped: only batches stored under the
+ * session's own workspace (projectId) are projected.
  *
- * Run:  npx ts-node apps/ingest-api/scripts/backfill-projections.ts
+ * NOT idempotent: replay.session_events is a plain MergeTree with no unique key
+ * (packages/db-clickhouse/src/index.ts), and nothing here checks what is
+ * already in ClickHouse. Every run — including the first, over a session the
+ * live path already projected — appends duplicate rows. Run it once per id
+ * range (BACKFILL_FROM_ID resumes after a stop), never twice over the same
+ * sessions. It refuses to start without BACKFILL_PROJECTIONS_CONFIRM=1.
+ *
+ * Run:  BACKFILL_PROJECTIONS_CONFIRM=1 [BACKFILL_FROM_ID=<session id>] \
+ *         npx ts-node apps/ingest-api/scripts/backfill-projections.ts
  *
  * Doesn't touch Mongo / Postgres state. Read-only on source; only
  * INSERT on ClickHouse.
@@ -25,6 +33,7 @@ import { PrismaClient as MongoClient } from "@replay/db-mongo";
 import { PrismaClient as PgClient } from "@replay/db-postgres";
 import { insertProjectionRows } from "@replay/db-clickhouse";
 import type { ProjectionRow, ProjectionKind } from "@replay/db-clickhouse";
+import { loadScopedBatches } from "../src/scripts/scoped-replay-batches";
 
 const mongo = new MongoClient();
 const pg = new PgClient();
@@ -246,51 +255,46 @@ async function backfillBatch(
 }
 
 async function main() {
-  // Map sessionPublicId → Session.id (ClickHouse stores the
-  // numeric session_id alongside the publicId for joinless query
-  // performance).
-  const sessions = await pg.session.findMany({
-    select: { id: true, publicId: true, workspaceId: true },
-  });
-  const idMap = new Map(
-    sessions.map((s) => [
-      s.publicId,
-      { sessionRowId: s.id, workspaceId: s.workspaceId },
-    ]),
-  );
-
-  // eslint-disable-next-line no-console
-  console.log(`Found ${sessions.length} sessions in Postgres`);
-
-  const batches = await mongo.replayBatch.findMany({
-    orderBy: [{ sessionId: "asc" }, { sequence: "asc" }],
-  });
-  // eslint-disable-next-line no-console
-  console.log(`Found ${batches.length} batches in Mongo`);
-
-  let totalRows = 0;
-  let skipped = 0;
-  for (const b of batches) {
-    const mapped = idMap.get(b.sessionId);
-    if (!mapped) {
-      skipped += 1;
-      continue;
-    }
-    const n = await backfillBatch(
-      {
-        sessionId: b.sessionId,
-        sequence: b.sequence,
-        events: b.events as unknown[],
-      },
-      mapped.workspaceId,
-      mapped.sessionRowId,
+  if (process.env.BACKFILL_PROJECTIONS_CONFIRM !== "1") {
+    // eslint-disable-next-line no-console
+    console.error(
+      "Refusing to run: every run appends duplicate rows to replay.session_events " +
+        "(see the header). Set BACKFILL_PROJECTIONS_CONFIRM=1 to run it once per id range.",
     );
-    totalRows += n;
+    process.exit(2);
+  }
+  // Keyset pages over Session's primary key — never the whole table (or the
+  // whole Mongo collection) in memory. Each page's batches come from ONE
+  // workspace-scoped Mongo read (loadScopedBatches).
+  const PAGE = 50;
+  let cursor = Number(process.env.BACKFILL_FROM_ID ?? 0);
+  let totalRows = 0;
+  let sessions = 0;
+  for (;;) {
+    const page = await pg.session.findMany({
+      where: { id: { gt: cursor } },
+      orderBy: { id: "asc" },
+      take: PAGE,
+      select: { id: true, publicId: true, workspaceId: true },
+    });
+    if (page.length === 0) break;
+    const batchesBySession = await loadScopedBatches(mongo, page);
+    for (const s of page) {
+      for (const b of batchesBySession.get(s.id) ?? []) {
+        totalRows += await backfillBatch(
+          { sessionId: s.publicId, sequence: b.sequence, events: b.events as unknown[] },
+          s.workspaceId,
+          s.id,
+        );
+      }
+    }
+    sessions += page.length;
+    cursor = page[page.length - 1].id;
+    // eslint-disable-next-line no-console
+    console.log(`… through session id ${cursor}: ${sessions} sessions, ${totalRows} rows`);
   }
   // eslint-disable-next-line no-console
-  console.log(
-    `Backfilled ${totalRows} projection rows · skipped ${skipped} orphan batches`,
-  );
+  console.log(`Backfilled ${totalRows} projection rows for ${sessions} sessions`);
   await mongo.$disconnect();
   await pg.$disconnect();
 }

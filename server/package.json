@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc -b packages/replay-schema packages/db-postgres packages/db-mongo packages/db-clickhouse apps/ingest-api",
     "typecheck": "tsc -b packages/replay-schema packages/db-postgres packages/db-mongo packages/db-clickhouse apps/ingest-api --pretty false",
+    "test": "npm run build && tsc -p apps/ingest-api/test && node --test --test-concurrency=1 apps/ingest-api/dist-test/test/*.test.js",
     "db:up": "docker compose up -d postgres mongo clickhouse",
     "db:down": "docker compose down",
     "db:reset": "docker compose down -v && docker compose up -d postgres mongo clickhouse",
@@ -19,6 +20,7 @@
     "seed": "node apps/ingest-api/dist/seed.js",
     "backfill:ch-sessions": "node apps/ingest-api/dist/backfill-ch-sessions.js",
     "backfill:mobile-clock-skew": "node apps/ingest-api/dist/scripts/backfill-mobile-clock-skew.js",
+    "backfill:web-page-count": "node apps/ingest-api/dist/scripts/backfill-web-page-count.js",
     "backfill:session-devices": "node apps/ingest-api/dist/backfill-session-devices.js",
     "dev:api": "npm run build && node apps/ingest-api/dist/bootstrap.js",
     "dev:api:watch": "tsc-watch -b apps/ingest-api --onSuccess \"node apps/ingest-api/dist/bootstrap.js\"",

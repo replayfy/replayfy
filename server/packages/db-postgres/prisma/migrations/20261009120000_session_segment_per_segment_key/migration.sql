@@ -1,0 +1,38 @@
+-- SessionSegment: one row per (page load, batch).
+--
+-- WHY
+--   A reload or same-tab navigation resumes a web session in a NEW segment, and
+--   web SDKs up to 0.1.16 restart the batch sequence at 1 there. Keyed on
+--   (sessionId, sequence), the later page load's batch N overwrote the earlier
+--   load's row N. The new unique index adds segmentPublicId (last, so
+--   `ORDER BY sequence` per session stays index-served).
+--
+-- TWO PHASES (this is phase 1)
+--   The old "SessionSegment_sessionId_sequence_key" stays for now: deploy runs
+--   migrations BEFORE the build + pm2 reload, and the old code still running in
+--   that window upserts with ON CONFLICT ("sessionId","sequence"), which fails
+--   the moment that index is gone. The new code tolerates the old index (it
+--   skips the segment row on that index's unique violation). A follow-up
+--   migration drops it once this code is live.
+--
+-- ROLLBACK
+--   Revert the code only; keep this index. Pre-fix code still finds its
+--   (sessionId, sequence) index here and runs unchanged.
+--
+-- PROD DEPLOY NOTE (READ BEFORE `prisma migrate deploy`)
+--   Plain (transactional) CREATE UNIQUE INDEX — CONCURRENTLY cannot run inside
+--   Prisma's per-migration transaction. It blocks writes to SessionSegment while
+--   it builds (about 230k rows in prod on 2026-10-09: well under a second). On a
+--   much larger table, build it CONCURRENTLY out of band first:
+--     CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS "SessionSegment_sessionId_sequence_segmentPublicId_key" ON "SessionSegment" ("sessionId", "sequence", "segmentPublicId");
+--   then confirm it is VALID (an interrupted CONCURRENTLY build leaves an
+--   invalid index that IF NOT EXISTS would silently accept, and ON CONFLICT
+--   ignores invalid indexes):
+--     SELECT indisvalid FROM pg_index WHERE indexrelid = '"SessionSegment_sessionId_sequence_segmentPublicId_key"'::regclass;
+--   If it is false: DROP INDEX CONCURRENTLY "SessionSegment_sessionId_sequence_segmentPublicId_key"; and build it again.
+--   Then mark this migration applied (from the repo root):
+--     npx prisma migrate resolve --applied 20261009120000_session_segment_per_segment_key --schema=./packages/db-postgres/prisma/schema.prisma
+--   It cannot fail on existing data: the old (sessionId, sequence) index already
+--   guarantees every row is unique on this finer key.
+
+CREATE UNIQUE INDEX IF NOT EXISTS "SessionSegment_sessionId_sequence_segmentPublicId_key" ON "SessionSegment" ("sessionId", "sequence", "segmentPublicId");

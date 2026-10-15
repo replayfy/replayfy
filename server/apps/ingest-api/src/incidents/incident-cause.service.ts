@@ -167,14 +167,19 @@ export class IncidentCauseService {
       this.db.signal.findMany({
         where: { incidentId },
         distinct: ["sessionId"],
-        select: { sessionId: true },
+        select: { sessionId: true, workspaceId: true },
         take: IncidentCauseService.MAX_EXAMPLES,
       }),
     ]);
 
     const examples = [];
     for (const row of exampleRows) {
+      // workspace_id too: only this session's own workspace's rows (another
+      // workspace's batches can't be mixed in), and the filter becomes the
+      // session_events sort-key prefix (workspace_id, session_id) instead of a
+      // scan over every workspace.
       const events = await listLogs({
+        workspaceId: row.workspaceId,
         sessionId: row.sessionId,
         limit: IncidentCauseService.MAX_EVENTS_PER_SESSION,
       });

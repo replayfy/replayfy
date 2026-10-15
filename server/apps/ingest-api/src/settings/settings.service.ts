@@ -1,11 +1,20 @@
+import { isDeepStrictEqual } from "node:util";
 import { CACHE_MANAGER } from "@nestjs/cache-manager";
-import { BadRequestException, Inject, Injectable } from "@nestjs/common";
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
 import type { Cache } from "cache-manager";
 import {
   getPostgresClient,
-  type Prisma,
+  Prisma,
   type DataRegion,
+  type Workspace,
 } from "@replay/db-postgres";
+import { makeWellFormedInPlace } from "../common/well-formed";
+import { isUsableSelector, isUsableUrlPattern } from "./masking-rules";
 import {
   bookmarkExtensionDays,
   capMobileFps,
@@ -73,6 +82,13 @@ export interface MaskingConfig {
   allowedHosts: string[];
 }
 
+/** Everything /v1/mobile/start needs, read in one query. */
+export interface MobileStartSettings {
+  sampling: SamplingConfig;
+  recording: RecordingConfig;
+  masking: MaskingConfig;
+}
+
 const DEFAULT_RECORDING: RecordingConfig = {
   captureConsole: true,
   captureNetwork: true,
@@ -101,10 +117,40 @@ const DEFAULT_RECORDING: RecordingConfig = {
 };
 
 const DEFAULT_MASKING: MaskingConfig = {
-  // Off by default so a new workspace sees what users actually typed. Passwords
-  // are still masked regardless: the SDK always sets rrweb's
-  // maskInputOptions.password (initReplay.ts), which applies even when this is
-  // false. maskSelectors/blockSelectors below still cover the opt-in cases.
+  // Dashboard enforcement flag. false (default) defers to the SDKs: web SDKs
+  // from 0.1.20 mask every input unless the app opts out in code (0.1.19 and
+  // older apply this flag as-is, so false records input values there); native
+  // mobile SDKs always mask password / secure-entry fields, and from 0.0.7
+  // card-number and one-time-code fields too. true forces input masking on
+  // every SDK (web maskAllInputs, native occludeAllTextFields) even where app
+  // code opts out. It never unmasks.
+  maskAllInputs: false,
+  maskSelectors: ["[data-private]", ".sensitive"],
+  blockSelectors: [".no-replay"],
+  redactUrlPatterns: ["token=", "api_key="],
+  blockCreditCardText: true,
+  stripQueryParams: false,
+  allowedQueryParams: ["utm_source", "utm_medium", "utm_campaign"],
+  allowedHosts: [],
+};
+
+/**
+ * Marks a maskingConfig blob stored as a delta: only the keys an admin set.
+ * A blob without it was saved by the old setMasking, which stored the whole
+ * merged config, so its values equal to PRE_DELTA_MASKING are defaults that
+ * were merged in, not choices. They read as unset (a later DEFAULT_MASKING
+ * change reaches them too) and are dropped when the blob is next saved.
+ */
+const MASKING_DELTA_MARK = { v: 2 } as const;
+
+/**
+ * The defaults the old setMasking merged into every blob it saved. FROZEN:
+ * never edit it, not even when DEFAULT_MASKING changes, or old choices would
+ * start reading as defaults. maskAllInputs defaulted to true before
+ * 2026-07-16; a stored true can't be told apart from an admin's force, so it
+ * stays a choice (the stricter reading).
+ */
+const PRE_DELTA_MASKING: MaskingConfig = {
   maskAllInputs: false,
   maskSelectors: ["[data-private]", ".sensitive"],
   blockSelectors: [".no-replay"],
@@ -139,9 +185,47 @@ export class SettingsService {
   }
 
   async getRecording(workspaceId: number): Promise<RecordingConfig> {
+    // Access pattern: one Workspace primary-key lookup, narrow select (the plan
+    // for the mobile clamp + the stored JSON) — O(1) at any workspace count.
     const ws = await this.db.workspace.findUnique({
       where: { id: workspaceId },
+      select: { plan: true, recordingConfig: true },
     });
+    return this.mergeRecording(ws);
+  }
+
+  /**
+   * Everything /v1/mobile/start needs: the sampling gate, the capture settings
+   * handed to the native SDK and the dashboard's input-masking force, merged
+   * exactly as getSampling / getRecording / getMasking merge them.
+   *
+   * Access pattern: single Workspace primary-key lookup, narrow select; replaces
+   * the separate getSampling + getRecording reads on /v1/mobile/start (2 reads
+   * → 1) and brings masking along without a third.
+   */
+  async getMobileStartSettings(
+    workspaceId: number,
+  ): Promise<MobileStartSettings> {
+    const ws = await this.db.workspace.findUnique({
+      where: { id: workspaceId },
+      select: {
+        plan: true,
+        samplingRate: true,
+        samplingConfig: true,
+        recordingConfig: true,
+        maskingConfig: true,
+      },
+    });
+    return {
+      sampling: this.mergeSampling(ws),
+      recording: this.mergeRecording(ws),
+      masking: this.mergeMasking(ws?.maskingConfig),
+    };
+  }
+
+  private mergeRecording(
+    ws: Pick<Workspace, "plan" | "recordingConfig"> | null,
+  ): RecordingConfig {
     const merged: RecordingConfig = {
       ...DEFAULT_RECORDING,
       ...((ws?.recordingConfig as Partial<RecordingConfig>) ?? {}),
@@ -192,28 +276,143 @@ export class SettingsService {
   }
 
   async getMasking(workspaceId: number): Promise<MaskingConfig> {
+    // Access pattern: one Workspace primary-key lookup, narrow select (only the
+    // masking JSON) — O(1) at any workspace count.
     const ws = await this.db.workspace.findUnique({
       where: { id: workspaceId },
+      select: { maskingConfig: true },
     });
-    return {
-      ...DEFAULT_MASKING,
-      ...((ws?.maskingConfig as Partial<MaskingConfig>) ?? {}),
-    };
+    return this.mergeMasking(ws?.maskingConfig);
   }
 
   async setMasking(workspaceId: number, body: Partial<MaskingConfig>) {
-    const next = { ...(await this.getMasking(workspaceId)), ...body };
-    // Persist the JSON blob *and* mirror allowedHosts to the column so the
-    // ingest persistence service can filter without a JSON parse hot-path.
-    await this.db.workspace.update({
-      where: { id: workspaceId },
-      data: {
-        maskingConfig: next as Prisma.InputJsonValue,
-        allowedHosts: next.allowedHosts,
-      },
-    });
+    // Store only the keys an admin actually set, never the merged defaults: a
+    // key nobody touched keeps following DEFAULT_MASKING, so a later change to a
+    // default reaches every workspace that never overrode it.
+    const patch = this.presentMaskingKeys(body);
+    // Postgres jsonb rejects a lone surrogate or NUL in any string.
+    makeWellFormedInPlace(patch);
+    await this.assertUsableRules(workspaceId, patch);
+    // allowedHosts is mirrored to its column (the ingest hot path filters on it
+    // without parsing JSON). Only this method writes either, so a save that
+    // doesn't set the list leaves the column as it is.
+    const hosts =
+      patch.allowedHosts !== undefined
+        ? Prisma.sql`${patch.allowedHosts}::text[]`
+        : Prisma.sql`"allowedHosts"`;
+    // Access pattern: ONE Workspace primary-key UPDATE ... RETURNING — O(1) per
+    // save. The patch is merged onto the stored delta with jsonb `||` inside the
+    // statement (right-hand keys win), so two admins saving different keys at
+    // once both land: no read-modify-write window. A blob from before delta
+    // storage (no MASKING_DELTA_MARK) first drops its merged-in defaults, its
+    // nulls and any non-MaskingConfig keys, as maskingOverrides reads it.
+    const rows = await this.db.$queryRaw<
+      Array<{ maskingConfig: Prisma.JsonValue }>
+    >`
+      UPDATE "Workspace"
+      SET "maskingConfig" = CASE
+            WHEN "maskingConfig" @> ${JSON.stringify(MASKING_DELTA_MARK)}::jsonb
+              THEN "maskingConfig"
+            WHEN jsonb_typeof("maskingConfig") = 'object' THEN (
+              SELECT COALESCE(jsonb_object_agg(e.key, e.value), '{}'::jsonb)
+              FROM jsonb_each("maskingConfig") AS e
+              WHERE ${JSON.stringify(PRE_DELTA_MASKING)}::jsonb ? e.key
+                AND jsonb_typeof(e.value) <> 'null'
+                AND e.value <> (${JSON.stringify(PRE_DELTA_MASKING)}::jsonb -> e.key)
+            )
+            ELSE '{}'::jsonb
+          END
+          || ${JSON.stringify(patch)}::jsonb
+          || ${JSON.stringify(MASKING_DELTA_MARK)}::jsonb,
+        "allowedHosts" = ${hosts}
+      WHERE "id" = ${workspaceId}
+      RETURNING "maskingConfig"`;
+    if (rows.length === 0) throw new NotFoundException("Workspace not found");
     await this.invalidateSdkConfig(workspaceId);
-    return next;
+    return this.mergeMasking(rows[0].maskingConfig);
+  }
+
+  /**
+   * Rejects a save that adds a mask / block selector or a redact URL pattern
+   * web SDKs can't use: one such rule can switch the others off (see
+   * masking-rules.ts). Rules the workspace already has are let through, so a
+   * list still holding an older invalid rule can be edited and the rule removed.
+   *
+   * Access pattern: one Workspace primary-key read (narrow select), only for
+   * saves that carry a rule list. The read only decides which rules count as
+   * already there; the merge stays in setMasking's single UPDATE, so it opens
+   * no lost-update window.
+   */
+  private async assertUsableRules(
+    workspaceId: number,
+    patch: Partial<MaskingConfig>,
+  ): Promise<void> {
+    const lists = [
+      { key: "maskSelectors", usable: isUsableSelector },
+      { key: "blockSelectors", usable: isUsableSelector },
+      { key: "redactUrlPatterns", usable: isUsableUrlPattern },
+    ] as const;
+    if (!lists.some(({ key }) => patch[key] !== undefined)) return;
+    const current = await this.getMasking(workspaceId);
+    for (const { key, usable } of lists) {
+      const bad = (patch[key] ?? []).filter(
+        (rule) => !usable(rule) && !current[key].includes(rule),
+      );
+      if (bad.length === 0) continue;
+      const shown = bad.map((rule) => JSON.stringify(rule)).join(", ");
+      throw new BadRequestException(
+        key === "redactUrlPatterns"
+          ? `Not a valid regular expression in ${key}: ${shown}. Web SDKs compile every pattern, so it would stop this workspace's dashboard settings from applying.`
+          : `Not a valid CSS selector in ${key}: ${shown}. Web SDKs join every rule into one selector, so it would stop the other rules from applying.`,
+      );
+    }
+  }
+
+  private mergeMasking(stored: Prisma.JsonValue | undefined): MaskingConfig {
+    return { ...DEFAULT_MASKING, ...this.maskingOverrides(stored) };
+  }
+
+  /**
+   * The keys a stored blob overrides. A delta blob (MASKING_DELTA_MARK)
+   * overrides every key it holds. A blob from before delta storage holds every
+   * key, so only its values that differ from PRE_DELTA_MASKING are choices.
+   */
+  private maskingOverrides(
+    stored: Prisma.JsonValue | undefined,
+  ): Partial<MaskingConfig> {
+    const present = this.presentMaskingKeys(stored);
+    const isDelta =
+      !!stored &&
+      typeof stored === "object" &&
+      !Array.isArray(stored) &&
+      stored.v === MASKING_DELTA_MARK.v;
+    if (isDelta) return present;
+    return Object.fromEntries(
+      Object.entries(present).filter(
+        ([k, v]) =>
+          !isDeepStrictEqual(v, PRE_DELTA_MASKING[k as keyof MaskingConfig]),
+      ),
+    ) as Partial<MaskingConfig>;
+  }
+
+  /**
+   * The MaskingConfig keys that carry a value. undefined and null mean "not
+   * set": the DTO lets both through (@IsOptional accepts null), and neither may
+   * erase a stored key or override a default. Unknown keys are dropped too, so
+   * only MaskingConfig fields are ever stored.
+   */
+  private presentMaskingKeys(
+    src: Prisma.JsonValue | Partial<MaskingConfig> | undefined,
+  ): Partial<MaskingConfig> {
+    if (!src || typeof src !== "object" || Array.isArray(src)) return {};
+    return Object.fromEntries(
+      Object.entries(src).filter(
+        ([k, v]) =>
+          Object.prototype.hasOwnProperty.call(DEFAULT_MASKING, k) &&
+          v !== undefined &&
+          v !== null,
+      ),
+    ) as Partial<MaskingConfig>;
   }
 
   async getRetention(
@@ -364,9 +563,18 @@ export class SettingsService {
   }
 
   async getSampling(workspaceId: number): Promise<SamplingConfig> {
+    // Access pattern: one Workspace primary-key lookup, narrow select (the rate
+    // column + the stored JSON) — O(1) at any workspace count.
     const ws = await this.db.workspace.findUnique({
       where: { id: workspaceId },
+      select: { samplingRate: true, samplingConfig: true },
     });
+    return this.mergeSampling(ws);
+  }
+
+  private mergeSampling(
+    ws: Pick<Workspace, "samplingRate" | "samplingConfig"> | null,
+  ): SamplingConfig {
     const extras = (ws?.samplingConfig as Partial<SamplingConfig> | null) ?? {};
     return {
       samplingRate: ws?.samplingRate ?? 1,

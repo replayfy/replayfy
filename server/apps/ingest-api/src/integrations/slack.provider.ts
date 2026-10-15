@@ -1,3 +1,4 @@
+import { truncateWellFormed } from "../common/well-formed";
 import { Injectable, Logger } from "@nestjs/common";
 
 /**
@@ -129,7 +130,7 @@ export class SlackProvider {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        text: input.title.slice(0, 150),
+        text: truncateWellFormed(input.title, 150),
         blocks: this.buildBlocks(input),
       }),
     });
@@ -153,12 +154,12 @@ export class SlackProvider {
         : [];
     const mrkdwn = (text: string) => ({
       type: "section",
-      text: { type: "mrkdwn", text: text.slice(0, 2900) },
+      text: { type: "mrkdwn", text: truncateWellFormed(text, 2900) },
     });
     const blocks: unknown[] = [
       {
         type: "header",
-        text: { type: "plain_text", text: str(input.title).slice(0, 150) || "Replayfy alert" },
+        text: { type: "plain_text", text: truncateWellFormed(str(input.title), 150) || "Replayfy alert" },
       },
     ];
     if (str(input.summary)) blocks.push(mrkdwn(str(input.summary)));

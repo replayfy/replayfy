@@ -1,0 +1,27 @@
+{
+  // Compiles the tests plus the app sources they import into dist-test/ (kept
+  // out of the shipped dist/). Packages resolve to their built dist/ through
+  // the project references, so `npm run build` must have run first.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "outDir": "../dist-test",
+    "baseUrl": "..",
+    "declaration": false,
+    "declarationMap": false,
+    "paths": {
+      "@replay/replay-schema": ["../../packages/replay-schema/src"],
+      "@replay/db-postgres": ["../../packages/db-postgres/src"],
+      "@replay/db-mongo": ["../../packages/db-mongo/src"],
+      "@replay/db-clickhouse": ["../../packages/db-clickhouse/src"]
+    }
+  },
+  "references": [
+    { "path": "../../../packages/replay-schema" },
+    { "path": "../../../packages/db-postgres" },
+    { "path": "../../../packages/db-mongo" },
+    { "path": "../../../packages/db-clickhouse" }
+  ],
+  // The app's ambient module declarations, which the tests' imports need.
+  "include": ["./**/*.ts", "../src/types/*.d.ts"]
+}

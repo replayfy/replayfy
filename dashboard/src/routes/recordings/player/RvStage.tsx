@@ -142,8 +142,9 @@ export function RvStage(props: RvStageProps) {
 
   /* ── HUD ⇄ player clock bridge ────────────────────────────────────────────
      The frozen HUD owns pos (0–100 %), playing, and speed. The real player
-     owns its own clock and reports its real duration (rrweb metadata / last
-     mobile frame) via onDuration. We bridge in both directions:
+     owns its own clock and reports its real duration (rrweb span padded to the
+     session's duration / the mobile session's duration) via onDuration. We
+     bridge in both directions:
        • follower: while playing, a rAF reads getCurrentTime() and writes pos%.
        • control : a *user* pos change (scrub / arrows / panel seek) seeks the
                    player via goto(pos/100 · realDuration). The follower's own
@@ -154,9 +155,10 @@ export function RvStage(props: RvStageProps) {
   const [issueOpen, setIssueOpen] = useState(false); // Create-issue integration picker
   const [playlistOpen, setPlaylistOpen] = useState(false); // Add-to-playlist picker
   // "Skip inactivity" toggle — persisted across sessions like the reference
-  // player (localStorage). When on, the web player's master clock fast-forwards
-  // over idle ranges; those ranges (0..1 fractions of the timeline) are reported
-  // UP from the player via onIdleRegions so the scrubber can dim them.
+  // player (localStorage). When on, the player's clock (web or mobile)
+  // fast-forwards over idle ranges; those ranges (0..1 fractions of the
+  // timeline) are reported UP from the player via onIdleRegions so the scrubber
+  // can dim them.
   const [skipIdle, setSkipIdle] = useState(
     () => localStorage.getItem("rv:skipIdle") === "1",
   );
@@ -164,6 +166,12 @@ export function RvStage(props: RvStageProps) {
     { from: number; to: number }[]
   >([]);
   const toggleSkipIdle = useCallback(() => setSkipIdle((v) => !v), []);
+  // The mobile stage shows the "still being processed" panel (or the archive
+  // load-error panel), which in the reference stands in for the whole player:
+  // the HUD is hidden while it is up (nothing to scrub or play). The player
+  // withdraws it when the panel goes or it unmounts — it is keyed per session,
+  // so a switch resets this.
+  const [processing, setProcessing] = useState(false);
   // Persist as a side-effect of the state change — NOT inside the setState
   // updater (an updater must be pure; a write there is double-invoked under
   // StrictMode and races rapid toggles). Idempotent write on mount is harmless.
@@ -209,9 +217,9 @@ export function RvStage(props: RvStageProps) {
     realDurRef.current = 0;
     pendingSeekRef.current = null;
     // RvStage does NOT remount per session (only the concrete player does), so
-    // the previous session's idle bands would linger — and leak onto a mobile
-    // session's scrubber (RvMobilePlayer never reports regions). Clear them; the
-    // new web player republishes its own on mount.
+    // the previous session's idle bands would linger on the next one's
+    // scrubber until it reports. Clear them; the new player republishes its
+    // own once its replay (web) or frames (mobile) have loaded.
     setIdleRegions([]);
   }, [s.id]);
   // Kept in a ref: the follower effect only re-subscribes on `playing`, so a
@@ -450,20 +458,26 @@ export function RvStage(props: RvStageProps) {
               onDuration={onDuration}
               skipIdle={skipIdle}
               onIdleRegions={setIdleRegions}
+              onProcessing={setProcessing}
             />
           </div>
         </div>
 
-        {/* hover-reveal pro HUD (fades in only when the cursor is on the player) */}
-        <div className="rv-hud">
+        {/* hover-reveal pro HUD (fades in only when the cursor is on the player).
+            Hidden, not unmounted, behind the processing panel — the same
+            display:none the stylesheet uses behind an overlay. */}
+        <div
+          className="rv-hud"
+          style={processing ? { display: "none" } : undefined}
+        >
           <div className="rv-scrub" ref={scrubRef} onMouseDown={onScrubDown}>
             <div className="rv-scrub-track" />
             {/* Inactive stretches the "Skip inactivity" toggle collapses —
                 dimmed on the track, brighter once the toggle is armed, mirroring
-                the reference player's inactive regions. Web only (mobile frames
-                use a different idle model + never report regions). */}
-            {!isMobile &&
-              idleRegions.map((r, i) => (
+                the reference player's inactive regions. Mobile reports its
+                user-inactivity ranges plus the stretches with no captured
+                screen (app in background, capture stopped). */}
+            {idleRegions.map((r, i) => (
               <div
                 key={`idle${i}`}
                 className={`rv-scrub-idle ${skipIdle ? "on" : ""}`}
@@ -611,29 +625,27 @@ export function RvStage(props: RvStageProps) {
                   </>
                 )}
               </div>
-              {/* Skip inactivity — fast-forwards over idle stretches (the
-                  frameless "nothing happening" tail a page leaves when it goes
-                  quiet but keeps polling). Web only for now; mobile frames use a
-                  different idle model. */}
-              {!isMobile && (
-                <button
-                  className={`rv-hud-btn ${skipIdle ? "on" : ""}`}
-                  data-tip={skipIdle ? "Skip inactivity · On" : "Skip inactivity"}
-                  aria-pressed={skipIdle}
-                  onClick={toggleSkipIdle}
-                >
-                  <svg width="13" height="13" viewBox="0 0 14 14">
-                    <path
-                      d="M2.5 3 8 7l-5.5 4zM9 3v8"
-                      stroke="currentColor"
-                      strokeWidth="1.4"
-                      fill="none"
-                      strokeLinejoin="round"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </button>
-              )}
+              {/* Skip inactivity — fast-forwards over idle stretches: on web
+                  the frameless "nothing happening" tail a page leaves when it
+                  goes quiet but keeps polling; on mobile the stretches with no
+                  interaction or no captured screen. */}
+              <button
+                className={`rv-hud-btn ${skipIdle ? "on" : ""}`}
+                data-tip={skipIdle ? "Skip inactivity · On" : "Skip inactivity"}
+                aria-pressed={skipIdle}
+                onClick={toggleSkipIdle}
+              >
+                <svg width="13" height="13" viewBox="0 0 14 14">
+                  <path
+                    d="M2.5 3 8 7l-5.5 4zM9 3v8"
+                    stroke="currentColor"
+                    strokeWidth="1.4"
+                    fill="none"
+                    strokeLinejoin="round"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </button>
               {/* Bookmark + annotate HUD controls removed for now — commented,
                   not deleted, so they're a one-line restore. The bookmark "B"
                   keyboard shortcut is likewise disabled in Recordings.tsx. */}

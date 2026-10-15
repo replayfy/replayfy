@@ -1927,6 +1927,14 @@ model SessionSegment {
 
   session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
+  // One row per (page load, batch): a reload or same-tab navigation resumes the
+  // session in a new segment whose sequence restarts at 1, so sequence alone is
+  // not unique. segmentPublicId is LAST so `ORDER BY sequence` reads stay
+  // served by the index prefix.
+  @@unique([sessionId, sequence, segmentPublicId])
+  // DEPRECATED, kept for one deploy only: old code still running during the
+  // next deploy's build window targets it (ON CONFLICT). Dropped by the
+  // follow-up migration; see upsertSegment's P2002 note.
   @@unique([sessionId, sequence])
   @@index([sessionId])
 }

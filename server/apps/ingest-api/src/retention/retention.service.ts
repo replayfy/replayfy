@@ -7,6 +7,8 @@ import type { RetentionJob } from "../queue/queue.types";
 import { BILLING_SERVICE, type BillingPort } from "../billing/billing.port";
 import { SignalsService } from "../signals/signals.service";
 import { PLAN_TIERS, resolvePlan } from "../billing/plan-catalog";
+import { FramesStreamService } from "../frames/frames-stream.service";
+import { nativeSweepGraceMs } from "../frames/frames.constants";
 
 // Storage is not a billed dimension — PLAN_TIERS sells SESSIONS. This quota
 // exists only to drive the advisory "you're near your storage" notification, so
@@ -37,9 +39,18 @@ const PAGE = 500;
 
 // A live session refreshes EndUser.lastSeenAt on every ingest batch (and on
 // presence-socket connect), so a row idle longer than this is genuinely gone.
-// Same window the LIVE→COMPLETED session sweep uses, so a session and its user
-// transition offline together.
+// Same window the LIVE→COMPLETED session sweep uses for web sessions, so a
+// session and its user transition offline together (a native session is held
+// LIVE longer, until its frames archive exists — see sweepLiveSessions).
 const PRESENCE_STALE_MS = 60_000;
+
+/** The Session columns one LIVE-sweep page reads. */
+interface LiveSweepRow {
+  id: number;
+  publicId: string;
+  platform: string | null;
+  endedAt: Date;
+}
 
 /**
  * Cron coordinator — fans each tick out into Bull jobs (one per workspace,
@@ -62,6 +73,9 @@ export class RetentionService {
     private readonly notifications: NotificationsService,
     @Optional() @Inject(BILLING_SERVICE) private readonly billing: BillingPort | undefined,
     private readonly signals: SignalsService,
+    // The frames pipeline's expiry scores: the LIVE sweep holds a native
+    // session until its frames finalize has run (FramesModule is @Global).
+    private readonly frames: FramesStreamService,
   ) {}
 
   /**
@@ -132,38 +146,146 @@ export class RetentionService {
     if (count > 0) this.logger.log(`Enqueued purge for ${count} workspaces`);
   }
 
-  /** Per-minute LIVE → COMPLETED sweep — single Postgres UPDATE, doesn't
-   *  need to go through the queue. After flipping, re-evaluate the
-   *  minimum-duration recording setting against the freshly-completed
-   *  sessions. */
+  /** Per-minute LIVE → COMPLETED sweep, run in this tick (not queued), then
+   *  billing's settle judge over the freshly-completed sessions.
+   *
+   *  A session the sweep completes is listed. A NATIVE one is only playable
+   *  once its frames archive exists, and the frames finalizer is the writer
+   *  that completes it together with the archive (FramesFinalizerService
+   *  record()). So native rows are HELD (left LIVE, which the Recordings list
+   *  hides) while that finalize may still come: for nativeSweepGraceMs past
+   *  their last activity, and for as long as
+   *  FramesStreamService.pendingFinalize says one is pending (frames still
+   *  arriving, or ended and not yet finalized, up to FINALIZE_OVERDUE_MAX_MS).
+   *  The sweep still completes a native session that never had frames, and
+   *  one whose finalize is overdue; for the latter it also stamps endedAt with
+   *  the time it completes it, as record() would have, because its stored
+   *  endedAt can be far older than its last frame and would miss billing's
+   *  settle window (BillingService.SETTLED), and warns with how many it
+   *  completed that way. Web rows flip once their endedAt is 60 s old, as
+   *  before.
+   *
+   *  The ids are selected first so the same ids are derived (signals/Issues):
+   *  the inline finalize hooks (web replay-persistence, the native frames
+   *  finalizer) only fire for sessions that self-finalize; an event-only mobile
+   *  session (a crash with no captured frames) never enters the frames ZSET,
+   *  so this sweep is the ONLY place it reaches COMPLETED. Without deriving
+   *  here, its crash waits for the nightly backfill.
+   *
+   *  Access pattern: keyset pages over (endedAt, id) within `status = 'LIVE'
+   *  AND endedAt < now-60s`, minus the native rows still inside the frames
+   *  grace (held without a read), oldest first, LIVE_SWEEP_PAGE rows a page
+   *  and at most LIVE_SWEEP_MAX_PAGES pages a tick. Served by
+   *  @@index([status, endedAt]): the `endedAt >= cursor` bound makes each page
+   *  an index range scan that starts at the cursor (the id tiebreak only
+   *  orders equal timestamps; platform is a residual filter on the scanned
+   *  rows), so a page never re-reads the pages before it. The range holds only
+   *  sessions that ended over 60 s ago and are not yet completed, never the
+   *  table. Held rows stay in the range, so when the budget ends a walk the
+   *  next tick resumes from its cursor instead of the oldest row: every row in
+   *  the range is reached within (range size / budget) ticks, and held rows
+   *  ahead in the order can't starve the rows behind them. A walk that reaches
+   *  the end of the range resets the cursor. Per page: one pipelined Redis
+   *  round-trip for the native rows' expiry scores, at most two set-based
+   *  `UPDATE ... WHERE id IN (page)` (plain, and overdue with endedAt), both
+   *  guarded by `status = 'LIVE' AND endedAt < now-60s` (so a row the
+   *  finalizer completed, or that took a new batch, since the read is left
+   *  alone), and one batched derive. No per-row query. */
   @Cron(CronExpression.EVERY_MINUTE)
   async sweepLiveSessions() {
-    const cutoff = new Date(Date.now() - 60_000);
-    // Select the ids first (bounded) so we can BOTH flip them to COMPLETED AND
-    // derive their signals/Issues. The inline finalize hooks (web
-    // replay-persistence, native frames finalizer) only fire for sessions that
-    // self-finalize; an event-only mobile session (a crash with no captured
-    // frames) never enters the frames ZSET, so this sweep is the ONLY place it
-    // reaches COMPLETED. Without deriving here, its crash waits for the nightly
-    // backfill. Access pattern: index-served on (status, endedAt); a bounded
-    // `take` drains any backlog across the per-minute ticks (each flipped row
-    // leaves the LIVE set, so no cursor is needed) — never a whole-table load.
-    const stale = await this.pg.session.findMany({
-      where: { status: "LIVE", endedAt: { lt: cutoff } },
-      select: { id: true },
-      take: 1000,
-    });
-    if (stale.length > 0) {
-      const ids = stale.map((s) => s.id);
-      await this.pg.session.updateMany({
-        where: { id: { in: ids } },
-        data: { status: "COMPLETED" },
+    const now = Date.now();
+    const cutoff = new Date(now - 60_000);
+    const nativeCutoff = now - nativeSweepGraceMs();
+    // Resume where the last tick's walk stopped at its budget (null: oldest).
+    let cursor = this.liveSweepCursor;
+    let flipped = 0;
+    let held = 0;
+    // Of `flipped`, those completed with their frames finalize overdue.
+    let overdueFlipped = 0;
+    let pages = 0;
+    let more = true;
+    while (more && pages < RetentionService.LIVE_SWEEP_MAX_PAGES) {
+      pages += 1;
+      const rows: LiveSweepRow[] = await this.pg.session.findMany({
+        where: {
+          status: "LIVE",
+          endedAt: cursor ? { lt: cutoff, gte: cursor.endedAt } : { lt: cutoff },
+          AND: [
+            // Not a native row inside the frames grace. NULL-safe: `platform
+            // NOT IN (...)` is NULL for a legacy null-platform row, which
+            // flips like a web one, hence its own arm.
+            {
+              OR: [
+                { platform: null },
+                { platform: { notIn: [...RetentionService.NATIVE_PLATFORMS] } },
+                { endedAt: { lt: new Date(nativeCutoff) } },
+              ],
+            },
+            // After the cursor in (endedAt, id) order (with `endedAt >=
+            // cursor` above, `id > cursor` only decides equal timestamps).
+            ...(cursor
+              ? [
+                  {
+                    OR: [
+                      { endedAt: { gt: cursor.endedAt } },
+                      { id: { gt: cursor.id } },
+                    ],
+                  },
+                ]
+              : []),
+          ],
+        },
+        select: { id: true, publicId: true, platform: true, endedAt: true },
+        orderBy: [{ endedAt: "asc" }, { id: "asc" }],
+        take: RetentionService.LIVE_SWEEP_PAGE,
       });
-      this.logger.log(`Flipped ${ids.length} stale LIVE sessions to COMPLETED`);
-      // Derive the freshly-completed sessions — one batched call (CH reads
-      // grouped per workspace inside), fire-and-forget + idempotent, so a slow
-      // or failing derive never blocks the sweep or billing settle below.
-      void this.signals.deriveForSessions(ids);
+      more = rows.length === RetentionService.LIVE_SWEEP_PAGE;
+      if (rows.length === 0) break;
+
+      const { plain, overdue } = await this.completableIds(
+        rows,
+        now,
+        nativeCutoff,
+      );
+      held += rows.length - plain.length - overdue.length;
+      flipped += await this.completeLive(plain, cutoff, {});
+      const flippedOverdue = await this.completeLive(overdue, cutoff, {
+        endedAt: new Date(now),
+      });
+      flipped += flippedOverdue;
+      overdueFlipped += flippedOverdue;
+      if (plain.length + overdue.length > 0) {
+        // Derive the freshly-completed sessions: one batched call (CH reads
+        // grouped per workspace inside), fire-and-forget + idempotent, so a
+        // slow or failing derive never blocks the sweep or billing settle
+        // below, and an id the guard left alone is at worst derived twice.
+        void this.signals.deriveForSessions([...plain, ...overdue]);
+      }
+
+      const last = rows[rows.length - 1];
+      cursor = { endedAt: last.endedAt, id: last.id };
+    }
+    // Kept only when the budget, not the end of the range, stopped the walk.
+    this.liveSweepCursor = more ? cursor : null;
+    if (flipped > 0 || held > 0) {
+      this.logger.log(
+        `Flipped ${flipped} stale LIVE sessions to COMPLETED; ` +
+          `held ${held} native ones for their frames finalize`,
+      );
+    }
+    if (overdueFlipped > 0) {
+      // Listed without their archive: a finalizer that keeps failing (or is
+      // not running) shows up here, not only as "still being processed" in
+      // the player.
+      this.logger.warn(
+        `Completed ${overdueFlipped} native sessions whose frames finalize is overdue; their frames archive is not stored yet`,
+      );
+    }
+    if (more) {
+      // Never a silent truncation: the next tick resumes from this cursor.
+      this.logger.warn(
+        `LIVE sweep stopped at its ${RetentionService.LIVE_SWEEP_MAX_PAGES}-page budget; the next tick resumes from there`,
+      );
     }
 
     // The settle-time judge: bill the real sessions, delete the short throwaways
@@ -233,6 +355,82 @@ export class RetentionService {
   // Private helpers — keyset drains + fan-out. (No free functions: these
   // are methods on the service per the repo's controller/service rule.)
   // ---------------------------------------------------------------------
+
+  /** Rows per LIVE-sweep keyset page, and the most pages one tick walks. */
+  private static readonly LIVE_SWEEP_PAGE = 1000;
+  private static readonly LIVE_SWEEP_MAX_PAGES = 10;
+
+  /** Where the LIVE sweep's walk stopped when its page budget ran out; the
+   *  next tick resumes there. Null: start from the oldest row. Per process,
+   *  so a restart (or a second cron process) just starts from the oldest. */
+  private liveSweepCursor: { endedAt: Date; id: number } | null = null;
+
+  /** Session.platform values of the native SDKs: the sessions that replay
+   *  from a frames archive. React Native and Flutter report ios/android today;
+   *  their own names are listed so a wrapper that reports itself is held too. */
+  private static readonly NATIVE_PLATFORMS: ReadonlySet<string> = new Set([
+    "ios",
+    "android",
+    "react_native",
+    "flutter",
+  ]);
+
+  /**
+   * The ids in one LIVE-sweep page that may be completed now: `plain` (every
+   * non-native row, and the native rows past nativeSweepGraceMs with no
+   * frames finalize to come) and `overdue` (native rows whose finalize is
+   * overdue, completed with a fresh endedAt). The rest are held. Only the
+   * native rows past the grace are checked in Redis (one pipelined
+   * round-trip for the page, see FramesStreamService.pendingFinalize); one
+   * still inside it (a platform the query's lowercase list misses) is held
+   * without a lookup.
+   */
+  private async completableIds(
+    rows: LiveSweepRow[],
+    now: number,
+    nativeCutoff: number,
+  ): Promise<{ plain: number[]; overdue: number[] }> {
+    const pastGrace = rows.filter(
+      (r) => this.isNative(r) && r.endedAt.getTime() < nativeCutoff,
+    );
+    const states = await this.frames.pendingFinalize(
+      pastGrace.map((r) => r.publicId),
+      now,
+    );
+    const plain: number[] = [];
+    const overdue: number[] = [];
+    for (const r of rows) {
+      if (!this.isNative(r)) plain.push(r.id);
+      else if (r.endedAt.getTime() >= nativeCutoff) continue; // in the grace
+      else if (states.pending.has(r.publicId)) continue; // finalize to come
+      else if (states.overdue.has(r.publicId)) overdue.push(r.id);
+      else plain.push(r.id); // no frames, or no score to go by
+    }
+    return { plain, overdue };
+  }
+
+  /** One set-based flip of a page's ids to COMPLETED (plus `data`), guarded
+   *  so a row the finalizer completed, or that took a new batch, since the
+   *  page was read is left alone. Returns the rows flipped. */
+  private async completeLive(
+    ids: number[],
+    cutoff: Date,
+    data: { endedAt?: Date },
+  ): Promise<number> {
+    if (ids.length === 0) return 0;
+    const res = await this.pg.session.updateMany({
+      where: { id: { in: ids }, status: "LIVE", endedAt: { lt: cutoff } },
+      data: { status: "COMPLETED", ...data },
+    });
+    return res.count;
+  }
+
+  private isNative(row: LiveSweepRow): boolean {
+    return (
+      row.platform != null &&
+      RetentionService.NATIVE_PLATFORMS.has(row.platform.toLowerCase())
+    );
+  }
 
   /** Bulk-enqueue one retention job of `kind` per workspace id in a page. */
   private enqueueKind(

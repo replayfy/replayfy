@@ -117,9 +117,13 @@ export class RetentionProcessor {
       const publicIds = expired.map((s) => s.publicId);
       const ids = expired.map((s) => s.id);
 
-      // Web replay: rrweb batches in Mongo.
+      // Web replay: rrweb batches in Mongo. Scoped to this workspace: a session
+      // id is client-chosen, so another workspace can hold batches under the
+      // same id. Access pattern: projectId equality + sessionId $in (≤500) on
+      // the [projectId, sessionId] index — an index range per page, not the
+      // collection scan the unscoped filter was.
       await this.mongo.replayBatch.deleteMany({
-        where: { sessionId: { in: publicIds } },
+        where: { projectId: String(workspaceId), sessionId: { in: publicIds } },
       });
       // Mobile replay: R2 frames archive (frames/<pid>.gz), one object per
       // session, chunked so we don't fan out 500 removals at once.

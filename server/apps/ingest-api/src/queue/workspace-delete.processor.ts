@@ -80,14 +80,28 @@ export class WorkspaceDeleteProcessor {
       const ids = batch.map((s) => s.id);
       const publicIds = batch.map((s) => s.publicId);
 
-      await this.pg.session.deleteMany({ where: { id: { in: ids } } });
+      // Replay data BEFORE the Session rows: if a delete below fails, the job's
+      // retry finds these sessions again (deleting Postgres first left their
+      // batches/frames behind for good).
+      // Scoped to this workspace: session ids are client-chosen, so another
+      // workspace can hold batches under the same id. Access pattern:
+      // projectId equality + sessionId $in (≤1000) on the [projectId, sessionId]
+      // index — an index range per page, not a collection scan.
       await this.mongo.replayBatch.deleteMany({
-        where: { sessionId: { in: publicIds } },
+        where: { projectId: String(workspaceId), sessionId: { in: publicIds } },
       });
       // R2 frames archive — one object per session (frames/<pid>.gz). This site
       // never deleted them, so a hard-deleted workspace left its mobile frames
       // billing us forever. Per-session because the keys aren't workspace-prefixed.
-      await Promise.all(publicIds.map((pid) => this.storage.remove(framesGzKey(pid))));
+      // Chunked so a 1000-session page doesn't fan out 1000 removals at once.
+      for (let i = 0; i < publicIds.length; i += 50) {
+        await Promise.all(
+          publicIds.slice(i, i + 50).map((pid) => this.storage.remove(framesGzKey(pid))),
+        );
+      }
+      await this.pg.session.deleteMany({
+        where: { id: { in: ids }, workspaceId },
+      });
       totalSessions += batch.length;
       await job.progress(
         Math.min(
@@ -98,6 +112,15 @@ export class WorkspaceDeleteProcessor {
         ),
       );
     }
+
+    // 2b. This workspace's batches with no Session row (a Mongo write whose
+    //     session upsert then failed) are invisible to the loop above. One
+    //     server-side delete by projectId, served by the [projectId, …] indexes,
+    //     with no id list sent from here. A failure throws, and the job retries.
+    await this.mongo.$runCommandRaw({
+      delete: "ReplayBatch",
+      deletes: [{ q: { projectId: String(workspaceId) }, limit: 0 }],
+    });
 
     // 3. Bulk-drop ClickHouse rows for this workspace.
     // All THREE per-session tables, bulk by workspace_id (efficient for a whole

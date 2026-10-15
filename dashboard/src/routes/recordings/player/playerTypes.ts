@@ -79,6 +79,11 @@ export type FramesInfo = {
   count: number;
   startedAt: number;
   fileFormat: string;
+  /** The session's frames are not final yet: it is still LIVE, or its frames
+   *  are queued for finalize. With `url: null` this is the reference player's
+   *  "still being processed" state, not "no frames were captured". Absent
+   *  from an API that predates the flag, which reads as not pending. */
+  pending?: boolean;
 };
 
 /** A decoded frame from the archive. `_url` caches the lazily-minted blob URL

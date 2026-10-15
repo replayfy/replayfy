@@ -66,6 +66,17 @@ callbacks and the billing webhook still need a node that serves `api`, so keep
 `API_BASE_URL` pointed there. `api,ingest` and single-process nodes serve
 everything, exactly as before.
 
+### Tests
+
+```bash
+docker compose up -d redis   # the tests need a real Redis; Postgres and R2 are faked
+npm test                     # build, compile apps/ingest-api/test, run node:test
+```
+
+The tests use their own Redis logical DBs (12, 14 and 15) and only touch keys
+of the session ids they generate. Point them elsewhere with
+`TEST_REDIS_URL=redis://host:port`.
+
 ## Configuration
 
 Every setting is an environment variable with a working local default — see

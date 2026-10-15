@@ -27,6 +27,14 @@ model ReplayBatch {
   page       Json
   events     Json
   createdAt  DateTime @default(now())
+  // Set by the replay worker once EVERY side effect of this batch succeeded
+  // (Session counters, paths, segment row, ClickHouse events). A later delivery
+  // under the same key (an SDK resend after its Bull job was already removed)
+  // is then skipped without writing anything. Null: not fully persisted yet, so
+  // a retry runs the batch again (its counts are still added only once: the
+  // Postgres claim in applyBatchCounts). Read through the unique key below; no
+  // index.
+  persistedAt DateTime?
 
   // TENANT ISOLATION: `projectId` holds String(workspaceId) — the tenant key
   // every writer stamps. A client-generated `sessionId` is only unique WITHIN a
@@ -36,6 +44,22 @@ model ReplayBatch {
   // colliding id merge two workspaces' replay batches under one id — a viewer in
   // workspace A then rendered workspace B's recording. Scoping by projectId keeps
   // each workspace's batches separate even when a sessionId collides.
-  @@unique([projectId, sessionId, sequence])
+  //
+  // SEGMENT: a reload or same-tab navigation resumes the session id in a NEW
+  // segment whose sequence restarts at 1 (web SDK ≤ 0.1.16), so the key also
+  // carries segmentId — otherwise the new page load's batch N overwrote the
+  // previous load's batch N. segmentId is LAST so the readers' `orderBy
+  // sequence` within (projectId, sessionId) is still served by this index.
+  // The deploy's `prisma db push` swaps the old [projectId, sessionId,
+  // sequence] index for this one (a finer key: no existing row can violate it).
+  // ROLLBACK: never put the old 3-field key back. Once a reloaded page has
+  // stored its batches, rows share (projectId, sessionId, sequence), so that
+  // index can't be built and every deploy would stop at `prisma db push`.
+  // Revert the CODE only; the pre-fix writer works against this index.
+  @@unique([projectId, sessionId, sequence, segmentId])
   @@index([projectId, sessionId])
+  // A session's batches newest-first by time (startedAt = first event's ts),
+  // for readers that cap a long session to its most recent batches: sequence
+  // can't order them once page loads restart numbering.
+  @@index([projectId, sessionId, startedAt])
 }

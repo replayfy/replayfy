@@ -42,11 +42,29 @@ export function useApi<T>(
        interval while the tab is unfocused (refetchIntervalInBackground is false
        by default), so this costs nothing when nobody is looking. */
     refetchInterval?: number;
+    /* Per-query staleTime, decided from the data this query has CACHED (the
+       client default when omitted). TanStack asks it whenever it decides
+       whether a cached answer is fresh — on mount, window focus, reconnect —
+       so a transient answer ("not ready yet") can be re-asked on the next
+       open instead of being served from cache for the full default. It never
+       schedules a refetch by itself; that is `refetchInterval`. */
+    staleTime?: (data: T | undefined) => number;
+    /* Re-ask a stale cached answer when the tab regains focus / the network
+       comes back (the client defaults: yes). A function decides it from the
+       data CACHED (undefined: none yet, or the ask failed) at that moment, so
+       a query can hold one particular answer to one ask per open while a
+       failed ask still recovers the default way. Either way only a STALE
+       query is re-asked; this never forces a fresh one. */
+    refetchOnWindowFocus?: boolean | ((data: T | undefined) => boolean);
+    refetchOnReconnect?: boolean | ((data: T | undefined) => boolean);
   } = {},
 ): UseApiReturn<T> {
   const ref = useRef(fetcher);
   ref.current = fetcher;
   const siteKey = opts.key ?? djb2(fetcher.toString());
+  const staleTimeOf = opts.staleTime;
+  const onFocus = opts.refetchOnWindowFocus;
+  const onReconnect = opts.refetchOnReconnect;
 
   const query = useQuery({
     queryKey: ["api", getWorkspaceId(), siteKey, ...deps],
@@ -66,6 +84,34 @@ export function useApi<T>(
     ...(opts.retry !== undefined ? { retry: opts.retry } : {}),
     ...(opts.refetchInterval !== undefined
       ? { refetchInterval: opts.refetchInterval }
+      : {}),
+    // Spread only when given: an explicit `staleTime: undefined` would
+    // override the client default rather than fall back to it.
+    ...(staleTimeOf
+      ? {
+          staleTime: (query: { state: { data?: { data: T } } }) =>
+            staleTimeOf(query.state.data?.data),
+        }
+      : {}),
+    // Same spread-only-when-given rule; a function maps to TanStack's
+    // function form, which it calls with the Query at each focus / reconnect.
+    ...(onFocus !== undefined
+      ? {
+          refetchOnWindowFocus:
+            typeof onFocus === "function"
+              ? (query: { state: { data?: { data: T } } }) =>
+                  onFocus(query.state.data?.data)
+              : onFocus,
+        }
+      : {}),
+    ...(onReconnect !== undefined
+      ? {
+          refetchOnReconnect:
+            typeof onReconnect === "function"
+              ? (query: { state: { data?: { data: T } } }) =>
+                  onReconnect(query.state.data?.data)
+              : onReconnect,
+        }
       : {}),
   });
 

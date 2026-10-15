@@ -25,7 +25,8 @@ import { FramesFinalizerService } from "./frames-finalizer.service";
  * gzip state in memory. Because it holds that state, the OWNER finalizes its
  * own sessions the moment they go idle (the cheap path — just flush the tail +
  * complete). A dead owner's sessions are rebuilt from the durable stream by
- * FramesFinalizerService's orphan poll.
+ * FramesFinalizerService's orphan poll, which also merges a resumed session
+ * into its existing archive (the expensive path, kept out of this tick).
  *
  * The single `session:expiry` ZSET drives everything: score > now ⇒ active
  * (drain); score ≤ now ⇒ ended (finalize). Runs in every API instance; the NX
@@ -170,14 +171,17 @@ export class FramesWorkerService implements OnModuleDestroy {
       return;
     }
     try {
-      // Drain any final entries that landed since the last tick, then complete.
+      // Drain any final entries that landed since the last tick, then hand the
+      // warm upload to the finalizer — it completes it, or (when this session
+      // already has an archive) discards it and leaves the merge into that
+      // archive to the orphan poll: a whole-archive rewrite inline here would
+      // hold up this tick's lease renewals for every other owned session.
       await this.drain(sid, upload);
-      await upload.finish();
-      await this.finalizer.recordAndCleanup(sid, {
-        count: upload.count,
-        bytes: upload.bytes,
-        lastTs: upload.lastTs,
-      });
+      if (!(await this.finalizer.finalize(sid, upload))) {
+        // Release the lease now, so the orphan poll takes it on its next pass
+        // rather than after the lease TTL.
+        await this.releaseLease(sid);
+      }
     } catch (err) {
       this.log.warn(`finalize ${sid} failed: ${String(err)}`);
       await upload.abort().catch(() => {});

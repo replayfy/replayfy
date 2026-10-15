@@ -13,7 +13,8 @@ type PostgresClient = ReturnType<typeof getPostgresClient>;
  * for THAT session.
  *
  * Access pattern / scaling: a single set-based `UPDATE` keyed on the session
- * PK using jsonb concat (`||`) — no read-modify-write, no per-key statement, so
+ * PK (plus its workspace, so one workspace can never write another's session)
+ * using jsonb concat (`||`) — no read-modify-write, no per-key statement, so
  * it stays O(1) per batch and scales to millions of sessions. Right-hand keys
  * win, which matches "latest value seen within the session". Callers should
  * strip identity keys (plan/email/name) first so this mirrors the
@@ -21,6 +22,7 @@ type PostgresClient = ReturnType<typeof getPostgresClient>;
  */
 export async function mergeSessionCustomProps(
   db: PostgresClient,
+  workspaceId: number,
   sessionId: number,
   props: Record<string, unknown>,
 ): Promise<void> {
@@ -34,5 +36,5 @@ export async function mergeSessionCustomProps(
     SET "customProps" = COALESCE("customProps", '{}'::jsonb) || ${JSON.stringify(
       props,
     )}::jsonb
-    WHERE id = ${sessionId}`;
+    WHERE id = ${sessionId} AND "workspaceId" = ${workspaceId}`;
 }

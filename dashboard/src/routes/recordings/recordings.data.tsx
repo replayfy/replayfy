@@ -33,6 +33,10 @@ export type RvSession = {
   /** Raw wall-clock session duration (ms). The player uses this as the timeline
    *  total so it doesn't stop at the rrweb DOM-activity span on an idle session. */
   durationMs?: number;
+  /** When the session started (epoch ms, server clock). The mobile player
+   *  dates its load-error copy by it ("still being processed" vs "Session not
+   *  found."), as the reference tracker does. */
+  startedAtMs?: number;
   /** Backend-confirmed web-replay availability (Session.hasFullSnapshot). Lets
    *  the player show a definitive "no replay" empty-state vs a perpetual loader. */
   hasReplay?: boolean;
@@ -427,6 +431,7 @@ export function adaptSession(api: ApiSession, isPublic = false): RvSession {
     loc: locLabel(dCity, dCountry),
     dur: rvDuration(api.durationMs),
     durationMs: api.durationMs,
+    startedAtMs: Date.parse(api.startedAt) || undefined,
     hasReplay: api.hasReplay,
     replayExpired: api.replayExpired,
     errs: api.errorCount || 0,

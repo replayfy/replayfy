@@ -236,7 +236,7 @@ export function fingerprintError(ev: RawErrorEvent): Fingerprinted {
   const message = firstLine(ev.message) || errorType;
   const title = message.startsWith(errorType)
     ? message
-    : `${errorType}: ${message}`.slice(0, 500);
+    : truncateWellFormed(`${errorType}: ${message}`, 500);
 
   return { fingerprint, errorType, message, culprit, title };
 }

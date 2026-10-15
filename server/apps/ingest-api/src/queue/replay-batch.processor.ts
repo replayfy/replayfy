@@ -32,7 +32,11 @@ export class ReplayBatchProcessor {
           `replay-batch ${job.id}: repaired ${repaired} malformed string(s)`,
         );
       }
-      await this.persistence.persist(job.data);
+      const outcome = await this.persistence.persist(job.data);
+      if (outcome === "duplicate") {
+        // An SDK resend of a batch already fully persisted: nothing written.
+        this.logger.debug(`replay-batch ${job.id}: already persisted, skipped`);
+      }
     } catch (e) {
       // If this failure means a backing store is DOWN (not a bad payload), the
       // breaker pauses the queue so this + following jobs wait durably in Redis

@@ -6,6 +6,7 @@ import {
 } from "@replay/db-postgres";
 import { decodeCursor, paginateRows, parseLimit } from "../common/cursor";
 import { paginated } from "../common/api-response";
+import { NATIVE_PLAYABLE_FILTER } from "../common/native-playable";
 import { WorkspaceStatsService } from "../workspace-stats/workspace-stats.service";
 
 /**
@@ -629,12 +630,22 @@ export class PlaylistsService {
     workspaceId: number,
     filter: PlaylistFilter,
   ): Prisma.SessionWhereInput {
-    const ands: Prisma.SessionWhereInput[] = [{ workspaceId }];
+    // An AUTO playlist holds only sessions that can be played, like the
+    // Recordings list: a native session joins at the first refresh after its
+    // frames finalize completes it (NATIVE_PLAYABLE_FILTER). The per-batch
+    // evaluateForSession needs no such gate: only the web ingest path calls
+    // it, and a web session plays at once.
+    // Access pattern: refresh's existing workspace-scoped findMany (take-
+    // capped); the predicate is a residual on the rows it already reads.
+    const ands: Prisma.SessionWhereInput[] = [
+      { workspaceId },
+      NATIVE_PLAYABLE_FILTER,
+    ];
     for (const c of filter.conditions ?? []) {
       const clause = PlaylistsService.conditionToWhere(c);
       if (clause) ands.push(clause);
     }
-    return ands.length === 1 ? ands[0] : { AND: ands };
+    return { AND: ands };
   }
 
   // Build a comparator clause from any numeric Prisma field. The dashboard
